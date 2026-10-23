@@ -254,7 +254,7 @@ export class Game {
         this.room++;
         this.roomKills = 0; this.roomSpawned = 0; this.roomT = 0; this.roomActive = true;
         this.banner(this.room === ROOMS_PER_STAGE - 1 ? 'BOSS ROOM' : `ROOM ${this.room + 1} / ${ROOMS_PER_STAGE}`);
-        if (this.room === ROOMS_PER_STAGE - 1) playBgm('boss');
+        if (this.room === ROOMS_PER_STAGE - 1) playBgm('boss_' + this.biome.boss, 'boss'); // ボスごとの曲（無ければ共通のボス曲）
         sfx('gate');
         // 前の部屋の敵は消える
         for (const e of this.enemies) if (!e.boss) { e.dead = true; this.puff(e.x, e.y); }

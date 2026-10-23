@@ -11,7 +11,7 @@ import {
 } from './cloud.js';
 import { pwa, initPWA, applyUpdate, fetchChangelog, isStandalone, isIOS } from './pwa.js';
 import { APP_VERSION } from './version.js';
-import { initAudio, preloadAudio, sfx, setVolume, playBgm, stopBgm, bgmForBiome, TRACK_NAMES } from './audio.js';
+import { initAudio, preloadAudio, sfx, setVolume, playBgm, stopBgm, bgmForBiome } from './audio.js';
 import { modal, toast, confirmBox, esc, closeAllModals } from './ui.js';
 import { Game } from './game.js';
 import * as M from './meta.js';
@@ -1131,8 +1131,7 @@ function settingsHTML() {
     <h3>通知・サウンド</h3>
     <div class="set-row"><div class="lbl">更新のお知らせ通知<small>${notifyNote}</small></div><button class="toggle ${d.settings.notify ? 'on' : ''}" data-act="toggle-notify" aria-label="通知"></button></div>
     ${volHTML()}
-    <div class="set-row"><div class="lbl">BGMを試聴<small>バーを0にすると消音になります</small></div>
-      <select class="sel" data-act="bgm-test">${Object.entries(TRACK_NAMES).map(([k, v]) => `<option value="${k}">${v}</option>`).join('')}</select></div>
+    <p class="muted" style="margin:2px 0 0">バーを0にすると消音になります</p>
   </div>
   <div class="panel">
     <h3>アプリ</h3>
@@ -1152,7 +1151,7 @@ function settingsHTML() {
   </div>
   <div class="panel">
     <h3>クレジット</h3>
-    <div class="muted" style="line-height:1.9">音楽：魔王魂<br>効果音：効果音ラボ</div>
+    <div class="muted" style="line-height:1.9">音楽：魔王魂 ／ なぐもりずの音楽室 ／ MusMus ／ マツヤマ マキ ／ Tak_mfk<br>効果音：効果音ラボ</div>
   </div>
   <div class="panel"><h3>データ</h3><button class="btn small dark" data-act="reset">セーブデータを削除して最初から</button></div>
   <p class="muted" style="text-align:center">v${APP_VERSION}</p>`;
@@ -1178,9 +1177,7 @@ function bindGlobal() {
   });
   document.addEventListener('change', (e) => {
     const r = e.target.closest('input[data-vol]');
-    if (r) { data().settings[r.dataset.vol === 'bgm' ? 'bgmVol' : 'seVol'] = +r.value; commit(); return; }
-    const sel = e.target.closest('select[data-act="bgm-test"]');
-    if (sel) { initAudio(); playBgm(sel.value); toast(`試聴中：${TRACK_NAMES[sel.value]}`); }
+    if (r) { data().settings[r.dataset.vol === 'bgm' ? 'bgmVol' : 'seVol'] = +r.value; commit(); }
   });
   // ボタン音：どの画面でも、押せるボタンを押したら鳴らす
   document.addEventListener('click', (e) => {

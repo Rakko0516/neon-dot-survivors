@@ -1,6 +1,6 @@
 // Service Worker：オフライン対応・アップデート配信・プッシュ通知
 // VERSION を変えると全プレイヤーに「アップデートがあります」が表示されます（tools/bump-version.mjs が自動で変更）
-const VERSION = '0.5.2';
+const VERSION = '0.5.3';
 // 更新履歴を作り直してバージョン番号を戻したため、古いキャッシュと名前がかぶらないよう r2 を付ける
 const CACHE = 'nds-r2-' + VERSION;
 const RUNTIME = 'nds-runtime';
