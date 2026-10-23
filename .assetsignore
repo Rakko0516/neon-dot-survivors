@@ -1,0 +1,10 @@
+.git
+.github
+node_modules
+tools
+dev
+audio/raw
+wrangler.jsonc
+.assetsignore
+.gitignore
+README.md
