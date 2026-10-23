@@ -17,6 +17,8 @@ import { Game } from './game.js';
 import * as M from './meta.js';
 import * as PF from './profile.js';
 import { playGacha } from './gachafx.js';
+import { MOVED_TO } from './config.js';
+import { packForMove, unpackMove } from './save.js';
 
 const $ = (s, r = document) => r.querySelector(s);
 const data = () => store.save.data;
@@ -65,8 +67,48 @@ async function boot() {
   await afterBoot();
 }
 
+/** URLの引っ越し：旧URLでは案内を出し、新URLでは持ってきたセーブを読み込む */
+async function handleMove() {
+  // 新URL側：#move=... で届いたセーブを読み込む
+  const m = location.hash.match(/^#move=(.+)$/);
+  if (m) {
+    history.replaceState(null, '', location.pathname + location.search);
+    try {
+      const r = await unpackMove(m[1]);
+      if (!r.ok) throw new Error(r.error);
+      const fresh = (store.save.data.stats.runs || 0) === 0;
+      if (fresh || await confirmCompare('引っ越しデータを読み込みますか？', r.save, 'この端末の新しいURLのデータは上書きされます。')) {
+        replaceSave(r.save, false);
+        toast('セーブデータを引き継ぎました！');
+        autoBackup(true);
+      }
+    } catch (e) {
+      toast('引っ越しデータを読み込めませんでした。設定のファイル読み込みをお試しください');
+    }
+    return false;
+  }
+  // 旧URL側：新しいURLへ案内
+  if (!MOVED_TO) return false;
+  const target = new URL(MOVED_TO);
+  if (location.origin === target.origin) return false;
+  const v = await modal({
+    title: 'ゲームのURLが変わりました',
+    dismiss: false,
+    body: `<p style="margin-top:0">新しいURLに引っ越しました。<br><b>${esc(target.host)}</b></p>
+      <p>下のボタンを押すと、<b>今のセーブデータを持ったまま</b>新しいURLで開きます。</p>
+      <p class="muted">ホーム画面に追加している人は、新しいURLで開いたあと、もう一度「ホーム画面に追加」してください（古いアイコンは削除してOKです）。</p>`,
+    buttons: [{ label: 'データを持って移動', value: 'go', cls: 'red' }],
+  });
+  if (v === 'go') {
+    const packed = await packForMove();
+    location.href = target.origin + target.pathname + '#move=' + packed;
+  }
+  return true;
+}
+
 /** 起動後：ログインボーナス → 運営プレゼント → お知らせ */
 async function afterBoot() {
+  if (await handleMove()) return;
   const idx = M.checkLoginBonus();
   await M.syncGifts();
   render();

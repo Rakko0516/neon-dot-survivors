@@ -19,5 +19,10 @@ export const VAPID_KEY = 'BFxqucbuPJE8bReaBzdNJ3hpZx2-ywvfp05O-pBKwpP1DeG7B2v2Xb
 export const GITHUB_REPO = 'Rakko0516/neon-dot-survivors';
 export const GITHUB_BRANCH = 'main';
 
+// ゲームの公開URL（引っ越し機能で使う）
+// MOVED_TO にURLを入れると、それ以外の住所で開いた人に「引っ越しました」と案内し、
+// セーブデータごと新しいURLへ移動できるボタンを出します。空なら何もしません。
+export const MOVED_TO = '';
+
 // Firebase SDK の読み込み元
 export const FIREBASE_SDK = 'https://www.gstatic.com/firebasejs/10.12.2';

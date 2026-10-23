@@ -258,6 +258,31 @@ export function exportFile() {
   return { name, text };
 }
 
+/** 引っ越し用：セーブを圧縮してURLに入れられる文字列にする（URLの#以降はサーバーに送られない） */
+export async function packForMove() {
+  persist(false);
+  const bytes = new TextEncoder().encode(JSON.stringify(store.save));
+  let out = bytes;
+  if ('CompressionStream' in window) {
+    const cs = new Blob([bytes]).stream().pipeThrough(new CompressionStream('gzip'));
+    out = new Uint8Array(await new Response(cs).arrayBuffer());
+  }
+  let bin = '';
+  for (let i = 0; i < out.length; i++) bin += String.fromCharCode(out[i]);
+  return ('CompressionStream' in window ? 'z' : 'j') + btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+export async function unpackMove(str) {
+  const kind = str[0];
+  const b64 = str.slice(1).replace(/-/g, '+').replace(/_/g, '/');
+  const bin = atob(b64 + '==='.slice((b64.length + 3) % 4));
+  let bytes = Uint8Array.from(bin, (c) => c.charCodeAt(0));
+  if (kind === 'z') {
+    const ds = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'));
+    bytes = new Uint8Array(await new Response(ds).arrayBuffer());
+  }
+  return parseImportText(new TextDecoder().decode(bytes));
+}
+
 export function parseImportText(text) {
   let obj;
   try { obj = JSON.parse(text); } catch { return { ok: false, error: 'JSONとして読み込めませんでした' }; }
