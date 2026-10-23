@@ -118,6 +118,7 @@ export class Game {
     this.spawnAcc = 0;
     this.eliteDone = false;
     this.helpQueue = [];
+    this.elites = 0; this.supers = 0; this.skills = 0; this.weakHits = 0; // ミッション用の記録
     this.timers = []; // 少し後に起きること（予告のあとの攻撃など）
     this.zones = [];  // 地面に残る攻撃（毒の水たまり・胞子・火炎）
     this.helpAsked = new Set();
@@ -855,6 +856,7 @@ export class Game {
     // 弱点の属性なら大ダメージ
     const weak = !!(this.curSrc && e.weak && WEAPON_EL[this.curSrc] === e.weak);
     const dmg = Math.max(1, Math.round(base * (crit ? 2 : 1) * (weak ? WEAK_MUL : 1) * rand(0.9, 1.1)));
+    if (weak) this.weakHits++;
     e.hp -= dmg;
     e.flash = 0.08;
     if (opt.slow) e.slowT = 1.5;
@@ -889,6 +891,7 @@ export class Game {
         if (o.dead || o === e) continue;
         o.dead = true;
         this.kills++;
+        if (o.elite) this.elites++;
         this.puff(o.x, o.y);
         for (let i = 0; i < 4; i++) this.fx.push({ kind: 'spark', x: o.x, y: o.y, vx: rand(-60, 60), vy: rand(-60, 60), life: rand(0.2, 0.4), color: light(o.pal.A || '#ffffff', 0.4) });
         this.dropGem(o.x, o.y, o.elite ? 40 : o.exp);
@@ -903,6 +906,7 @@ export class Game {
       return;
     }
     if (e.elite) {
+      this.elites++;
       this.dropGem(e.x, e.y, 40);
       this.pickups.push({ kind: 'heart', x: e.x + 10, y: e.y });
       for (let i = 0; i < 3; i++) this.pickups.push({ kind: 'coin', x: e.x - 10 + i * 8, y: e.y + rand(-6, 6), v: 60 + this.stage.n * 15 });
@@ -1406,13 +1410,14 @@ export class Game {
 
   applyChoice(c) {
     const P = this.player;
+    this.skills++;
     if (c.kind === 'w') {
       const a = this.actives.find((x) => x.id === c.id);
       if (a) a.lv++; else this.actives.push({ id: c.id, lv: 1, t: 0 });
     } else if (c.kind === 'p') {
       this.passives[c.id] = (this.passives[c.id] || 0) + 1;
       this.recalc();
-    } else if (c.id === 'super') { this.superT = 10; this.banner('スーパーモードっ！'); sfx('super'); }
+    } else if (c.id === 'super') { this.supers++; this.superT = 10; this.banner('スーパーモードっ！'); sfx('super'); }
     else if (c.id === 'heal') { P.hp = P.maxHp; sfx('heal'); }
     else if (c.id === 'nuke') {
       this.flash = 0.4; this.shake = 0.5;
@@ -1461,7 +1466,7 @@ export class Game {
     sfx(cleared ? 'clear' : 'over');
     setTimeout(() => {
       this.stop();
-      this.opt.onEnd({ cleared, time: this.t, kills: this.kills, level: this.level, gold: this.gold, room: this.room + 1 });
+      this.opt.onEnd({ cleared, time: this.t, kills: this.kills, level: this.level, gold: this.gold, room: this.room + 1, elites: this.elites, supers: this.supers, skills: this.skills, weakHits: this.weakHits });
     }, cleared ? 300 : 1000);
   }
 

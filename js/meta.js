@@ -130,7 +130,16 @@ export const MISSIONS = {
     { id: 'd_kill', name: '敵を150体倒す', ev: 'kill', goal: 150, reward: { gold: 500 } },
     { id: 'd_gacha', name: 'ガチャを1回引く', ev: 'gacha', goal: 1, reward: { gold: 300 } },
     { id: 'd_up', name: '装備かキャラを1回強化する', ev: 'upgrade', goal: 1, reward: { gold: 300 } },
+    { id: 'd_clear', name: 'ステージを1回クリアする', ev: 'clear', goal: 1, reward: { gold: 800 } },
+    { id: 'd_boss', name: 'ボスを1体倒す', ev: 'boss', goal: 1, reward: { gold: 800 } },
+    { id: 'd_elite', name: 'エリートを2体倒す', ev: 'elite', goal: 2, reward: { gold: 600 } },
+    { id: 'd_coin', name: '戦闘でコインを5,000枚かせぐ', ev: 'coinEarn', goal: 5000, reward: { eticket: 1 } },
+    { id: 'd_skill', name: 'スキルを15回選ぶ', ev: 'skill', goal: 15, reward: { gold: 500 } },
+    { id: 'd_super', name: 'スーパーモードを1回使う', ev: 'super', goal: 1, reward: { cticket: 1 } },
+    { id: 'd_lv10', name: '1回のプレイでLv10になる', ev: 'lv10', goal: 1, reward: { gold: 1000 } },
+    { id: 'd_time', name: '合計5分間たたかう', ev: 'battleSec', goal: 300, unit: 'min', reward: { gold: 800 } },
     { id: 'd_all', name: 'デイリーミッションを5つ達成', ev: '_dailyAll', goal: 5, reward: { cticket: 1 } },
+    { id: 'd_all10', name: 'デイリーミッションを10個達成', ev: '_dailyAll', goal: 10, reward: { cticket: 2, eticket: 2 } },
   ],
   weekly: [
     { id: 'w_login', name: '5日ログインする', ev: 'login', goal: 5, reward: { cticket: 2 } },
@@ -139,6 +148,14 @@ export const MISSIONS = {
     { id: 'w_kill', name: '敵を2000体倒す', ev: 'kill', goal: 2000, reward: { gold: 5000 } },
     { id: 'w_gacha', name: 'ガチャを10回引く', ev: 'gacha', goal: 10, reward: { gold: 3000 } },
     { id: 'w_up', name: '強化を10回する', ev: 'upgrade', goal: 10, reward: { gold: 3000 } },
+    { id: 'w_clear', name: 'ステージを10回クリアする', ev: 'clear', goal: 10, reward: { cticket: 3 } },
+    { id: 'w_elite', name: 'エリートを15体倒す', ev: 'elite', goal: 15, reward: { eticket: 3 } },
+    { id: 'w_coin', name: '戦闘でコインを60,000枚かせぐ', ev: 'coinEarn', goal: 60000, reward: { gold: 10000 } },
+    { id: 'w_skill', name: 'スキルを150回選ぶ', ev: 'skill', goal: 150, reward: { gold: 5000 } },
+    { id: 'w_super', name: 'スーパーモードを5回使う', ev: 'super', goal: 5, reward: { cticket: 2, eticket: 2 } },
+    { id: 'w_merge', name: '装備を3回合成する', ev: 'merge', goal: 3, reward: { eticket: 3 } },
+    { id: 'w_lv20', name: '1回のプレイでLv20になる', ev: 'lv20', goal: 1, reward: { cticket: 2 } },
+    { id: 'w_time', name: '合計60分間たたかう', ev: 'battleSec', goal: 3600, unit: 'min', reward: { cticket: 2, gold: 5000 } },
   ],
   // 常時（一度だけ）：stat は累計の値
   perm: [
@@ -147,6 +164,29 @@ export const MISSIONS = {
     ...[300, 1000, 3000, 10000, 30000].map((n, i) => ({ id: `p_kill${n}`, name: `敵を累計 ${n.toLocaleString()} 体倒す`, stat: 'kills', goal: n, reward: i >= 2 ? { eticket: 3 } : { gold: 2000 } })),
     ...[4, 6, 8, 10, 12].map((n) => ({ id: `p_chars${n}`, name: `キャラを ${n} 人そろえる`, stat: 'chars', goal: n, reward: { cticket: 2 } })),
     ...[10, 50, 100, 300].map((n) => ({ id: `p_gacha${n}`, name: `ガチャを累計 ${n} 回引く`, stat: 'gachaTotal', goal: n, reward: n >= 100 ? { cticket: 3, eticket: 3 } : { cticket: 1, eticket: 1 } })),
+    // 戦いの記録
+    ...[5, 20, 50, 100, 300].map((n, i) => ({ id: `p_boss${n}`, name: `ボスを累計 ${n} 体倒す`, stat: 'bossKills', goal: n, reward: [{ gold: 3000 }, { cticket: 3 }, { cticket: 5, eticket: 5 }, { cticket: 10, eticket: 10 }, { cticket: 30, eticket: 30, gold: 50000 }][i] })),
+    ...[10, 50, 200, 500].map((n, i) => ({ id: `p_elite${n}`, name: `エリートを累計 ${n} 体倒す`, stat: 'elites', goal: n, reward: [{ gold: 2000 }, { eticket: 3 }, { eticket: 8, gold: 10000 }, { cticket: 10, eticket: 10 }][i] })),
+    ...[10, 50, 100, 300].map((n, i) => ({ id: `p_runs${n}`, name: `ステージを累計 ${n} 回プレイする`, stat: 'runs', goal: n, reward: [{ gold: 2000 }, { cticket: 3, eticket: 3 }, { cticket: 5, eticket: 5 }, { cticket: 15, eticket: 15 }][i] })),
+    ...[10, 50, 200].map((n, i) => ({ id: `p_clears${n}`, name: `ステージを累計 ${n} 回クリアする`, stat: 'clears', goal: n, reward: [{ gold: 3000 }, { cticket: 5 }, { cticket: 15, eticket: 15 }][i] })),
+    { id: 'p_allstage', name: '全12ステージをクリアする', stat: 'maxStage', goal: 12, reward: { cticket: 30, eticket: 30, gold: 100000 } },
+    ...[100, 300, 500].map((n, i) => ({ id: `p_bestkill${n}`, name: `1回のプレイで敵を ${n} 体倒す`, stat: 'bestKills', goal: n, reward: [{ gold: 3000 }, { eticket: 5 }, { cticket: 5, eticket: 5 }][i] })),
+    ...[15, 25, 35].map((n, i) => ({ id: `p_bestlv${n}`, name: `1回のプレイでLv${n}になる`, stat: 'bestLv', goal: n, reward: [{ gold: 3000 }, { cticket: 3 }, { cticket: 8, eticket: 8 }][i] })),
+    ...[100, 1000, 5000].map((n, i) => ({ id: `p_weak${n}`, name: `弱点の属性で ${n.toLocaleString()} 回攻撃する`, stat: 'weakHits', goal: n, reward: [{ gold: 2000 }, { eticket: 5 }, { cticket: 10, eticket: 10 }][i] })),
+    ...[10, 50].map((n, i) => ({ id: `p_super${n}`, name: `スーパーモードを累計 ${n} 回使う`, stat: 'supers', goal: n, reward: [{ cticket: 3 }, { cticket: 10, eticket: 10 }][i] })),
+    ...[3600, 18000, 36000].map((n, i) => ({ id: `p_time${n}`, name: `合計 ${n / 3600} 時間たたかう`, stat: 'playSec', goal: n, unit: 'min', reward: [{ cticket: 3, gold: 10000 }, { cticket: 10, eticket: 10 }, { cticket: 20, eticket: 20, gold: 50000 }][i] })),
+    // コイン・ランク
+    ...[100000, 500000, 1000000, 5000000].map((n, i) => ({ id: `p_coin${n}`, name: `戦闘でコインを累計 ${n.toLocaleString()} 枚かせぐ`, stat: 'coinEarned', goal: n, reward: [{ eticket: 3 }, { cticket: 5, eticket: 5 }, { cticket: 10, eticket: 10 }, { cticket: 30, eticket: 30 }][i] })),
+    ...[5, 10, 20, 30, 50].map((n, i) => ({ id: `p_rank${n}`, name: `ランク ${n} になる`, stat: 'rank', goal: n, reward: [{ gold: 5000 }, { cticket: 5 }, { cticket: 10, eticket: 10 }, { cticket: 20, eticket: 20 }, { cticket: 50, eticket: 50, gold: 100000 }][i] })),
+    // 装備・キャラ
+    ...[20, 50, 100].map((n, i) => ({ id: `p_items${n}`, name: `装備を ${n} 個持つ`, stat: 'items', goal: n, reward: [{ gold: 3000 }, { eticket: 5 }, { eticket: 10, gold: 20000 }][i] })),
+    ...[1, 5, 10].map((n, i) => ({ id: `p_ssr${n}`, name: `SSR装備を ${n} 個持つ`, stat: 'ssr', goal: n, reward: [{ eticket: 3 }, { eticket: 10 }, { eticket: 20, gold: 30000 }][i] })),
+    ...[1, 10, 30].map((n, i) => ({ id: `p_merge${n}`, name: `装備を累計 ${n} 回合成する`, stat: 'merges', goal: n, reward: [{ gold: 3000 }, { eticket: 5 }, { eticket: 15 }][i] })),
+    ...[1, 3, 5].map((n, i) => ({ id: `p_plus${n}`, name: `装備を ★${n} まで限界突破する`, stat: 'maxPlus', goal: n, reward: [{ gold: 3000 }, { eticket: 5 }, { eticket: 15, gold: 30000 }][i] })),
+    ...[1, 3, 5].map((n, i) => ({ id: `p_awaken${n}`, name: `キャラを 覚醒+${n} にする`, stat: 'maxAwaken', goal: n, reward: [{ cticket: 3 }, { cticket: 8 }, { cticket: 20, gold: 30000 }][i] })),
+    ...[1, 3].map((n, i) => ({ id: `p_preset${n}`, name: `プリセットを ${n} つ保存する`, stat: 'presets', goal: n, reward: [{ gold: 2000 }, { cticket: 2, eticket: 2 }][i] })),
+    // てき図鑑
+    ...[10, 30, 60].map((n, i) => ({ id: `p_book${n}`, name: `てき図鑑で ${n} 体の敵に出会う`, stat: 'book', goal: n, reward: [{ gold: 3000 }, { cticket: 5, eticket: 5 }, { cticket: 20, eticket: 20, gold: 50000 }][i] })),
     // 連続ログイン・累計ログイン（豪華報酬）
     { id: 'p_streak7', name: '7日間連続ログインを達成しよう', stat: 'loginBest', goal: 7, reward: { cticket: 100, eticket: 100, gold: 77777 } },
     ...[7, 30, 50, 100, 200, 300].map((n) => ({ id: `p_tlogin${n}`, name: `累計${n}日間ログインを達成しよう`, stat: 'loginTotal', goal: n, reward: { cticket: 100, eticket: 100, gold: 100000 } })),
@@ -187,6 +227,14 @@ function statValue(stat) {
   if (stat === 'gachaTotal') return d.stats.gachaTotal || 0;
   if (stat === 'loginTotal') return d.login.total;
   if (stat === 'loginBest') return d.login.best || 0;
+  if (stat === 'rank') return d.rank.lv;
+  if (stat === 'items') return d.items.length;
+  if (stat === 'ssr') return d.items.filter((i) => i.rarity === 'SSR').length;
+  if (stat === 'maxPlus') return d.items.reduce((m, i) => Math.max(m, i.plus || 0), 0);
+  if (stat === 'maxAwaken') return Object.values(d.chars).reduce((m, c) => Math.max(m, c.awaken || 0), 0);
+  if (stat === 'presets') return (d.presets || []).filter(Boolean).length;
+  if (stat === 'book') return new Set([...(d.seen?.m || []), ...(d.seen?.b || [])]).size;
+  if (d.stats[stat] !== undefined) return d.stats[stat] || 0; // bossKills・elites・runs など
   if (stat === 'google') return d.stats.googleLinked ? 1 : 0;
   if (stat.startsWith('charLv:')) return d.chars[stat.slice(7)]?.level || 0;
   if (stat.startsWith('equipLv:')) {

@@ -997,6 +997,8 @@ async function mergeModal(uid) {
   const refund = mergeRefund(m);
   d.items = d.items.filter((x) => x.uid !== m.uid);
   it.plus = (it.plus || 0) + 1;
+  M.track('merge');
+  d.stats.merges = (d.stats.merges || 0) + 1;
   d.gold += refund;
   sfx('rare');
   commit();
@@ -1317,7 +1319,7 @@ function missionModal() {
   const rows = list.map((m) => `<div class="mrow ${m.claimed ? 'claimed' : ''}">
       <div class="minfo">
         <div class="mname">${m.name}</div>
-        <div class="mbar"><div style="width:${(m.p / m.goal) * 100}%"></div><span>${m.p.toLocaleString()} / ${m.goal.toLocaleString()}</span></div>
+        <div class="mbar"><div style="width:${(m.p / m.goal) * 100}%"></div><span>${m.unit === 'min' ? `${Math.floor(m.p / 60)}分 / ${m.goal / 60}分` : `${m.p.toLocaleString()} / ${m.goal.toLocaleString()}`}</span></div>
         <div class="prw">${rewardHTML(m.reward)}</div>
       </div>
       ${m.claimed ? '<span class="mdone">受取済</span>' : `<button class="btn small ${m.done ? 'red' : ''}" data-mclaim="${m.id}" ${m.done ? '' : 'disabled'}>${m.done ? '受け取る' : '未達成'}</button>`}
@@ -2080,6 +2082,24 @@ async function endBattle(res) {
   M.track('kill', res.kills);
   d.stats.runs++;
   d.stats.kills += res.kills;
+  // ミッション用の記録
+  M.track('elite', res.elites || 0);
+  M.track('skill', res.skills || 0);
+  M.track('super', res.supers || 0);
+  M.track('coinEarn', gold);
+  M.track('battleSec', Math.round(res.time));
+  if (res.cleared) M.track('clear');
+  if (res.level >= 10) M.track('lv10');
+  if (res.level >= 20) M.track('lv20');
+  const ST = d.stats;
+  ST.elites = (ST.elites || 0) + (res.elites || 0);
+  ST.supers = (ST.supers || 0) + (res.supers || 0);
+  ST.skills = (ST.skills || 0) + (res.skills || 0);
+  ST.weakHits = (ST.weakHits || 0) + (res.weakHits || 0);
+  ST.coinEarned = (ST.coinEarned || 0) + gold;
+  ST.playSec = (ST.playSec || 0) + Math.round(res.time);
+  ST.bestKills = Math.max(ST.bestKills || 0, res.kills);
+  ST.bestLv = Math.max(ST.bestLv || 0, res.level);
   const unlocked = [];
   for (const [id, c] of Object.entries(D.CHARACTERS)) {
     if (c.unlock && c.unlock.stage && !d.chars[id].unlocked && d.maxStage >= c.unlock.stage) { d.chars[id].unlocked = true; unlocked.push(c.name); }

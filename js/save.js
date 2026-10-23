@@ -42,7 +42,7 @@ export function defaultData() {
     nextUid: 5,
     // offlineAuto：遊べるステージの曲を自動で端末に保存する / offlineSkip：自分で削除したもの（自動保存しない）
     settings: { bgmVol: 60, seVol: 80, notify: false, offlineAuto: true, offlineSkip: [], enemyHelp: true },
-    stats: { runs: 0, kills: 0, clears: 0, gachaTotal: 0, bossKills: 0, googleLinked: 0 },
+    stats: { runs: 0, kills: 0, clears: 0, gachaTotal: 0, bossKills: 0, googleLinked: 0, elites: 0, supers: 0, skills: 0, weakHits: 0, coinEarned: 0, playSec: 0, bestKills: 0, bestLv: 0, merges: 0 },
     // streak：いま何日連続でログインしているか / best：いちばん長く続いた連続日数
     login: { lastDay: '', count: 0, total: 0, streak: 0, best: 0 },
     missions: { day: '', week: '', d: {}, w: {}, dc: [], wc: [], perm: [] },
