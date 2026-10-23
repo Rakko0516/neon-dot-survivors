@@ -185,7 +185,7 @@ export function setVolume({ bgm, se } = {}) {
 export const bgmForBiome = (id) => 'battle_' + id;
 /** 試聴メニュー用の曲名 */
 export const TRACK_NAMES = {
-  home: 'ホーム', menu: '装備・キャラ・設定', gacha: '装備の祭壇',
+  home: 'ホーム', menu: '装備・キャラ・設定', gacha: 'ガチャ',
   battle_grass: '草原ステージ', battle_desert: '砂漠ステージ', battle_snow: '雪国ステージ',
   battle_cyber: 'サイバーシティ', battle_volcano: '火山ステージ', battle_castle: '魔王城',
   boss: 'ボス戦', clear: 'ステージクリア', gameover: 'ゲームオーバー',

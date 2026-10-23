@@ -15,6 +15,7 @@ import { initAudio, sfx, setVolume, playBgm, stopBgm, bgmForBiome, TRACK_NAMES }
 import { modal, toast, confirmBox, esc, closeAllModals } from './ui.js';
 import { Game } from './game.js';
 import * as M from './meta.js';
+import * as PF from './profile.js';
 
 const $ = (s, r = document) => r.querySelector(s);
 const data = () => store.save.data;
@@ -114,11 +115,44 @@ function hydrate(root) {
   root.querySelectorAll('img[data-portrait]').forEach((img) => { img.src = portraitURL(img.dataset.portrait); });
 }
 
+// ===== アイコン（プロフィール） =====
+function iconURL(id) {
+  const def = PF.iconDef(id);
+  if (def.char) return portraitURL(def.char);
+  return toURL(enemySprite(def.type, def.pal, { crown: def.crown }), 5, 'ic:' + def.id);
+}
+/** アイコン＋フレームのHTML */
+function avatarHTML(iconId, frameId, size = 48) {
+  const def = PF.iconDef(iconId);
+  return `<span class="av fr-${frameId}" style="--s:${size}px;--cbg:${def.bg}"><img src="${iconURL(iconId)}" alt=""></span>`;
+}
+
+/** 数字をカウントアップさせる（UIアニメーション） */
+const countState = new WeakMap();
+function countTo(el, to) {
+  const from = countState.get(el) ?? to;
+  countState.set(el, to);
+  if (from === to || matchMedia('(prefers-reduced-motion: reduce)').matches) { el.textContent = to.toLocaleString(); return; }
+  const t0 = performance.now(), dur = 600;
+  el.parentElement.classList.remove('bump'); void el.offsetWidth; el.parentElement.classList.add('bump');
+  const step = (now) => {
+    const k = Math.min(1, (now - t0) / dur), e = 1 - Math.pow(1 - k, 3);
+    el.textContent = Math.round(from + (to - from) * e).toLocaleString();
+    if (k < 1 && countState.get(el) === to) requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+}
+
 function updateWallet() {
   const d = data();
-  $('#pill-gold').textContent = d.gold.toLocaleString();
-  $('#pill-ticket').textContent = d.tickets.toLocaleString();
-  $('#rank-num').textContent = d.maxStage + 1;
+  countTo($('#pill-gold'), d.gold);
+  countTo($('#pill-ticket'), d.tickets);
+  $('#rank-num').textContent = d.rank.lv;
+  $('#me-name').textContent = d.profile.name;
+  $('#me-exp').style.width = Math.min(100, (d.rank.exp / PF.rankNeed(d.rank.lv)) * 100) + '%';
+  const key = d.profile.icon + d.profile.frame;
+  const av = $('#me-av');
+  if (av.dataset.k !== key) { av.dataset.k = key; av.innerHTML = avatarHTML(d.profile.icon, d.profile.frame, 46); }
   const tc = $('.tab-char');
   if (tc && tc.dataset.char !== d.selectedChar) { tc.dataset.char = d.selectedChar; hydrate(tc.parentElement); }
 }
@@ -138,10 +172,25 @@ function menuBgm() {
 // ===================== タブ描画 =====================
 const TABS = { home: homeHTML, party: partyHTML, gacha: gachaHTML, settings: settingsHTML };
 
+const TAB_ORDER = ['home', 'party', 'gacha', 'settings'];
+let lastTab = 'home';
 function render() {
   const el = $('#tab-content');
-  const keep = el.dataset.cur === tab + partyTab ? el.scrollTop : 0;
+  const changed = el.dataset.cur !== tab + partyTab;
+  const keep = changed ? 0 : el.scrollTop;
   el.innerHTML = TABS[tab]();
+  if (changed) {
+    // Tabs：左右どちらから来たかでスライド方向を変える ＋ 一覧を段差表示
+    const dir = TAB_ORDER.indexOf(tab) >= TAB_ORDER.indexOf(lastTab) ? 'r' : 'l';
+    el.classList.remove('tab-in-r', 'tab-in-l'); void el.offsetWidth;
+    if (lastTab !== tab) el.classList.add('tab-in-' + dir);
+    lastTab = tab;
+    el.querySelectorAll('.inv, .char-grid, .home-icons, .btn-grid, .slot-col, .stage-strip').forEach((g) => {
+      g.classList.add('reveal');
+      [...g.children].forEach((c, i) => c.style.setProperty('--i', Math.min(i, 20)));
+      setTimeout(() => g.classList.remove('reveal'), 1200);
+    });
+  }
   el.dataset.cur = tab + partyTab;
   hydrate(el);
   if (tab === 'home') drawStagePreview();
@@ -179,6 +228,20 @@ function itemTile(it, opt = {}) {
 }
 
 // ----- ホーム -----
+/** Marquee：お知らせの最新タイトルとプレゼント情報を横に流す */
+function tickerHTML() {
+  const d = data();
+  const msgs = [];
+  const latest = pwa.changelog[0];
+  if (latest) msgs.push(`${latest.version ? 'v' + latest.version + ' ' : ''}${latest.title || ''}`);
+  if (d.presents.length) msgs.push(`プレゼントが ${d.presents.length} 件届いています`);
+  const ready = M.claimableCount();
+  if (ready) msgs.push(`受け取れるミッション報酬が ${ready} 件あります`);
+  msgs.push(`ようこそ、${d.profile.name} さん！ ランク${d.rank.lv}`);
+  const text = msgs.map(esc).join('　★　');
+  return `<div class="ticker"><div class="track" style="--dur:${Math.max(12, text.length * 0.28)}s"><span>${text}</span></div></div>`;
+}
+
 function homeIcon(act, ic, color, label, badge) {
   return `<button class="hicon" data-act="${act}"><img class="px" data-icon="${ic}" data-color="${color}" alt=""><span class="ol">${label}</span>${badge ? `<i class="hbadge">${badge}</i>` : ''}</button>`;
 }
@@ -202,6 +265,7 @@ function homeHTML() {
     ${homeIcon('login', 'calendar', '#7ac8ff', 'ログボ', 0)}
     ${homeIcon('news', 'book', '#ffd23a', 'お知らせ', hasUnreadNews() ? '!' : 0)}
   </div>
+  ${tickerHTML()}
   <div class="home-top">
     ${!isStandalone() ? '<button class="chip" data-act="install">ホーム画面に追加</button>' : ''}
     <button class="chip" data-act="stage-list">ステージ一覧</button>
@@ -491,7 +555,7 @@ function autoEquip() {
   const cid = d.selectedChar;
   const score = (it) => {
     const s = D.itemStats(it);
-    return (s.atk || 0) * 12 + (s.hp || 0) + (s.def || 0) * 8 + (s.crit || 0) * 300 + (s.cd || 0) * 400 + (s.spd || 0) * 200 + (s.magnet || 0) * 100 + (s.exp || 0) * 100;
+    return (s.atk || 0) * 12 + (s.hp || 0) + (s.def || 0) * 8 + (s.crit || 0) * 300 + (s.cd || 0) * 400 + (s.spd || 0) * 200 + (s.exp || 0) * 150;
   };
   const used = new Set();
   for (const [oid, oc] of Object.entries(d.chars)) if (oid !== cid) for (const u of Object.values(oc.equip)) if (u != null) used.add(u);
@@ -610,6 +674,83 @@ function gachaReveal(best) {
   });
 }
 
+// ----- プロフィール -----
+let profTab = 'icon';
+function profileModal() {
+  sfx('click');
+  const d = data();
+  const need = PF.rankNeed(d.rank.lv);
+  const next = PF.rankReward(d.rank.lv + 1);
+  const nextTxt = [next.gold ? `コイン×${next.gold.toLocaleString()}` : '', next.ticket ? `チケット×${next.ticket}` : '', ...next.icons.map((i) => `アイコン「${i.name}」`), ...next.frames.map((f) => `フレーム「${f.name}」`)].filter(Boolean).join('、');
+  const grid = profTab === 'icon'
+    ? PF.allIcons().map((ic) => {
+      const ok = PF.isUnlocked(ic);
+      return `<button class="pick ${d.profile.icon === ic.id ? 'sel' : ''} ${ok ? '' : 'lock'}" data-icon-id="${ic.id}" ${ok ? '' : 'disabled'}>
+        ${avatarHTML(ic.id, 'basic', 52)}<span class="pn">${ok ? ic.name : `Rank${ic.rank}`}</span></button>`;
+    }).join('')
+    : PF.FRAMES.map((f) => {
+      const ok = PF.isUnlocked(f);
+      return `<button class="pick ${d.profile.frame === f.id ? 'sel' : ''} ${ok ? '' : 'lock'}" data-frame-id="${f.id}" ${ok ? '' : 'disabled'}>
+        ${avatarHTML(d.profile.icon, f.id, 52)}<span class="pn">${ok ? f.name : `Rank${f.rank}`}</span></button>`;
+    }).join('');
+  modal({
+    title: 'プロフィール',
+    cls: 'wide',
+    body: `<div class="prof-head">
+        ${avatarHTML(d.profile.icon, d.profile.frame, 84)}
+        <div class="prof-info">
+          <div class="prof-name">${esc(d.profile.name)}</div>
+          <div class="prof-rank">Rank <b>${d.rank.lv}</b></div>
+          <div class="mbar"><div style="width:${(d.rank.exp / need) * 100}%"></div><span>${d.rank.exp} / ${need}</span></div>
+          <div class="muted">次のランク報酬：${nextTxt}</div>
+        </div>
+      </div>
+      <div class="name-edit"><input id="pf-name" maxlength="12" value="${esc(d.profile.name)}" placeholder="ユーザー名（12文字まで）" autocomplete="off"><button class="btn small teal" id="pf-save">名前を変更</button></div>
+      <div class="mtabs" style="margin-top:10px">
+        <button class="btn small ${profTab === 'icon' ? 'active' : ''}" data-ptab="icon">アイコン</button>
+        <button class="btn small ${profTab === 'frame' ? 'active' : ''}" data-ptab="frame">アイコンフレーム</button>
+      </div>
+      <div class="pick-grid reveal">${grid}</div>`,
+    buttons: [{ label: '閉じる', value: null }],
+    onMount: (ov, close) => {
+      hydrate(ov);
+      const reopen = () => { close(); profileModal(); };
+      ov.querySelector('#pf-save').addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (PF.setName(ov.querySelector('#pf-name').value)) { sfx('equip'); toast('ユーザー名を変更しました'); reopen(); }
+        else toast('名前を入力してください');
+      });
+      ov.querySelectorAll('[data-ptab]').forEach((b) => b.addEventListener('click', (e) => { e.stopPropagation(); profTab = b.dataset.ptab; reopen(); }));
+      ov.querySelectorAll('[data-icon-id]').forEach((b) => b.addEventListener('click', (e) => { e.stopPropagation(); if (PF.setIcon(b.dataset.iconId)) { sfx('equip'); reopen(); } }));
+      ov.querySelectorAll('[data-frame-id]').forEach((b) => b.addEventListener('click', (e) => { e.stopPropagation(); if (PF.setFrame(b.dataset.frameId)) { sfx('equip'); reopen(); } }));
+    },
+  });
+}
+
+/** ランクアップ演出（報酬一覧） */
+async function rankUpModal(ups) {
+  for (const u of ups) {
+    sfx('levelup');
+    const d = data();
+    await modal({
+      cls: 'rankup',
+      body: `<div class="ru-burst"></div>
+        <div class="ru-title ol">RANK UP!</div>
+        <div class="ru-lv"><span>${u.lv - 1}</span><b>→</b><span class="ol">${u.lv}</span></div>
+        <div class="ru-rewards">
+          <div class="reward"><img class="px" data-icon="coin" data-color="#ffcf3a" alt="">×${u.gold.toLocaleString()}</div>
+          ${u.ticket ? `<div class="reward"><img class="px" data-icon="ticket" data-color="#ff7a9a" alt="">×${u.ticket}</div>` : ''}
+          ${u.icons.map((i) => `<div class="reward new">${avatarHTML(i.id, 'basic', 40)}<span>アイコン<br>${i.name}</span></div>`).join('')}
+          ${u.frames.map((f) => `<div class="reward new">${avatarHTML(d.profile.icon, f.id, 40)}<span>フレーム<br>${f.name}</span></div>`).join('')}
+        </div>
+        ${u.icons.length || u.frames.length ? '<p class="muted" style="text-align:center">プロフィールから設定できます</p>' : ''}`,
+      buttons: [{ label: 'OK', value: true, cls: 'teal' }],
+      onMount: hydrate,
+    });
+  }
+  render();
+}
+
 // ----- プレゼント・ミッション・ログボ -----
 function rewardHTML(reward) {
   return Object.entries(reward).map(([k, v]) => {
@@ -628,7 +769,7 @@ function presentModal() {
     </div>`).join('');
   modal({
     title: 'プレゼントボックス',
-    body: d.presents.length ? `<div class="plist">${rows}</div>` : '<p class="muted" style="text-align:center">プレゼントはありません</p>',
+    body: d.presents.length ? `<div class="plist reveal">${rows}</div>` : '<p class="muted" style="text-align:center">プレゼントはありません</p>',
     buttons: d.presents.length ? [{ label: '閉じる', value: null }, { label: '一括受け取り', value: 'all', cls: 'red' }] : [{ label: '閉じる', value: null }],
     onMount: (ov, close) => {
       hydrate(ov);
@@ -667,7 +808,7 @@ function missionModal() {
     title: 'ミッション',
     body: `<div class="mtabs">${Object.entries(tabs).map(([k, v]) => `<button class="btn small ${k === missionTab ? 'active' : ''}" data-mtab="${k}">${v}${counts[k] ? `<i class="hbadge">${counts[k]}</i>` : ''}</button>`).join('')}</div>
       <div class="muted" style="text-align:right;margin:4px 0">${missionTab === 'perm' ? '一度だけ受け取れる実績ミッション' : `更新まで あと${M.untilReset(missionTab)}`}</div>
-      <div class="mlist">${rows || '<p class="muted" style="text-align:center">すべて達成しました！</p>'}</div>`,
+      <div class="mlist reveal">${rows || '<p class="muted" style="text-align:center">すべて達成しました！</p>'}</div>`,
     buttons: [{ label: '閉じる', value: null }, { label: '一括受け取り', value: 'all', cls: 'red' }],
     onMount: (ov, close) => {
       hydrate(ov);
@@ -878,6 +1019,7 @@ async function onAction(act, el) {
     case 'goto-gacha': gachaType = 'char'; tab = 'gacha'; sfx('click'); render(); break;
     case 'gacha-type': gachaType = el.dataset.t; sfx('click'); render(); break;
     case 'present': presentModal(); break;
+    case 'profile': profileModal(); break;
     case 'missions': missionModal(); break;
     case 'login': loginModal(null); break;
     case 'item': sfx('click'); itemModal(+el.dataset.uid); break;
@@ -1158,7 +1300,7 @@ function showLevelUp(choices, done) {
     strip.push(iconURL(c.icon, c.color));
     const badge = c.kind === 's' ? '<span class="lv-badge sp">SPECIAL</span>'
       : c.lv === 1 ? '<span class="lv-badge new">NEW</span>' : `<span class="lv-badge">Lv${c.lv}${c.lv >= c.max ? ' MAX' : ''}</span>`;
-    return `<button class="lv-card" data-pick="${i}">
+    return `<button class="lv-card pre" data-pick="${i}">
       <div class="reel-frame ${c.kind}"><div class="reel"><div class="strip">${strip.map((u) => `<img src="${u}" alt="">`).join('')}</div></div></div>
       <div class="lv-text spin"><div class="lv-name ol">？？？</div><div class="sep"></div><div class="lv-desc">スロット回転中…</div></div>
       ${badge}
@@ -1169,6 +1311,7 @@ function showLevelUp(choices, done) {
     ...Object.entries(g.passives).map(([id, lv]) => `<span><img class="px" src="${iconURL(D.SKILLS[id].icon, D.SKILLS[id].color)}" alt="">${lv}</span>`),
   ].join('');
   wrap.classList.remove('hidden');
+  [...cards.children].forEach((card, i) => setTimeout(() => card.classList.remove('pre'), 40 + i * 70));
   let stopped = 0, finished = false;
   const timers = [];
   const reveal = (i) => {
@@ -1237,7 +1380,7 @@ async function endBattle(res) {
   let gold, ticket = 0, item = null, first = false;
   if (res.cleared) {
     first = n > d.maxStage;
-    gold = rw.gold + res.gold + res.kills;
+    gold = rw.gold + res.gold + res.kills * 3;
     ticket = first ? rw.firstTicket : 0;
     M.track('boss');
     d.stats.bossKills = (d.stats.bossKills || 0) + 1;
@@ -1247,7 +1390,7 @@ async function endBattle(res) {
     if (first) d.maxStage = n;
     d.stats.clears++;
   } else {
-    gold = Math.round(res.gold + res.kills * 0.6 + (res.room - 1) / D.ROOMS_PER_STAGE * rw.gold * 0.5);
+    gold = Math.round(res.gold + res.kills * 2 + (res.room - 1) / D.ROOMS_PER_STAGE * rw.gold * 0.6);
   }
   d.gold += gold;
   d.tickets += ticket;
@@ -1260,6 +1403,8 @@ async function endBattle(res) {
     if (c.unlock && c.unlock.stage && !d.chars[id].unlocked && d.maxStage >= c.unlock.stage) { d.chars[id].unlocked = true; unlocked.push(c.name); }
   }
   if (first) d.selectedStage = n + 1;
+  const rankExp = PF.battleRankExp(res, n);
+  const ups = PF.gainRankExp(rankExp);
   commit();
   autoBackup(true);
   playBgm(res.cleared ? 'clear' : 'gameover');
@@ -1272,6 +1417,7 @@ async function endBattle(res) {
         <b>時間</b><span>${fmtTime(res.time)}</span>
         <b>撃破数</b><span>${res.kills}</span>
         <b>到達Lv</b><span>${res.level}</span>
+        <b>ランク経験値</b><span>+${rankExp}</span>
       </div>
       <div class="rewards">
         <div class="reward"><img class="px" data-icon="coin" data-color="#ffcf3a" alt="">${gold.toLocaleString()}</div>
@@ -1285,6 +1431,7 @@ async function endBattle(res) {
     onMount: hydrate,
   });
   leaveBattle();
+  if (ups.length) await rankUpModal(ups);
   if (v === 'next') { data().selectedStage = Math.min(data().maxStage + 1, n + 1); commit(); startBattle(); }
   else if (v === 'retry') startBattle();
   else if (pendingUpdate) showUpdatePopup();

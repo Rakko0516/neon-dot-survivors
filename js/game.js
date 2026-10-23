@@ -120,8 +120,7 @@ export class Game {
       cdMul: 1 / (1 + b.cd + 0.09 * lv('cdUp')),
       spd: b.moveSpeed * (1 + 0.08 * lv('spdUp')),
       crit: Math.min(0.9, b.crit + 0.06 * lv('crit')),
-      magnet: 30 * (1 + b.magnet + 0.3 * lv('magnet')),
-      area: 1 + 0.12 * lv('area'),
+      area: 1 + (b.area || 0) + 0.12 * lv('area'),
       multi: lv('multi'),
       exp: 1 + b.exp + 0.12 * lv('expUp'),
       def: b.def,
@@ -441,15 +440,14 @@ export class Game {
     if (e.elite) {
       this.dropGem(e.x, e.y, 40);
       this.pickups.push({ kind: 'heart', x: e.x + 10, y: e.y });
-      this.pickups.push({ kind: 'magnet', x: e.x - 10, y: e.y });
+      this.pickups.push({ kind: 'coin', x: e.x - 10, y: e.y, v: 40 + this.stage.n * 10 });
       this.gold += 30;
       return;
     }
     this.dropGem(e.x, e.y, e.exp);
     const r = Math.random();
-    if (r < 0.05) this.pickups.push({ kind: 'coin', x: e.x, y: e.y });
-    else if (r < 0.06) this.pickups.push({ kind: 'heart', x: e.x, y: e.y });
-    else if (r < 0.065) this.pickups.push({ kind: 'magnet', x: e.x, y: e.y });
+    if (r < 0.14) this.pickups.push({ kind: 'coin', x: e.x, y: e.y, v: 5 + this.stage.n * 2 });
+    else if (r < 0.15) this.pickups.push({ kind: 'heart', x: e.x, y: e.y });
   }
 
   dropGem(x, y, v) {
@@ -812,13 +810,12 @@ export class Game {
 
   updateGems(dt) {
     const P = this.player;
-    const mr2 = this.rs.magnet ** 2;
+    // 経験値は落ちてすぐ自動でプレイヤーに集まる（磁石スキルは廃止）
     for (const gm of this.gems) {
-      const d2 = dist2(gm, P);
-      if (!gm.pull && d2 < mr2) gm.pull = true;
-      if (gm.pull) {
-        const d = Math.sqrt(d2) || 1;
-        gm.sp = (gm.sp || 60) + dt * 320;
+      gm.age = (gm.age || 0) + dt;
+      if (gm.age > 0.25) {
+        const d = Math.sqrt(dist2(gm, P)) || 1;
+        gm.sp = (gm.sp || 40) + dt * 420;
         gm.x += ((P.x - gm.x) / d) * gm.sp * dt;
         gm.y += ((P.y - gm.y) / d) * gm.sp * dt;
         if (d < 7) { gm.dead = true; this.gainExp(gm.v); }
@@ -829,8 +826,7 @@ export class Game {
       if (dist2(p, P) < 120) {
         p.dead = true;
         if (p.kind === 'heart') { P.hp = Math.min(P.maxHp, P.hp + P.maxHp * 0.3); sfx('heal'); }
-        else if (p.kind === 'coin') { this.gold += 10; sfx('coin'); }
-        else if (p.kind === 'magnet') { for (const g of this.gems) g.pull = true; sfx('magnet'); }
+        else if (p.kind === 'coin') { this.gold += p.v || 10; sfx('coin'); }
       }
     }
     this.pickups = this.pickups.filter((p) => !p.dead);
@@ -865,13 +861,13 @@ export class Game {
     for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [pool[i], pool[j]] = [pool[j], pool[i]]; }
     const out = pool.slice(0, 3);
     // たまに特殊スキル（虹枠）が混ざる
-    const specials = ['super', 'heal', 'nuke', 'vacuum'];
+    const specials = ['super', 'heal', 'nuke'];
     if (Math.random() < 0.18 || out.length < 3) {
       const sp = specials[Math.floor(Math.random() * specials.length)];
       if (out.length >= 3) out[Math.floor(Math.random() * 3)] = { id: sp, lv: 0 };
       else out.push({ id: sp, lv: 0 });
     }
-    while (out.length < 3) out.push({ id: specials[out.length % 4], lv: 0 });
+    while (out.length < 3) out.push({ id: specials[out.length % specials.length], lv: 0 });
     return out.map((c) => {
       const s = SKILLS[c.id];
       return { ...c, kind: s.kind, name: s.name, icon: s.icon, color: s.color, desc: s.desc, max: s.kind === 'w' ? WEAPON_MAX : s.max };
@@ -905,7 +901,7 @@ export class Game {
       this.flash = 0.4; this.shake = 0.5;
       for (const e of this.enemies.slice()) if (Math.abs(e.y - P.y) < this.vh * 0.6) this.damage(e, this.rs.atk * 25);
       sfx('boom');
-    } else if (c.id === 'vacuum') { for (const g of this.gems) g.pull = true; sfx('magnet'); }
+    }
   }
 
   updateFx(dt) {

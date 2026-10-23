@@ -109,11 +109,13 @@ export async function upload(force = false) {
   cloud.status = 'syncing';
   emit();
   try {
+    // Firestore は undefined を受け付けないので、JSONを通して取り除く
+    const clean = (o) => JSON.parse(JSON.stringify(o));
     await fb.fsM.setDoc(docRef(), {
       save: JSON.stringify(save),
-      updatedAt: save.updatedAt,
-      gameVersion: save.gameVersion,
-      summary: summary(save),
+      updatedAt: save.updatedAt || Date.now(),
+      gameVersion: save.gameVersion || '',
+      summary: clean(summary(save)),
       serverTime: fb.fsM.serverTimestamp(),
     }, { merge: true });
     cloud.lastSync = Date.now();

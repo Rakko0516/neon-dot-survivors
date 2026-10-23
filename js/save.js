@@ -44,6 +44,8 @@ export function defaultData() {
     missions: { day: '', week: '', d: {}, w: {}, dc: [], wc: [], perm: [] },
     presents: [],
     receivedGifts: [],
+    profile: { name: 'プレイヤー', icon: 'char:neo', frame: 'basic' },
+    rank: { lv: 1, exp: 0 },
     seenNews: '',
   };
 }
@@ -79,6 +81,11 @@ const MIGRATIONS = {
     delete d.lastLoginDay;
     return d;
   },
+  // v3 → v4：ランクを「クリアしたステージ数」から「ランク経験値」方式へ（今のランクは引き継ぐ）
+  4: (d) => {
+    d.rank = { lv: Math.max(1, (d.maxStage || 0) + 1), exp: 0 };
+    return d;
+  },
 };
 
 function migrate(save) {
@@ -103,6 +110,8 @@ function migrate(save) {
   d.stats = { ...def.stats, ...d.stats };
   d.login = { ...def.login, ...d.login };
   d.missions = { ...def.missions, ...d.missions };
+  d.profile = { ...def.profile, ...d.profile };
+  d.rank = { ...def.rank, ...d.rank };
   for (const c of Object.values(d.chars)) if (c.awaken === undefined) c.awaken = 0;
   return save;
 }
@@ -261,8 +270,8 @@ export function summary(save) {
   const charLv = Object.values(d.chars).reduce((a, c) => a + (c.unlocked ? c.level : 0), 0);
   return {
     stage: d.maxStage,
-    gold: d.gold,
-    crystal: d.crystal,
+    gold: d.gold || 0,
+    tickets: d.tickets || 0,
     items: d.items.length,
     charLv,
     playTime: save.playTime || 0,

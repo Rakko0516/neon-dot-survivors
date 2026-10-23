@@ -24,7 +24,10 @@
     <section id="menu" class="screen">
       <div class="band"></div>
       <header class="topbar">
-        <div class="rank"><span class="rank-label ol">ランク</span><span class="rank-num ol" id="rank-num">1</span></div>
+        <button class="me" id="me" data-act="profile" aria-label="プロフィール">
+          <span class="me-av" id="me-av"></span>
+          <span class="me-info"><span class="me-name ol" id="me-name">プレイヤー</span><span class="me-rank"><b class="ol">Rank</b><span id="rank-num" class="ol">1</span><i class="me-exp"><i id="me-exp"></i></i></span></span>
+        </button>
         <div class="pill"><img alt="" class="px" data-icon="ticket" data-color="#ff7a9a"><span id="pill-ticket" class="ol">0</span></div>
         <div class="pill"><img alt="" class="px" data-icon="coin" data-color="#ffcf3a"><span id="pill-gold" class="ol">0</span></div>
         <button class="cloud-dot" id="cloud-dot" title="クラウド状態" data-tab="settings"></button>
@@ -33,7 +36,7 @@
       <nav class="tabbar">
         <button data-tab="home" class="active"><img alt="" class="px" data-icon="castle" data-color="#c8a46a"><span class="ol">ホーム</span></button>
         <button data-tab="party"><img alt="" class="px tab-char" data-char="neo"><span class="ol">装備・キャラ</span></button>
-        <button data-tab="gacha"><img alt="" class="px" data-icon="altar" data-color="#d8c060"><span class="ol">抽選</span></button>
+        <button data-tab="gacha"><img alt="" class="px" data-icon="altar" data-color="#d8c060"><span class="ol">ガチャ</span></button>
         <button data-tab="settings"><img alt="" class="px" data-icon="gear" data-color="#b9c3d6"><span class="ol">設定</span><i class="dot-badge hidden" id="settings-badge"></i></button>
       </nav>
       <div class="band"></div>

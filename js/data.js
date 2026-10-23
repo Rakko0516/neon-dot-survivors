@@ -32,7 +32,7 @@ export const CHARACTERS = {
   },
   kon: {
     name: 'コン', stars: 4, role: 'きつね配信者', hp: 95, atk: 9, spd: 64, crit: 0.05,
-    weapon: 'foxfire', trait: { name: 'もふもふ吸引', desc: '回収範囲 +40%', magnet: 0.4 },
+    weapon: 'foxfire', trait: { name: '狐火の加護', desc: '攻撃範囲 +15%', area: 0.15 },
     look: { hairStyle: 'long', hair: '#ff9a3c', eye: '#3be38a', top: '#ffffff', collar: '#8a4dff', sleeve: '#ffffff', belt: '#ff4f6d', bottom: '#8a4dff', legs: '#ffffff', shoes: '#5a2bc0', acc: ['foxEars'], acc1: '#ffe8b0' },
     unlock: { stage: 3 }, bg: '#c8783a',
   },
@@ -112,7 +112,6 @@ export const SKILLS = {
   cdUp: { kind: 'p', name: '攻撃速度アップ', icon: 'clock', color: '#ffd23a', max: 5, desc: '攻撃の間隔が短くなる（+9%）' },
   spdUp: { kind: 'p', name: '移動速度アップ', icon: 'boot', color: '#4dd88a', max: 5, desc: '移動が速くなる（+8%）' },
   hpUp: { kind: 'p', name: '最大HPアップ', icon: 'heart', color: '#ff4f6d', max: 5, desc: '最大HPが上がり回復する（+15%）' },
-  magnet: { kind: 'p', name: '吸引力アップ', icon: 'magnet', color: '#ff6a6a', max: 5, desc: '経験値を遠くから集める（+30%）' },
   crit: { kind: 'p', name: '会心率アップ', icon: 'star', color: '#ffb03a', max: 5, desc: '会心の一撃が出やすくなる（+6%）' },
   multi: { kind: 'p', name: 'マルチショット', icon: 'multi', color: '#d65cff', max: 3, desc: '弾の数・設置数が増える（+1）' },
   area: { kind: 'p', name: '攻撃範囲アップ', icon: 'area', color: '#5aa8ff', max: 5, desc: '攻撃の範囲が広がる（+12%）' },
@@ -123,7 +122,6 @@ export const SKILLS = {
   super: { kind: 's', name: 'スーパーモードっ！', icon: 'star', color: '#ffd23a', desc: '10秒間無敵になり、攻撃速度が爆速になる' },
   heal: { kind: 's', name: '全回復', icon: 'heart', color: '#ff7a9a', desc: 'HPを全回復する' },
   nuke: { kind: 's', name: 'メテオストライク', icon: 'skull', color: '#ff6a1a', desc: '画面内の敵に大ダメージ' },
-  vacuum: { kind: 's', name: 'ぜんぶ回収', icon: 'magnet', color: '#36f2ff', desc: 'フィールドの経験値をすべて集める' },
 };
 export const WEAPON_MAX = 5;
 export const MAX_ACTIVES = 4;
@@ -166,7 +164,7 @@ export const EQUIP = {
   n_pendant: { type: 'neck', name: '太陽のペンダント', icon: 'pendant', color: '#ff8a3a', main: { crit: 0.02 }, sub: { atk: 2 } },
   r_ruby: { type: 'ring', name: 'ルビーの指輪', icon: 'ring', color: '#ff3b5c', main: { atk: 3 }, sub: {} },
   r_sapphire: { type: 'ring', name: 'サファイアの指輪', icon: 'ring', color: '#3f7cff', main: { hp: 16 }, sub: {} },
-  r_emerald: { type: 'ring', name: 'エメラルドの指輪', icon: 'ring', color: '#3fd87a', main: { magnet: 0.06 }, sub: { exp: 0.03 } },
+  r_emerald: { type: 'ring', name: 'エメラルドの指輪', icon: 'ring', color: '#3fd87a', main: { exp: 0.04 }, sub: { crit: 0.01 } },
 };
 
 export const STAT_NAMES = { hp: 'HP', atk: 'ATK', def: '防御', spd: '移動速度', crit: '会心率', cd: '攻撃速度', exp: '経験値', magnet: '吸引範囲' };
@@ -195,7 +193,7 @@ export function charStats(data, charId) {
   const cs = data.chars[charId];
   const lvMul = (1 + 0.08 * (cs.level - 1)) * (1 + 0.08 * (cs.awaken || 0));
   const t = c.trait;
-  const st = { hp: c.hp * lvMul, atk: c.atk * lvMul, def: 0, spd: t.spdPct || 0, crit: c.crit + (t.crit || 0), cd: t.cd || 0, exp: t.exp || 0, magnet: t.magnet || 0, armor: t.armor || 0, slow: t.slow || 0, lifesteal: t.lifesteal || 0, regen: t.regen || 0 };
+  const st = { hp: c.hp * lvMul, atk: c.atk * lvMul, def: 0, spd: t.spdPct || 0, crit: c.crit + (t.crit || 0), cd: t.cd || 0, exp: t.exp || 0, magnet: 0, area: t.area || 0, armor: t.armor || 0, slow: t.slow || 0, lifesteal: t.lifesteal || 0, regen: t.regen || 0 };
   for (const slot of SLOTS) {
     const uid = cs.equip[slot.id];
     if (uid == null) continue;
@@ -285,7 +283,7 @@ export function expNeed(lv) {
   return Math.floor(5 + lv * 4 + lv * lv * 0.55);
 }
 export function clearReward(n) {
-  return { gold: 150 + n * 70, firstTicket: 1 };
+  return { gold: 400 + n * 150, firstTicket: 1 };
 }
 export function rollRarity(bonus = 0) {
   const rates = { N: 58 - bonus * 2, R: 30, SR: 10 + bonus * 1.4, SSR: 2 + bonus * 0.6 };

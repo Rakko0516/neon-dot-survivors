@@ -1,6 +1,6 @@
 // Service Worker：オフライン対応・アップデート配信・プッシュ通知
 // VERSION を変えると全プレイヤーに「アップデートがあります」が表示されます（tools/bump-version.mjs が自動で変更）
-const VERSION = '0.3.0';
+const VERSION = '0.4.0';
 const CACHE = 'nds-' + VERSION;
 const RUNTIME = 'nds-runtime';
 
@@ -19,6 +19,7 @@ const ASSETS = [
   './js/pwa.js',
   './js/ui.js',
   './js/meta.js',
+  './js/profile.js',
   './js/config.js',
   './js/version.js',
   './manifest.webmanifest',
