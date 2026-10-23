@@ -1,6 +1,6 @@
 // BGM・効果音の再生（音源は audio/sources.json の対応表どおり、変換済み .bin を読み込む）
 // - 効果音：WebAudio のバッファで再生（同時にたくさん鳴らせる）
-// - BGM：audio要素 + WebAudio の音量ノード（iPhoneでも音量バーが効くように）
+// - BGM：これも WebAudio のバッファで再生（iPhoneで鳴らないことがある audio要素は使わない。ループの継ぎ目も無音にならない）
 // - 音源ファイルがまだ無いものは鳴らないだけで、エラーにはならない
 
 const DEBUG = ['localhost', '127.0.0.1'].includes(location.hostname);
@@ -13,7 +13,7 @@ let sources = null;
 const seBuf = new Map();      // name -> AudioBuffer | null（null=読み込み失敗）
 const seLoading = new Map();
 const lastPlay = {};
-const bgmEls = new Map();     // name -> { el, node }
+const bgmBuf = new Map();     // name -> { buffer, loop } | null（最近使った数曲だけ残す）
 let bgmName = null, bgmCur = null, wantBgm = null;
 
 async function loadSources() {
@@ -50,10 +50,19 @@ export function preloadAudio() {
 export function initAudio() {
   if (!ctx) preloadAudio();
   if (!ctx) return;
-  if (ctx.state !== 'running') ctx.resume().catch(() => {});
-  if (wantBgm && !bgmCur) playBgm(wantBgm);
-  else if (bgmCur && bgmCur.loop && bgmCur.el.paused && vol.bgm > 0) bgmCur.el.play().catch(() => {});
+  unlocked = true;
+  if (ctx.state !== 'running') ctx.resume().then(() => { if (wantBgm && (!bgmCur || bgmCur.name !== wantBgm)) playBgm(wantBgm); }).catch(() => {});
+  // まだ鳴っていないBGMがあれば、音が使えるようになった時点で流す
+  if (wantBgm && (!bgmCur || bgmCur.name !== wantBgm)) playBgm(wantBgm);
 }
+
+// 画面を閉じたり別アプリに切り替えたら音を止め、戻ったら再開（電池の節約と、裏で鳴り続けないように）
+document.addEventListener('visibilitychange', () => {
+  if (!ctx) return;
+  if (document.visibilityState === 'hidden') ctx.suspend().catch(() => {});
+  else if (unlocked) ctx.resume().catch(() => {});
+});
+let unlocked = false;
 
 // 人の耳に合わせて音量バーの値を2乗する
 const curve = (v) => v * v;
@@ -68,8 +77,6 @@ export function setAudio(opt) {
   if (opt.bgmVol !== undefined) vol.bgm = Math.max(0, Math.min(100, opt.bgmVol)) / 100;
   if (opt.seVol !== undefined) vol.se = Math.max(0, Math.min(100, opt.seVol)) / 100;
   applyVolume();
-  if (vol.bgm === 0 && bgmCur) bgmCur.el.pause();
-  else if (vol.bgm > 0 && bgmCur && bgmCur.el.paused && bgmCur.loop) bgmCur.el.play().catch(() => {});
 }
 
 async function loadSe(name) {
@@ -116,38 +123,30 @@ function mimeOf(b) {
 
 /** 動作確認用 */
 export function audioState() {
-  return { ctx: ctx?.state, bgm: bgmName, playing: !!(bgmCur && !bgmCur.el.paused), seLoaded: [...seBuf].filter(([, v]) => v).map(([k]) => k), vol: { ...vol } };
+  return { ctx: ctx?.state, bgm: bgmName, playing: !!(bgmCur && !bgmCur.ended), seLoaded: [...seBuf].filter(([, v]) => v).map(([k]) => k), vol: { ...vol } };
 }
 
 async function getBgm(name) {
-  if (bgmEls.has(name)) return bgmEls.get(name);
+  if (bgmBuf.has(name)) { const v = bgmBuf.get(name); bgmBuf.delete(name); bgmBuf.set(name, v); return v; }
   const s = (await loadSources()).bgm?.[name];
   if (!s) return null;
+  let item = null;
   try {
     const bytes = await fetchDecoded(`./audio/bgm/${name}.bin`);
-    const url = URL.createObjectURL(new Blob([bytes], { type: mimeOf(bytes) }));
-    const el = new Audio();
-    el.src = url;
-    el.loop = !!s.loop;
-    el.preload = 'auto';
-    el.setAttribute('playsinline', '');
-    const node = ctx.createMediaElementSource(el);
-    const g = ctx.createGain();
-    node.connect(g).connect(bgmGain);
-    const item = { el, gain: g, loop: !!s.loop };
-    bgmEls.set(name, item);
-    return item;
-  } catch {
-    bgmEls.set(name, null);
-    return null;
-  }
+    const buffer = await ctx.decodeAudioData(bytes.buffer);
+    item = { buffer, loop: !!s.loop };
+  } catch { item = null; }
+  bgmBuf.set(name, item);
+  // メモリ節約：使った順に新しい4曲だけ残す
+  while (bgmBuf.size > 4) bgmBuf.delete(bgmBuf.keys().next().value);
+  return item;
 }
 
-function fade(item, to, sec) {
-  const g = item.gain.gain;
-  g.cancelScheduledValues(ctx.currentTime);
-  g.setValueAtTime(g.value, ctx.currentTime);
-  g.linearRampToValueAtTime(to, ctx.currentTime + sec);
+function fadeTo(gainNode, to, sec) {
+  const g = gainNode.gain, t = ctx.currentTime;
+  g.cancelScheduledValues(t);
+  g.setValueAtTime(g.value, t);
+  g.linearRampToValueAtTime(to, t + sec);
 }
 
 /**
@@ -158,30 +157,41 @@ function fade(item, to, sec) {
 export async function playBgm(name, fallback) {
   wantBgm = name;
   if (!ctx) return;
-  if (bgmName === name && bgmCur && (!bgmCur.el.paused || !bgmCur.loop)) return;
+  if (bgmCur && bgmCur.name === name && !bgmCur.ended) return;
   let item = await getBgm(name);
-  if (!item && fallback) { item = await getBgm(fallback); }
+  let playName = name;
+  if (!item && fallback) { item = await getBgm(fallback); playName = fallback; }
   if (wantBgm !== name) return; // 読み込み中に別の場面へ移った
+  // まだ音が使えない（一度も画面を触っていない）ときは、使えるようになってから流す
+  if (ctx.state !== 'running') return;
+  if (bgmCur && bgmCur.name === name && !bgmCur.ended) return;
   const prev = bgmCur;
-  if (prev && prev !== item) {
-    fade(prev, 0, 0.4);
-    setTimeout(() => { if (bgmCur !== prev) prev.el.pause(); }, 450);
+  if (prev) {
+    fadeTo(prev.gain, 0, 0.4);
+    try { prev.src.stop(ctx.currentTime + 0.45); } catch {}
   }
   bgmName = name;
-  bgmCur = item;
+  bgmCur = null;
   if (!item) return;
-  if (prev !== item) item.el.currentTime = 0;
-  item.gain.gain.value = 0;
-  fade(item, 1, 0.5);
-  if (vol.bgm > 0) item.el.play().catch(() => {});
+  const src = ctx.createBufferSource();
+  src.buffer = item.buffer;
+  src.loop = item.loop;
+  const g = ctx.createGain();
+  g.gain.value = 0;
+  src.connect(g).connect(bgmGain);
+  const cur = { name, playName, src, gain: g, ended: false };
+  src.onended = () => { cur.ended = true; };
+  src.start();
+  fadeTo(g, 1, 0.5);
+  bgmCur = cur;
 }
 
 export function stopBgm() {
   wantBgm = null;
   if (bgmCur && ctx) {
     const cur = bgmCur;
-    fade(cur, 0, 0.3);
-    setTimeout(() => cur.el.pause(), 350);
+    fadeTo(cur.gain, 0, 0.3);
+    try { cur.src.stop(ctx.currentTime + 0.35); } catch {}
   }
   bgmCur = null;
   bgmName = null;

@@ -29,14 +29,25 @@ const $ = (s, r = document) => r.querySelector(s);
 
 // ===== 画面サイズに合わせた自動調整 =====
 // スマホは等倍、タブレット・PCなど大きい画面では、スマホと同じ見た目のまま全体を拡大する
+// PC・iPad横向きなど横に広い画面は「横画面レイアウト」（.wide）に切り替える
+const isPhone = () => matchMedia('(pointer: coarse)').matches && Math.min(screen.width, screen.height) < 600;
 function fitScreen() {
   const vv = window.visualViewport;
   const w = vv ? vv.width : innerWidth, h = vv ? vv.height : innerHeight;
-  const z = Math.max(1, Math.min(1.6, Math.min(w / 440, h / 860)));
-  const r = document.documentElement.style;
-  r.setProperty('--z', z.toFixed(3));
-  r.setProperty('--app-h', h + 'px');
+  const wide = !isPhone() && w >= 960 && w / h >= 1.2;
+  // 横画面は「幅1000・高さ620」を基準に、画面いっぱいまで拡大
+  const z = wide ? Math.max(1, Math.min(1.7, w / 1000, h / 620)) : Math.max(1, Math.min(1.6, Math.min(w / 440, h / 860)));
+  const root = document.documentElement;
+  root.classList.toggle('wide', wide);
+  root.style.setProperty('--z', z.toFixed(3));
+  root.style.setProperty('--app-h', h + 'px');
+  // スマホを横にしたら案内を出し、戦闘中ならポーズする
+  const sideways = isPhone() && w > h;
+  root.classList.toggle('sideways', sideways);
+  try { if (sideways && inBattle && game && !game.paused) openPause(); } catch { /* 起動直後はまだ戦闘の準備前 */ }
 }
+// Android のホーム画面アプリでは縦向きに固定（iPhoneは仕組み上できないので案内で対応）
+try { screen.orientation?.lock?.('portrait').catch(() => {}); } catch {}
 fitScreen();
 addEventListener('resize', fitScreen);
 addEventListener('orientationchange', () => setTimeout(fitScreen, 300));
@@ -262,6 +273,8 @@ function render() {
     });
   }
   el.dataset.cur = tab + partyTab;
+  el.classList.remove(...[...el.classList].filter((c) => c.startsWith('tab-') && !c.startsWith('tab-in') || c.startsWith('sub-')));
+  el.classList.add('tab-' + tab, 'sub-' + partyTab);
   hydrate(el);
   if (tab === 'home') drawStagePreview();
   if (!inBattle && !$('#loading:not(.hidden)')) playBgm(menuBgm(), 'home');
@@ -525,7 +538,7 @@ function charsHTML() {
     </div>
   </div>
   <div class="char-grid">${tiles}</div>
-  <div style="margin-top:10px">${actions}</div>`;
+  <div class="char-actions" style="margin-top:10px">${actions}</div>`;
 }
 
 async function itemModal(uid, slotId) {
@@ -987,7 +1000,10 @@ function settingsHTML() {
 // ===================== 操作 =====================
 function bindGlobal() {
   // 最初のタッチで音を有効化（iPhoneは操作しないと音が出ない）
-  document.addEventListener('pointerdown', () => { initAudio(); if (!inBattle) playBgm(menuBgm(), 'home'); }, { passive: true });
+  // iPhoneは「指を離したとき」が音を出してよい合図なので、touchend でも音の準備をする
+  const unlock = () => { initAudio(); if (!inBattle) playBgm(menuBgm(), 'home'); };
+  document.addEventListener('pointerdown', unlock, { passive: true });
+  document.addEventListener('touchend', unlock, { passive: true });
   // 音量バー
   document.addEventListener('input', (e) => {
     const r = e.target.closest('input[data-vol]');

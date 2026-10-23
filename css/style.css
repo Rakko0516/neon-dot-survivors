@@ -625,7 +625,7 @@ img.px, canvas { image-rendering: pixelated; image-rendering: crisp-edges; }
 .gfx-N { --gc: #fff4d8; } .gfx-R { --gc: #8ad0ff; } .gfx-SR { --gc: #d8a0ff; } .gfx-SSR { --gc: #ffe27a; }
 .gfx[data-r="N"] { --gc: #fff4d8; } .gfx[data-r="R"] { --gc: #8ad0ff; } .gfx[data-r="SR"] { --gc: #d8a0ff; } .gfx[data-r="SSR"] { --gc: #ffe27a; }
 /* 集中線：画面より大きい正方形を中心で回す（端が切れない） */
-.gfx-rays { position: absolute; left: 50%; top: 52%; width: 300vmax; height: 300vmax; transform: translate(-50%, -50%); opacity: .25; transition: opacity .4s, background .4s;
+.gfx-rays { position: absolute; left: 50%; top: 52%; width: 125vmax; height: 125vmax; border-radius: 50%; will-change: transform; transform: translate(-50%, -50%); opacity: .25; transition: opacity .4s, background .4s;
   background: repeating-conic-gradient(from 0deg, var(--gc) 0 6deg, transparent 6deg 18deg); animation: spinC 18s linear infinite; pointer-events: none; }
 .gfx.opened .gfx-rays { opacity: .45; animation-duration: 9s; }
 .gfx-SSR.opened .gfx-rays { background: repeating-conic-gradient(from 0deg, #ff7a9a 0 6deg, transparent 6deg 12deg, #ffd23a 12deg 18deg, transparent 18deg 24deg, #4ac8ff 24deg 30deg, transparent 30deg 36deg); opacity: .5; }
@@ -773,3 +773,70 @@ body { font-size: 1rem; }
   .home-top { margin-bottom: 2px; }
   .ticker { height: 22px; margin-bottom: 4px; }
 }
+
+/* ===== スマホを横にしたとき：縦向きにしてもらう案内 ===== */
+#rotate { display: none; }
+html.sideways #rotate {
+  display: flex; position: fixed; inset: 0; z-index: 200; flex-direction: column; align-items: center; justify-content: center; gap: 18px;
+  background: var(--pattern) repeat, #2a8a80; background-size: 32px 32px;
+}
+.rotate-phone { width: 46px; height: 80px; border: 5px solid #fff; border-radius: 10px; box-shadow: 0 4px 0 var(--ink); animation: rotPhone 1.8s ease-in-out infinite; }
+@keyframes rotPhone { 0%, 20% { transform: rotate(-90deg); } 60%, 100% { transform: rotate(0); } }
+.rotate-text { font-size: 18px; }
+
+/* =====================================================================
+   横画面レイアウト（PC・iPad横向き）：左にメニュー、右に広い画面
+   ===================================================================== */
+html.wide #menu { display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-rows: auto auto minmax(0, 1fr) auto; }
+html.wide #menu > .band { grid-column: 1 / -1; }
+html.wide #menu > header { grid-column: 1 / -1; grid-row: 2; max-width: calc(1180px / var(--z)); width: 100%; margin: 0 auto; }
+html.wide #menu > nav { grid-column: 1; grid-row: 3; max-width: none; width: auto; margin: 0; }
+html.wide #menu > main { grid-column: 2; grid-row: 3; max-width: calc(1080px / var(--z)); width: 100%; margin: 0 auto; padding: 8px 18px 18px; }
+html.wide #menu > .band:last-child { grid-row: 4; }
+/* 左のメニュー（縦並び） */
+html.wide .tabbar { display: flex; flex-direction: column; gap: 10px; padding: 14px 10px; width: 132px; border-top: 0; border-right: 3px solid var(--ink); box-shadow: inset -3px 0 0 #8a6a4a; }
+html.wide .tabbar button { height: 84px; font-size: 13px; }
+html.wide .tabbar button img { height: 42px; }
+html.wide .tabbar button.active { transform: translateX(4px); }
+
+/* ホーム：左に大きくステージ、右に各ボタンと出撃 */
+html.wide .tab-home { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); grid-template-areas: "stage ticker" "stage icons" "stage top" "stage start" "stage ."; grid-template-rows: auto auto auto auto 1fr; column-gap: 18px; align-items: start; }
+html.wide .tab-home .ticker { grid-area: ticker; margin-top: 8px; }
+html.wide .tab-home .home-icons { grid-area: icons; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+html.wide .tab-home .home-icons .hicon { height: 74px; }
+html.wide .tab-home .home-top { grid-area: top; justify-content: flex-start; margin: 6px 0; }
+html.wide .tab-home .stage-card { grid-area: stage; margin-top: 8px; }
+html.wide .tab-home .btn-start { grid-area: start; font-size: 32px; padding: 18px 0 20px; margin-top: 6px; }
+
+/* 装備：左にキャラと装備枠、右に所持品 */
+html.wide .tab-party.sub-equip { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); grid-template-areas: "tabs tabs" "stage tools" "stage inv" "stage ."; grid-template-rows: auto auto auto 1fr; column-gap: 18px; align-items: start; }
+html.wide .tab-party .subtabs { grid-area: tabs; max-width: 560px; }
+html.wide .tab-party.sub-equip .equip-stage { grid-area: stage; }
+html.wide .tab-party.sub-equip .inv-tools { grid-area: tools; margin-top: 8px; }
+html.wide .tab-party.sub-equip .inv-tools + .panel { grid-area: inv; }
+html.wide .tab-party.sub-equip .inv { grid-template-columns: repeat(6, 1fr); }
+/* キャラ：左に大きく紹介、右に一覧とボタン */
+html.wide .tab-party.sub-chars { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-areas: "tabs tabs" "show grid" "show act" "show ."; grid-template-rows: auto auto auto 1fr; column-gap: 18px; align-items: start; }
+html.wide .tab-party.sub-chars .char-show { grid-area: show; min-height: 320px; }
+html.wide .tab-party.sub-chars .char-grid { grid-area: grid; margin-top: 8px; }
+html.wide .tab-party.sub-chars .char-actions { grid-area: act; }
+/* ガチャ：左にバナー、右に引くボタン */
+html.wide .tab-gacha { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); grid-template-areas: "tabs tabs" "banner panel"; grid-template-rows: auto 1fr; column-gap: 18px; align-items: start; }
+html.wide .tab-gacha .subtabs { grid-area: tabs; max-width: 560px; }
+html.wide .tab-gacha .gbanner { grid-area: banner; height: 300px; }
+html.wide .tab-gacha .gb-chars img { max-width: 150px; }
+html.wide .tab-gacha > .panel { grid-area: panel; }
+/* 設定：2列に並べる */
+html.wide .tab-settings { columns: 2; column-gap: 18px; }
+html.wide .tab-settings > * { break-inside: avoid; }
+html.wide .tab-settings > .panel { margin-top: 0; }
+/* 戦闘：レベルアップのカードを横に3枚並べる */
+html.wide .lv-cards { flex-direction: row; max-width: 980px; }
+html.wide .lv-card { flex: 1; flex-direction: column; text-align: center; min-height: 220px; }
+html.wide .lv-card .reel-frame { width: 90px; height: 90px; }
+/* 横画面：使える幅を広げ、ホームのステージ見本を大きく */
+html.wide #menu > main { max-width: calc(1400px / var(--z)); }
+html.wide #menu > header { max-width: calc(1500px / var(--z)); }
+html.wide .tab-home { grid-template-columns: minmax(0, 1.8fr) minmax(0, 1fr); }
+html.wide .tab-gacha .gbanner { height: 340px; }
+html.wide .tab-party.sub-equip .equip-stage { max-width: none; }
