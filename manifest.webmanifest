@@ -1,7 +1,7 @@
 {
-  "name": "ネオンドット・サバイバーズ",
-  "short_name": "ネオンドット",
-  "description": "ドット絵の電脳サバイバー討伐ゲーム",
+  "name": "ドットラッシュ！",
+  "short_name": "ドットラッシュ！",
+  "description": "ドット絵のサバイバー討伐ゲーム",
   "lang": "ja",
   "start_url": "./",
   "scope": "./",

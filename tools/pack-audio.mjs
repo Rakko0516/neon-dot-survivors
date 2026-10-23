@@ -26,6 +26,16 @@ function findRaw(pattern) {
   return rawFiles.find((f) => parts.every((p) => norm(f).includes(p)));
 }
 
+// BGMと効果音で同じ元ファイル名を指定すると、片方がもう片方の音になってしまうので止める
+{
+  const seen = new Map();
+  for (const kind of ['bgm', 'se']) for (const [name, s] of Object.entries(sources[kind])) {
+    const k = stem(s.file);
+    if (seen.has(k)) { console.error(`元ファイル名が重複しています: ${seen.get(k)} と ${kind}/${name}（${s.file}）`); process.exit(1); }
+    seen.set(k, `${kind}/${name}`);
+  }
+}
+
 let ok = 0;
 const missing = [];
 for (const kind of ['bgm', 'se']) {

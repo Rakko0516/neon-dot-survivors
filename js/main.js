@@ -605,6 +605,81 @@ function charsHTML() {
   <div class="char-actions" style="margin-top:10px">${actions}</div>`;
 }
 
+// ===================== まとめて強化 =====================
+const statVal = (k, v) => (D.PERCENT_STATS.has(k) ? `${(v * 100).toFixed(1).replace(/\.0$/, '')}%` : Math.round(v).toLocaleString());
+/**
+ * 上げたいレベルを選んで、まとめて強化する画面（キャラ・装備共通）
+ * @param o.cur 今のレベル / o.max 最大レベル / o.costAt(lv) lv→lv+1 に必要なコイン / o.statsAt(lv) {キー:値}
+ * @returns 選んだレベル（やめたら null）
+ */
+function bulkUpgradeModal(o) {
+  const d = data();
+  const { cur, max } = o;
+  const totalTo = (to) => { let s = 0; for (let l = cur; l < to; l++) s += o.costAt(l); return s; };
+  // 今のコインで上げられる最大レベル
+  let afford = cur;
+  for (let s = 0; afford < max && s + o.costAt(afford) <= d.gold; afford++) s += o.costAt(afford);
+  let target = Math.min(max, cur + 1);
+  const quick = [1, 5, 10];
+  const before = o.statsAt(cur);
+  return modal({
+    title: `${o.title} を強化`,
+    sound: 'panel2',
+    body: `<div class="bu">
+      <div class="bu-lv"><span class="bu-from">Lv ${cur}</span><span class="bu-arrow">▶</span><span class="bu-to ol" id="bu-to"></span></div>
+      <input type="range" class="bu-range" id="bu-range" min="${cur + 1}" max="${max}" step="1" value="${target}" ${max - cur <= 1 ? 'disabled' : ''} aria-label="強化後のレベル">
+      <div class="bu-quick">
+        ${quick.map((n) => `<button class="btn small" data-bu="${n}" ${cur + n > max ? 'disabled' : ''}>+${n}</button>`).join('')}
+        <button class="btn small gold" data-bu="afford" ${afford <= cur ? 'disabled' : ''}>買える分</button>
+        <button class="btn small" data-bu="max">MAX</button>
+      </div>
+      <div class="bu-stats" id="bu-stats"></div>
+      <div class="bu-cost" id="bu-cost"></div>
+    </div>`,
+    buttons: [{ label: 'やめる', value: null }, { label: '強化する', value: 'ok', cls: 'gold' }],
+    onMount: (ov, close) => {
+      hydrate(ov);
+      const range = ov.querySelector('#bu-range');
+      const okBtn = ov.querySelector('.mbtns [data-i="1"]');
+      const update = () => {
+        const cost = totalTo(target);
+        const after = o.statsAt(target);
+        ov.querySelector('#bu-to').textContent = `Lv ${target}${target >= max ? '（MAX）' : ''}`;
+        ov.querySelector('#bu-stats').innerHTML = Object.keys(after).map((k) =>
+          `<div><span>${D.STAT_NAMES[k] || k}</span><b>${statVal(k, before[k] || 0)}</b><i>▶</i><b class="up">${statVal(k, after[k])}</b></div>`).join('');
+        const short = cost > d.gold;
+        ov.querySelector('#bu-cost').innerHTML = `必要コイン <img class="px" data-icon="coin" data-color="#ffcf3a" alt=""><b class="${short ? 'short' : ''}">${cost.toLocaleString()}</b><small>（所持 ${d.gold.toLocaleString()}）</small>`;
+        hydrate(ov.querySelector('#bu-cost'));
+        okBtn.disabled = short;
+        okBtn.textContent = short ? 'コインが足りません' : `+${target - cur} 強化する`;
+        range.value = target;
+      };
+      range.addEventListener('input', () => { target = +range.value; update(); sfx('reel'); });
+      ov.querySelectorAll('[data-bu]').forEach((b) => b.addEventListener('click', () => {
+        const k = b.dataset.bu;
+        target = k === 'max' ? max : k === 'afford' ? afford : Math.min(max, cur + +k);
+        update();
+      }));
+      update();
+    },
+  }).then((v) => (v === 'ok' ? target : null));
+}
+
+/** 選んだレベルまで強化（コインを確認してから） */
+function applyUpgrade(obj, cur, to, costAt) {
+  const d = data();
+  let cost = 0;
+  for (let l = cur; l < to; l++) cost += costAt(l);
+  if (to <= cur || d.gold < cost) return false;
+  d.gold -= cost;
+  obj.level = to;
+  M.track('upgrade', to - cur);
+  sfx('levelup');
+  commit();
+  toast(`Lv ${to} に強化しました！（-${cost.toLocaleString()}コイン）`);
+  return true;
+}
+
 async function itemModal(uid, slotId) {
   const d = data();
   const it = d.items.find((i) => i.uid === uid);
@@ -621,7 +696,7 @@ async function itemModal(uid, slotId) {
   const buttons = [];
   if (owner === cid) buttons.push({ label: '外す', value: 'unequip' });
   else buttons.push({ label: '装備する', value: 'equip', cls: 'teal' });
-  buttons.push({ label: maxed ? '強化MAX' : `強化 ${cost.toLocaleString()}G`, value: 'up', cls: 'gold' });
+  buttons.push({ label: maxed ? '強化MAX' : '強化', value: 'up', cls: 'gold' });
   if (!owner) buttons.push({ label: `売却 +${D.salvageValue(it)}G`, value: 'sell', cls: 'dark' });
   buttons.push({ label: '閉じる', value: null });
   const v = await modal({
@@ -645,7 +720,12 @@ async function itemModal(uid, slotId) {
     for (const k of Object.keys(d.chars[cid].equip)) if (d.chars[cid].equip[k] === uid) d.chars[cid].equip[k] = null;
     commit();
   } else if (v === 'up') {
-    if (d.gold >= cost && !maxed) { d.gold -= cost; it.level++; M.track('upgrade'); sfx('levelup'); commit(); itemModal(uid, slotId); }
+    if (!maxed) {
+      const costAt = (lv) => D.upgradeCost({ ...it, level: lv });
+      const to = await bulkUpgradeModal({ title: base.name, cur: it.level, max: R.maxLv, costAt, statsAt: (lv) => D.itemStats({ ...it, level: lv }) });
+      if (to) applyUpgrade(it, it.level, to, costAt);
+    }
+    itemModal(uid, slotId);
   } else if (v === 'sell') {
     if (await confirmBox('売却', `${base.name} を ${D.salvageValue(it)} ゴールドで売却しますか？`, '売却する', 'red')) {
       d.gold += D.salvageValue(it);
@@ -1169,9 +1249,12 @@ async function onAction(act, el) {
       break;
     }
     case 'char-up': {
-      const cs = d.chars[el.dataset.id];
-      const cost = D.charUpgradeCost(cs.level);
-      if (d.gold >= cost && cs.level < D.CHAR_MAX_LV) { d.gold -= cost; cs.level++; M.track('upgrade'); sfx('levelup'); commit(); }
+      const id = el.dataset.id;
+      const cs = d.chars[id];
+      if (cs.level >= D.CHAR_MAX_LV) break;
+      const statsAt = (lv) => { const keep = cs.level; cs.level = lv; const st = D.charStats(d, id); cs.level = keep; return { atk: st.atk, hp: st.hp }; };
+      bulkUpgradeModal({ title: D.CHARACTERS[id].name, cur: cs.level, max: D.CHAR_MAX_LV, costAt: D.charUpgradeCost, statsAt })
+        .then((to) => { if (to) applyUpgrade(cs, cs.level, to, D.charUpgradeCost); });
       break;
     }
     case 'goto-gacha': gachaType = 'char'; tab = 'gacha'; sfx('click'); render(); break;

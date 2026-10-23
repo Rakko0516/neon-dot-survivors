@@ -1,6 +1,6 @@
 // Service Worker：オフライン対応・アップデート配信・プッシュ通知
 // VERSION を変えると全プレイヤーに「アップデートがあります」が表示されます（tools/bump-version.mjs が自動で変更）
-const VERSION = '0.6.0';
+const VERSION = '0.7.0';
 const CACHE = 'nds-' + VERSION;
 const RUNTIME = 'nds-runtime';
 
@@ -94,7 +94,7 @@ self.addEventListener('push', (e) => {
   let p = {};
   try { p = e.data ? e.data.json() : {}; } catch { p = { data: { body: e.data && e.data.text() } }; }
   const d = p.data || p.notification || p;
-  const title = d.title || 'ネオンドット・サバイバーズ';
+  const title = d.title || 'ドットラッシュ！';
   e.waitUntil(self.registration.showNotification(title, {
     body: d.body || '新しいお知らせがあります',
     icon: './icons/icon-192.png',

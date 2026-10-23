@@ -1,4 +1,4 @@
-# ネオンドット・サバイバーズ
+# ドットラッシュ！（旧名：ネオンドット・サバイバーズ）
 
 ドット絵のサバイバー討伐ゲーム（ブラウザ完結・PWA）。公開URL：https://dot-rush.pages.dev/ （Cloudflare Pages。mainにpushすると自動で公開）。6種類のステージを5部屋ずつ進み、5部屋目でボスと戦う。
 サーバー代0円で運営できる構成：GitHub Pages（配信）＋ Firebase Spark（ログイン・クラウドセーブ）＋ GitHub Actions（プッシュ通知送信）。

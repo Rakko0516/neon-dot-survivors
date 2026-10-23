@@ -250,13 +250,13 @@
       "by": "効果音ラボ"
     },
     "boss": {
-      "file": "boss.mp3",
+      "file": "se_boss.mp3",
       "orig": "警報が鳴る.mp3",
       "use": "ボス登場",
       "by": "効果音ラボ"
     },
     "gacha": {
-      "file": "gacha.mp3",
+      "file": "se_gacha.mp3",
       "orig": "ドラムロール.mp3",
       "use": "ガチャ開始",
       "by": "効果音ラボ"
