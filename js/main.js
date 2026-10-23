@@ -1112,8 +1112,7 @@ function settingsHTML() {
   <div class="panel">
     <h3>通知・サウンド</h3>
     <div class="set-row"><div class="lbl">更新のお知らせ通知<small>${notifyNote}</small></div><button class="toggle ${d.settings.notify ? 'on' : ''}" data-act="toggle-notify" aria-label="通知"></button></div>
-    <div class="vol-row"><span class="vl">BGM</span><input type="range" min="0" max="100" step="5" value="${d.settings.bgmVol}" data-vol="bgm" aria-label="BGMの音量"><span class="vv" id="vv-bgm">${d.settings.bgmVol}</span></div>
-    <div class="vol-row"><span class="vl">効果音</span><input type="range" min="0" max="100" step="5" value="${d.settings.seVol}" data-vol="se" aria-label="効果音の音量"><span class="vv" id="vv-se">${d.settings.seVol}</span></div>
+    ${volHTML()}
     <div class="set-row"><div class="lbl">BGMを試聴<small>バーを0にすると消音になります</small></div>
       <select class="sel" data-act="bgm-test">${Object.entries(TRACK_NAMES).map(([k, v]) => `<option value="${k}">${v}</option>`).join('')}</select></div>
   </div>
@@ -1155,7 +1154,7 @@ function bindGlobal() {
     if (!r) return;
     const v = +r.value, k = r.dataset.vol;
     setVolume({ [k]: v });
-    const lbl = document.getElementById('vv-' + k);
+    const lbl = r.parentElement.querySelector('.vv');
     if (lbl) lbl.textContent = v;
     if (k === 'se') sfx('coin');
   });
@@ -1623,6 +1622,13 @@ function showLevelUp(choices, done) {
   cards.addEventListener('click', onClick);
 }
 
+/** 音量バー（設定画面とポーズ画面で共通） */
+function volHTML() {
+  const st = data().settings;
+  return `<div class="vol-row"><span class="vl">BGM</span><input type="range" min="0" max="100" step="5" value="${st.bgmVol}" data-vol="bgm" aria-label="BGMの音量"><span class="vv">${st.bgmVol}</span></div>
+    <div class="vol-row"><span class="vl">効果音</span><input type="range" min="0" max="100" step="5" value="${st.seVol}" data-vol="se" aria-label="効果音の音量"><span class="vv">${st.seVol}</span></div>`;
+}
+
 async function openPause() {
   if (!game || game.paused || game.ended) return;
   game.pause();
@@ -1630,7 +1636,8 @@ async function openPause() {
   const v = await modal({
     title: 'ポーズ',
     dismiss: false,
-    body: `<p style="text-align:center;margin:0">ROOM ${game.room + 1}/${D.ROOMS_PER_STAGE} ／ 経過 ${fmtTime(game.t)} ／ 撃破 ${game.kills}</p>`,
+    body: `<p style="text-align:center;margin:0">ROOM ${game.room + 1}/${D.ROOMS_PER_STAGE} ／ 経過 ${fmtTime(game.t)} ／ 撃破 ${game.kills}</p>
+      <div class="pause-vol">${volHTML()}</div>`,
     buttons: [{ label: 'ゲーム終了', value: 'quit', cls: 'dark' }, { label: '再開', value: 'resume', cls: 'teal' }],
   });
   if (!game) return;
