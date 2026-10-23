@@ -52,6 +52,8 @@ export function defaultData() {
     seenNews: '',
     // 出会った敵（m=モブ / b=ボス）と、説明を見たもの（p=行動パターン / hb=ボス）
     seen: { m: [], b: [], p: [], hb: [] },
+    // 装備とキャラの組み合わせのプリセット（仲間のキャラの数だけ使える）{ name, char, equip }
+    presets: [],
   };
 }
 
@@ -208,6 +210,12 @@ function sanitize(d) {
   d.seenNews = safeText(d.seenNews, 80);
   const ids = (a) => (Array.isArray(a) ? a : []).map((x) => safeId(x, 30)).filter(Boolean).slice(0, 300);
   d.seen = { m: ids(d.seen?.m), b: ids(d.seen?.b), p: ids(d.seen?.p), hb: ids(d.seen?.hb) };
+  // プリセット：知らないキャラは捨て、装備は部位ごとの番号だけ残す（なくなった装備は呼び出し時に外れる）
+  d.presets = (Array.isArray(d.presets) ? d.presets : []).slice(0, 20).map((p) => (p && CHARACTERS[p.char] ? {
+    name: safeText(p.name, 12),
+    char: p.char,
+    equip: Object.fromEntries(Object.keys(emptyEquip()).map((k) => [k, Number.isFinite(p.equip?.[k]) ? num(p.equip[k], 1, 1e9) : null])),
+  } : null));
   d.settings = {
     bgmVol: num(d.settings?.bgmVol, 0, 100, 60), seVol: num(d.settings?.seVol, 0, 100, 80), notify: !!d.settings?.notify,
     offlineAuto: d.settings?.offlineAuto !== false,

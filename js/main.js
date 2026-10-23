@@ -623,8 +623,92 @@ function partyHTML() {
   return `<div class="subtabs">
       <button class="btn ${partyTab === 'equip' ? 'active' : ''}" data-act="party-tab" data-t="equip">装備</button>
       <button class="btn ${partyTab === 'chars' ? 'active' : ''}" data-act="party-tab" data-t="chars">キャラ変更・強化</button>
-    </div>` + (partyTab === 'equip' ? equipHTML() : charsHTML());
+    </div>
+    <button class="preset-btn" data-act="presets"><img class="px" data-icon="book" data-color="#ffd23a" alt=""><span>プリセット<small>キャラと装備の組み合わせを保存・呼び出し</small></span><b>${presetSlots()}枠</b></button>` + (partyTab === 'equip' ? equipHTML() : charsHTML());
 }
+
+// ===================== プリセット（キャラ＋装備の組み合わせ） =====================
+/** 使えるプリセットの数＝仲間になっているキャラの数 */
+const presetSlots = () => Object.values(data().chars).filter((c) => c.unlocked).length;
+function presetRow(p, i, slots) {
+  const d = data();
+  if (i >= slots) {
+    return `<div class="pr-row lock"><img class="px pr-lock" data-icon="lock" data-color="#9a8a70" alt=""><div class="pr-main"><b>プリセット ${i + 1}</b><small>キャラをあと${i + 1 - slots}人仲間にすると使えます</small></div></div>`;
+  }
+  const name = (p && p.name) || `プリセット ${i + 1}`;
+  if (!p) {
+    return `<div class="pr-row empty"><div class="pr-main"><b>${esc(name)}</b><small>まだ保存していません</small></div>
+      <button class="btn small teal" data-pr="save:${i}">今の編成を保存</button></div>`;
+  }
+  const c = D.CHARACTERS[p.char];
+  const gear = D.SLOTS.map((s) => {
+    const it = d.items.find((x) => x.uid === p.equip[s.id]);
+    if (!it) return `<span class="pr-g none"></span>`;
+    const b = D.EQUIP[it.base];
+    return `<span class="pr-g" style="--rc:${D.RARITIES[it.rarity].color}"><img class="px" data-icon="${b.icon}" data-color="${b.color}" alt=""></span>`;
+  }).join('');
+  const same = p.char === d.selectedChar && D.SLOTS.every((s) => (p.equip[s.id] ?? null) === (d.equip[s.id] ?? null));
+  return `<div class="pr-row ${same ? 'cur' : ''}">
+    <div class="pr-top"><img class="pr-face" data-portrait="${p.char}" alt="${c.name}"><div class="pr-main"><b>${esc(name)}</b><small>${c.name}${same ? '・いまの編成' : ''}</small></div>
+      <button class="btn small" data-pr="name:${i}" aria-label="名前を変える">名前</button></div>
+    <div class="pr-gear">${gear}</div>
+    <div class="pr-btns"><button class="btn small red" data-pr="load:${i}" ${same ? 'disabled' : ''}>呼び出す</button><button class="btn small teal" data-pr="save:${i}">上書き保存</button></div>
+  </div>`;
+}
+async function presetModal() {
+  const d = data();
+  const slots = presetSlots();
+  const total = Object.keys(D.CHARACTERS).length;
+  const v = await modal({
+    title: 'プリセット',
+    body: `<p class="muted" style="margin-top:0">いまのキャラと装備の組み合わせを保存して、ボタン1つで呼び出せます。仲間のキャラが増えるたびに、使える枠が1つ増えます（${slots} / ${total}枠）。</p>
+      <div class="pr-list">${Array.from({ length: total }, (_, i) => presetRow(d.presets[i] || null, i, slots)).join('')}</div>`,
+    buttons: [{ label: '閉じる', value: null }],
+    onMount: (ov, close) => {
+      hydrate(ov);
+      ov.querySelectorAll('[data-pr]').forEach((b) => b.addEventListener('click', () => close(b.dataset.pr)));
+    },
+  });
+  if (!v) return;
+  const [op, n] = v.split(':');
+  const i = +n;
+  if (i >= slots) return presetModal();
+  const p = d.presets[i] || null;
+  if (op === 'save') {
+    if (p && !(await confirmBox('上書き保存', `「${esc(p.name || `プリセット ${i + 1}`)}」を、いまの編成（${D.CHARACTERS[d.selectedChar].name}と装備）で上書きしますか？`, '上書きする', 'teal'))) return presetModal();
+    while (d.presets.length <= i) d.presets.push(null);
+    d.presets[i] = { name: p?.name || '', char: d.selectedChar, equip: { ...d.equip } };
+    sfx('equip');
+    commit();
+    toast('プリセットに保存しました');
+  } else if (op === 'load' && p) {
+    // なくなった装備（売却・合成で使った）は外れた状態で呼び出す
+    const have = new Set(d.items.map((x) => x.uid));
+    const used = new Set();
+    let missing = 0;
+    for (const s of D.SLOTS) {
+      const u = p.equip[s.id];
+      if (u != null && have.has(u) && !used.has(u)) { d.equip[s.id] = u; used.add(u); }
+      else { if (u != null) missing++; d.equip[s.id] = null; }
+    }
+    if (d.chars[p.char]?.unlocked) d.selectedChar = p.char;
+    sfx('equip');
+    commit();
+    toast(missing ? `呼び出しました（なくなった装備が${missing}つあったので外れています）` : `「${p.name || `プリセット ${i + 1}`}」を呼び出しました`);
+  } else if (op === 'name' && p) {
+    let val = p.name || '';
+    const ok = await modal({
+      title: 'プリセットの名前',
+      body: `<input class="pr-name" maxlength="12" value="${esc(val)}" placeholder="プリセット ${i + 1}" autocomplete="off"><p class="muted">12文字まで。空にすると「プリセット ${i + 1}」になります。</p>`,
+      buttons: [{ label: 'キャンセル', value: false }, { label: '決定', value: true, cls: 'teal' }],
+      onMount: (ov) => { const inp = ov.querySelector('.pr-name'); inp.addEventListener('input', () => { val = inp.value; }); inp.focus(); },
+    });
+    if (ok) { p.name = String(val).replace(/[<>"'`&\u0000-\u001f]/g, '').trim().slice(0, 12); commit(); toast('名前を変更しました'); }
+  }
+  return presetModal();
+}
+/** 仲間が増えたときのお知らせ文 */
+const presetNote = (n) => `<p class="pr-note">プリセットの枠が <b>+${n}</b>（いま ${presetSlots()}枠）</p>`;
 
 function equipHTML() {
   const d = data();
@@ -1054,7 +1138,7 @@ async function doGacha(n, by) {
           <span class="rs ol">${'★'.repeat(r.star)}</span>
           <span class="rn ol">${r.isNew ? '<b class="rnew">NEW</b>' : r.awaken ? `覚醒+${r.awaken}` : `+${r.coins}G`}</span>
         </div><div class="gname r-${STAR_R[r.star]}">${c.name}</div></div>`;
-      }).join('')}</div>`,
+      }).join('')}</div>${res.some((r) => r.isNew) ? presetNote(res.filter((r) => r.isNew).length) : ''}`,
       buttons: [{ label: 'OK', value: true, cls: 'teal' }],
       onMount: hydrate,
     });
@@ -1480,6 +1564,7 @@ async function onAction(act, el) {
       break;
     }
     case 'auto-equip': autoEquip(); break;
+    case 'presets': sfx('click'); presetModal(); break;
     case 'sell-n': {
       const list = d.items.filter((it) => it.rarity === 'N' && !equippedSlot(it.uid));
       if (!list.length) { toast('売却できるN装備がありません'); break; }
@@ -2015,7 +2100,7 @@ async function endBattle(res) {
         ${ticket ? `<div class="reward"><img class="px" data-icon="ticket" data-color="${M.TICKET_COLOR.char}" alt="">×${ticket}（初回クリア）</div>` : ''}
       </div>
       ${item ? `<div style="display:flex;gap:10px;align-items:center;justify-content:center;margin-top:10px"><div style="width:64px">${itemTile(item, { act: 'none', noOwner: true })}</div><div>${D.EQUIP[item.base].name}<br><span class="muted">を手に入れた！</span></div></div>` : ''}
-      ${unlocked.length ? `<p style="text-align:center;color:#c4103c">${unlocked.join('、')} が仲間になった！</p>` : ''}`,
+      ${unlocked.length ? `<p style="text-align:center;color:#c4103c">${unlocked.join('、')} が仲間になった！</p>${presetNote(unlocked.length)}` : ''}`,
     buttons: res.cleared
       ? [{ label: 'ホームへ', value: 'home' }, { label: '次のステージへ', value: 'next', cls: 'red' }]
       : [{ label: 'ホームへ', value: 'home' }, { label: 'もう一度', value: 'retry', cls: 'red' }],
