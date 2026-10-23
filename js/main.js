@@ -263,7 +263,7 @@ function homeHTML() {
   <div class="home-icons">
     ${homeIcon('present', 'gift', '#ff6a8a', 'プレゼント', d.presents.length)}
     ${homeIcon('missions', 'scroll', '#e8d8a8', 'ミッション', M.claimableCount())}
-    ${homeIcon('login', 'calendar', '#7ac8ff', 'ログボ', 0)}
+    ${homeIcon('login-bonus', 'calendar', '#7ac8ff', 'ログボ', 0)}
     ${homeIcon('news', 'book', '#ffd23a', 'お知らせ', hasUnreadNews() ? '!' : 0)}
   </div>
   ${tickerHTML()}
@@ -1012,7 +1012,7 @@ async function onAction(act, el) {
     case 'present': presentModal(); break;
     case 'profile': profileModal(); break;
     case 'missions': missionModal(); break;
-    case 'login': loginModal(null); break;
+    case 'login-bonus': loginModal(null); break;
     case 'item': sfx('click'); itemModal(+el.dataset.uid); break;
     case 'slot': {
       sfx('click');
