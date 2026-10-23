@@ -14,6 +14,7 @@ import { APP_VERSION } from './version.js';
 import { initAudio, sfx, setVolume, playBgm, stopBgm, bgmForBiome, TRACK_NAMES } from './audio.js';
 import { modal, toast, confirmBox, esc, closeAllModals } from './ui.js';
 import { Game } from './game.js';
+import * as M from './meta.js';
 
 const $ = (s, r = document) => r.querySelector(s);
 const data = () => store.save.data;
@@ -22,6 +23,7 @@ let tab = 'home';
 let partyTab = 'equip';
 let viewChar = null;     // キャラ画面で見ているキャラ
 let invFilter = 'all';
+let gachaType = 'char';
 let inBattle = false;
 let game = null;
 let pendingUpdate = null;
@@ -44,7 +46,6 @@ async function boot() {
   load();
   const d = data();
   setVolume({ bgm: d.settings.bgmVol, se: d.settings.seVol });
-  dailyBonus();
   hydrate(document);
   render();
   bindGlobal();
@@ -59,7 +60,24 @@ async function boot() {
   await Promise.all([fetchChangelog(), new Promise((r) => setTimeout(r, 900))]);
   hideLoading();
   render();
+  await afterBoot();
+}
+
+/** 起動後：ログインボーナス → 運営プレゼント → お知らせ */
+async function afterBoot() {
+  const idx = M.checkLoginBonus();
+  await M.syncGifts();
+  render();
+  if (idx !== null) await loginModal(idx);
   showNewsIfUnread();
+  // 0時をまたいで開きっぱなしでも受け取れるように
+  const recheck = async () => {
+    if (inBattle || document.querySelector('.overlay')) return;
+    const i = M.checkLoginBonus();
+    if (i !== null) { render(); await loginModal(i); }
+  };
+  setInterval(recheck, 60 * 1000);
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') recheck(); });
 }
 
 /** 枠や模様の画像を生成してCSS変数に入れる */
@@ -71,21 +89,6 @@ function applyTheme() {
   r.setProperty('--f-dark', `url(${frameURL('dark')})`);
   r.setProperty('--band', `url(${bandURL()})`);
   r.setProperty('--pattern', `url(${patternURL('#3aa79c', '#4ab8ac')})`);
-}
-
-function dailyBonus() {
-  const d = data();
-  const now = new Date();
-  const key = `${now.getFullYear()}-${now.getMonth() + 1}-${now.getDate()}`;
-  if (d.lastLoginDay !== key) {
-    const first = !d.lastLoginDay;
-    d.lastLoginDay = key;
-    if (!first) {
-      d.crystal += D.DAILY_CRYSTAL;
-      setTimeout(() => toast(`ログインボーナス：クリスタル +${D.DAILY_CRYSTAL}`), 1200);
-    }
-    commit();
-  }
 }
 
 // ===================== ドット絵の流し込み =====================
@@ -114,7 +117,7 @@ function hydrate(root) {
 function updateWallet() {
   const d = data();
   $('#pill-gold').textContent = d.gold.toLocaleString();
-  $('#pill-crystal').textContent = d.crystal.toLocaleString();
+  $('#pill-ticket').textContent = d.tickets.toLocaleString();
   $('#rank-num').textContent = d.maxStage + 1;
   const tc = $('.tab-char');
   if (tc && tc.dataset.char !== d.selectedChar) { tc.dataset.char = d.selectedChar; hydrate(tc.parentElement); }
@@ -176,6 +179,9 @@ function itemTile(it, opt = {}) {
 }
 
 // ----- ホーム -----
+function homeIcon(act, ic, color, label, badge) {
+  return `<button class="hicon" data-act="${act}"><img class="px" data-icon="${ic}" data-color="${color}" alt=""><span class="ol">${label}</span>${badge ? `<i class="hbadge">${badge}</i>` : ''}</button>`;
+}
 /** 先のステージも見えるように、クリア済み+6（最低30）まで表示 */
 const stageViewMax = () => Math.max(30, data().maxStage + 6);
 const isLocked = (n) => n > data().maxStage + 1;
@@ -190,10 +196,15 @@ function homeHTML() {
   const cleared = n <= d.maxStage;
   const rooms = Array.from({ length: D.ROOMS_PER_STAGE }, (_, i) => `<i class="${i === D.ROOMS_PER_STAGE - 1 ? 'boss' : ''}"></i>`).join('<span class="arrow">›</span>');
   return `
+  <div class="home-icons">
+    ${homeIcon('present', 'gift', '#ff6a8a', 'プレゼント', d.presents.length)}
+    ${homeIcon('missions', 'scroll', '#e8d8a8', 'ミッション', M.claimableCount())}
+    ${homeIcon('login', 'calendar', '#7ac8ff', 'ログボ', 0)}
+    ${homeIcon('news', 'book', '#ffd23a', 'お知らせ', hasUnreadNews() ? '!' : 0)}
+  </div>
   <div class="home-top">
     ${!isStandalone() ? '<button class="chip" data-act="install">ホーム画面に追加</button>' : ''}
     <button class="chip" data-act="stage-list">ステージ一覧</button>
-    <button class="chip" data-act="news">お知らせ${hasUnreadNews() ? '<span class="badge"></span>' : ''}</button>
   </div>
   <div class="panel stage-card">
     <div class="stage-ribbon ${locked ? 'locked' : ''}">${locked ? '<img class="px" data-icon="lock" data-color="#ffd23a" alt="">' : ''}<span class="no ol">${info.name}</span><span class="nm ol">${info.sub}</span></div>
@@ -350,14 +361,15 @@ function charsHTML() {
     const s = d.chars[cid];
     return `<button class="ctile ${cid === id ? 'active' : ''} ${s.unlocked ? '' : 'locked'}" style="--cbg:${cc.bg}" data-act="view-char" data-id="${cid}">
       <img data-portrait="${cid}" alt="${cc.name}">
-      ${s.unlocked ? `<span class="lvl ol">Lv${s.level}</span>` : `<span class="lockic ol"><img class="px" data-icon="lock" data-color="#ffd23a" alt="">STAGE${cc.unlock.stage}</span>`}
+      ${s.unlocked ? `<span class="lvl ol">Lv${s.level}</span>${s.awaken ? `<span class="pct ol">+${s.awaken}</span>` : ''}` : `<span class="lockic ol"><img class="px" data-icon="lock" data-color="#ffd23a" alt="">${cc.unlock.gacha ? 'ガチャ' : 'STAGE' + cc.unlock.stage}</span>`}
+      ${cc.stars === 5 ? '<span class="star5"></span>' : ''}
       ${cid === d.selectedChar ? '<span class="using ol">出撃</span>' : ''}
     </button>`;
   }).join('');
   let actions;
   if (!cs.unlocked) {
-    actions = `<div class="muted" style="text-align:center;margin-bottom:6px">STAGE ${c.unlock.stage} をクリアすると仲間になります</div>
-      <button class="btn red block" data-act="char-unlock" data-id="${id}" ${d.crystal < c.unlock.crystal ? 'disabled' : ''}><img class="px" data-icon="gem" data-color="#ff7ad8" alt=""> ${c.unlock.crystal} で今すぐ解放</button>`;
+    actions = `<div class="muted" style="text-align:center;margin-bottom:6px">${c.unlock.gacha ? 'キャラガチャで手に入ります（ガチャ限定）' : `STAGE ${c.unlock.stage} をクリアすると仲間になります（キャラガチャでも出ます）`}</div>
+      <button class="btn red block" data-act="goto-gacha">キャラガチャへ</button>`;
   } else {
     actions = `<div class="btn-grid">
       <button class="btn red" data-act="char-up" data-id="${id}" ${maxed || d.gold < cost ? 'disabled' : ''}>${maxed ? 'MAX' : `強化 <img class="px" data-icon="coin" data-color="#ffcf3a" alt="">${cost.toLocaleString()}`}</button>
@@ -371,7 +383,7 @@ function charsHTML() {
       <div class="nm ol">${c.name}</div>
       <div class="role">${c.role}</div>
       ${starsHTML(c.stars)}
-      <div class="lvline">Lv. ${cs.level} / ${D.CHAR_MAX_LV}</div>
+      <div class="lvline">Lv. ${cs.level} / ${D.CHAR_MAX_LV}${cs.awaken ? `<span class="awk">覚醒+${cs.awaken}</span>` : ''}</div>
       <div class="st">ATK : ${st.atk.toLocaleString()}<br>HP : ${st.hp.toLocaleString()}</div>
       <div class="sep"></div>
       <button class="ability" data-act="ability" data-k="w" data-id="${id}"><img class="px" data-icon="${W.icon}" data-color="${W.color}" alt=""><span>${W.name}<small>固有武器</small></span></button>
@@ -422,7 +434,7 @@ async function itemModal(uid, slotId) {
     for (const k of Object.keys(d.chars[cid].equip)) if (d.chars[cid].equip[k] === uid) d.chars[cid].equip[k] = null;
     commit();
   } else if (v === 'up') {
-    if (d.gold >= cost && !maxed) { d.gold -= cost; it.level++; sfx('levelup'); commit(); itemModal(uid, slotId); }
+    if (d.gold >= cost && !maxed) { d.gold -= cost; it.level++; M.track('upgrade'); sfx('levelup'); commit(); itemModal(uid, slotId); }
   } else if (v === 'sell') {
     if (await confirmBox('売却', `${base.name} を ${D.salvageValue(it)} ゴールドで売却しますか？`, '売却する', 'red')) {
       d.gold += D.salvageValue(it);
@@ -501,49 +513,201 @@ function addItem(baseId, rarity) {
   return it;
 }
 
-// ----- 抽選 -----
+// ----- ガチャ -----
 function gachaHTML() {
   const d = data();
+  const g = D.GACHAS[gachaType];
+  const t = d.tickets;
+  let banner;
+  if (gachaType === 'char') {
+    const feat = Object.values(D.CHARACTERS).filter((c) => c.gacha && c.stars === 5);
+    banner = `<div class="gbanner char">
+      <div class="gb-chars">${feat.map((c) => `<img class="px" data-char="${c.id}" alt="${c.name}">`).join('')}</div>
+      <div class="gb-title ol">ガチャ限定 ★5 登場！</div>
+      <div class="gb-names ol">${feat.map((c) => c.name).join('・')}</div>
+    </div>`;
+  } else {
+    banner = `<div class="gbanner equip">
+      <div class="gb-items">${['sword', 'armor', 'ring', 'helmet', 'staff'].map((ic, i) => `<img class="px" data-icon="${ic}" data-color="${['#ffcc33', '#c45cff', '#4aa8ff', '#9aa3b8', '#ffd23a'][i]}" alt="">`).join('')}</div>
+      <div class="gb-title ol">装備ガチャ</div>
+    </div>`;
+  }
+  const rates = gachaType === 'char'
+    ? Object.entries(g.rates).sort((a, b) => b[0] - a[0]).map(([s, r]) => `<span>★${s} ${r}%</span>`).join('')
+    : D.RARITY_ORDER.map((k) => `<span style="color:${D.RARITIES[k].color}">${k} ${D.RARITIES[k].rate}%</span>`).join('');
   return `
-  <div class="goldf altar">
-    <img class="px" data-icon="altar" data-color="#ffd86a" alt="">
-    <div class="ttl ol">装備の祭壇</div>
-    <div class="muted">クリスタルを捧げると、武器・防具・アクセサリーが手に入ります</div>
+  <div class="subtabs">
+    <button class="btn ${gachaType === 'char' ? 'active' : ''}" data-act="gacha-type" data-t="char">キャラガチャ</button>
+    <button class="btn ${gachaType === 'equip' ? 'active' : ''}" data-act="gacha-type" data-t="equip">装備ガチャ</button>
   </div>
+  ${banner}
   <div class="panel">
+    <div class="muted" style="text-align:center;margin-bottom:6px">${g.desc}</div>
+    <div class="gpay"><img class="px" data-icon="ticket" data-color="#ff7a9a" alt=""><span>チケットで引く</span><span class="spacer"></span><span class="own">所持 ${t}枚</span></div>
     <div class="btn-grid">
-      <button class="btn teal" data-act="gacha" data-n="1" ${d.crystal < D.GACHA.single ? 'disabled' : ''}>1回<br><img class="px" data-icon="gem" data-color="#ff7ad8" alt="">${D.GACHA.single}</button>
-      <button class="btn red" data-act="gacha" data-n="10" ${d.crystal < D.GACHA.ten ? 'disabled' : ''}>10回<br><img class="px" data-icon="gem" data-color="#ff7ad8" alt="">${D.GACHA.ten}</button>
+      <button class="btn teal" data-act="gacha" data-n="1" data-by="ticket" ${t < 1 ? 'disabled' : ''}>1回<small>チケット1枚</small></button>
+      <button class="btn red" data-act="gacha" data-n="10" data-by="ticket" ${t < 10 ? 'disabled' : ''}>10連<small>チケット10枚</small></button>
     </div>
-    <p class="muted" style="text-align:center">10回はR以上が1つ確定。クリスタルはステージクリアと毎日のログインでもらえます。</p>
-    <div class="rates">${D.RARITY_ORDER.map((k) => `<span style="color:${D.RARITIES[k].color}">${k} ${D.RARITIES[k].rate}%</span>`).join('')}</div>
+    <div class="gpay"><img class="px" data-icon="coin" data-color="#ffcf3a" alt=""><span>コインで引く</span><span class="spacer"></span><span class="own">所持 ${d.gold.toLocaleString()}</span></div>
+    <div class="btn-grid">
+      <button class="btn teal" data-act="gacha" data-n="1" data-by="gold" ${d.gold < g.coin1 ? 'disabled' : ''}>1回<small>${g.coin1.toLocaleString()}コイン</small></button>
+      <button class="btn red" data-act="gacha" data-n="10" data-by="gold" ${d.gold < g.coin10 ? 'disabled' : ''}>10連<small>${g.coin10.toLocaleString()}コイン</small></button>
+    </div>
+    <p class="muted" style="text-align:center;margin:8px 0 0">10連は${gachaType === 'char' ? '★4以上' : 'R以上'}が1つ確定</p>
+    <div class="rates">${rates}</div>
   </div>`;
 }
 
-async function doGacha(n) {
-  const d = data();
-  const cost = n === 10 ? D.GACHA.ten : D.GACHA.single;
-  if (d.crystal < cost) return;
-  d.crystal -= cost;
-  const got = [];
-  for (let i = 0; i < n; i++) {
-    let r = D.rollRarity(0);
-    if (n === 10 && i === 9 && got.every((g) => g.rarity === 'N') && r === 'N') r = 'R';
-    got.push(addItem(D.randomEquipBase(), r));
+async function doGacha(n, by) {
+  const type = gachaType;
+  if (!M.payGacha(type, n, by)) { toast(by === 'ticket' ? 'チケットが足りません' : 'コインが足りません'); return; }
+  sfx('gacha');
+  if (type === 'char') {
+    const res = M.pullChars(n);
+    const best = Math.max(...res.map((r) => r.star));
+    await gachaReveal(best);
+    sfx(best >= 5 ? 'rare' : 'unlock');
+    await modal({
+      title: best >= 5 ? '★5 獲得！' : '獲得キャラ',
+      body: `<div class="gacha-result chars">${res.map((r, i) => {
+        const c = D.CHARACTERS[r.id];
+        return `<div class="ctile res s${r.star}" style="--cbg:${c.bg};animation-delay:${i * 0.08}s">
+          <img data-portrait="${r.id}" alt="${c.name}">
+          <span class="rs ol">${'★'.repeat(r.star)}</span>
+          <span class="rn ol">${r.isNew ? '<b class="rnew">NEW</b>' : r.awaken ? `覚醒+${r.awaken}` : `+${r.coins}G`}</span>
+        </div>`;
+      }).join('')}</div>`,
+      buttons: [{ label: 'OK', value: true, cls: 'teal' }],
+      onMount: hydrate,
+    });
+  } else {
+    const got = M.pullEquips(n, addItem);
+    const best = Math.max(...got.map((g) => D.RARITY_ORDER.indexOf(g.rarity)));
+    await gachaReveal(best >= 3 ? 5 : best >= 2 ? 4 : 3);
+    sfx(best >= 2 ? 'rare' : 'coin');
+    await modal({
+      title: best >= 3 ? '★ SSR 獲得！ ★' : best >= 2 ? 'SR 獲得！' : '獲得アイテム',
+      body: `<div class="gacha-result">${got.map((it) => itemTile(it, { act: 'none', noOwner: true })).join('')}</div>
+        <p class="muted" style="text-align:center">${got.map((g) => D.EQUIP[g.base].name).join('、')}</p>`,
+      buttons: [{ label: 'OK', value: true, cls: 'teal' }],
+      onMount: (ov) => { hydrate(ov); ov.querySelectorAll('.gacha-result .itile').forEach((el, i) => { el.style.animationDelay = i * 0.07 + 's'; }); },
+    });
   }
-  commit();
-  const best = Math.max(...got.map((g) => D.RARITY_ORDER.indexOf(g.rarity)));
-  sfx(best >= 2 ? 'rare' : 'gacha');
-  await modal({
-    title: best >= 3 ? '★ SSR 獲得！ ★' : best >= 2 ? 'SR 獲得！' : '獲得アイテム',
-    body: `<div class="gacha-result">${got.map((it) => itemTile(it, { act: 'none', noOwner: true })).join('')}</div>
-      <p class="muted" style="text-align:center">${got.map((g) => D.EQUIP[g.base].name).join('、')}</p>`,
-    buttons: [{ label: 'OK', value: true, cls: 'teal' }],
-    onMount: (ov) => {
-      hydrate(ov);
-      ov.querySelectorAll('.gacha-result .itile').forEach((el, i) => { el.style.animationDelay = i * 0.07 + 's'; });
-    },
+  render();
+}
+
+/** ガチャ演出（光の色で結果の良さがわかる） */
+function gachaReveal(best) {
+  return new Promise((resolve) => {
+    const ov = document.createElement('div');
+    ov.className = `greveal g${best}`;
+    ov.innerHTML = `<div class="gorb"></div><div class="gtext ol">${best >= 5 ? '虹色の光が…！' : best >= 4 ? '金色に輝いた！' : 'タップでスキップ'}</div>`;
+    document.getElementById('modal-root').appendChild(ov);
+    let done = false;
+    const end = () => { if (done) return; done = true; ov.remove(); resolve(); };
+    ov.addEventListener('click', end);
+    setTimeout(end, best >= 5 ? 2200 : 1400);
   });
+}
+
+// ----- プレゼント・ミッション・ログボ -----
+function rewardHTML(reward) {
+  return Object.entries(reward).map(([k, v]) => {
+    const [ic, col] = M.REWARD_ICON[k] || ['star', '#ffd23a'];
+    return `<span class="rw"><img class="px" data-icon="${ic}" data-color="${col}" alt="">×${v.toLocaleString()}</span>`;
+  }).join('');
+}
+
+function presentModal() {
+  sfx('click');
+  const d = data();
+  const rows = d.presents.map((p) => `<div class="prow">
+      <img class="px pic" data-icon="${p.from === 'login' ? 'calendar' : p.from === 'gift' ? 'gift' : 'star'}" data-color="${p.from === 'login' ? '#7ac8ff' : '#ff6a8a'}" alt="">
+      <div class="pinfo"><div>${esc(p.title)}</div><div class="prw">${rewardHTML(p.reward)}</div><div class="pdate">${formatDate(p.at)}</div></div>
+      <button class="btn small teal" data-claim="${p.id}">受け取る</button>
+    </div>`).join('');
+  modal({
+    title: 'プレゼントボックス',
+    body: d.presents.length ? `<div class="plist">${rows}</div>` : '<p class="muted" style="text-align:center">プレゼントはありません</p>',
+    buttons: d.presents.length ? [{ label: '閉じる', value: null }, { label: '一括受け取り', value: 'all', cls: 'red' }] : [{ label: '閉じる', value: null }],
+    onMount: (ov, close) => {
+      hydrate(ov);
+      ov.querySelectorAll('[data-claim]').forEach((b) => b.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const p = M.claimPresent(b.dataset.claim);
+        if (p) { sfx('coin'); toast(`${M.rewardText(p.reward)} を受け取りました`); }
+        close(); presentModal();
+      }));
+    },
+  }).then((v) => {
+    if (v === 'all') {
+      const r = M.claimAllPresents();
+      sfx('coin');
+      toast(`${r.n}件・${M.rewardText(r.total)} を受け取りました`);
+      render();
+    } else render();
+  });
+}
+
+let missionTab = 'daily';
+function missionModal() {
+  sfx('click');
+  const list = M.missionList(missionTab);
+  const tabs = { daily: 'デイリー', weekly: 'ウィークリー', perm: '常時' };
+  const counts = Object.fromEntries(Object.keys(tabs).map((k) => [k, M.missionList(k).filter((x) => x.done && !x.claimed).length]));
+  const rows = list.map((m) => `<div class="mrow ${m.claimed ? 'claimed' : ''}">
+      <div class="minfo">
+        <div class="mname">${m.name}</div>
+        <div class="mbar"><div style="width:${(m.p / m.goal) * 100}%"></div><span>${m.p.toLocaleString()} / ${m.goal.toLocaleString()}</span></div>
+        <div class="prw">${rewardHTML(m.reward)}</div>
+      </div>
+      ${m.claimed ? '<span class="mdone">受取済</span>' : `<button class="btn small ${m.done ? 'red' : ''}" data-mclaim="${m.id}" ${m.done ? '' : 'disabled'}>${m.done ? '受け取る' : '未達成'}</button>`}
+    </div>`).join('');
+  modal({
+    title: 'ミッション',
+    body: `<div class="mtabs">${Object.entries(tabs).map(([k, v]) => `<button class="btn small ${k === missionTab ? 'active' : ''}" data-mtab="${k}">${v}${counts[k] ? `<i class="hbadge">${counts[k]}</i>` : ''}</button>`).join('')}</div>
+      <div class="muted" style="text-align:right;margin:4px 0">${missionTab === 'perm' ? '一度だけ受け取れる実績ミッション' : `更新まで あと${M.untilReset(missionTab)}`}</div>
+      <div class="mlist">${rows || '<p class="muted" style="text-align:center">すべて達成しました！</p>'}</div>`,
+    buttons: [{ label: '閉じる', value: null }, { label: '一括受け取り', value: 'all', cls: 'red' }],
+    onMount: (ov, close) => {
+      hydrate(ov);
+      const allBtn = [...ov.querySelectorAll('.mbtns .btn')].pop();
+      if (!counts[missionTab]) allBtn.disabled = true;
+      ov.querySelectorAll('[data-mtab]').forEach((b) => b.addEventListener('click', (e) => { e.stopPropagation(); missionTab = b.dataset.mtab; close(); missionModal(); }));
+      ov.querySelectorAll('[data-mclaim]').forEach((b) => b.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const m = M.claimMission(missionTab, b.dataset.mclaim);
+        if (m) { sfx('coin'); toast(`${M.rewardText(m.reward)} を受け取りました`); }
+        close(); missionModal();
+      }));
+    },
+  }).then((v) => {
+    if (v === 'all') {
+      const r = M.claimAllMissions(missionTab);
+      if (r.n) { sfx('coin'); toast(`${r.n}件・${M.rewardText(r.total)} を受け取りました`); }
+      missionModal();
+    } else render();
+  });
+}
+
+/** ログインボーナスのカレンダー。justIdx が数値なら今日受け取った演出つき */
+function loginModal(justIdx) {
+  const d = data();
+  const got = ((d.login.count - 1) % M.LOGIN_CYCLE.length + M.LOGIN_CYCLE.length) % M.LOGIN_CYCLE.length; // 今日の位置
+  const cells = M.LOGIN_CYCLE.map((r, i) => `<div class="lcell ${i <= got && d.login.count ? 'got' : ''} ${i === justIdx ? 'today' : ''}">
+      <div class="lday">${i + 1}日目</div>
+      <div class="prw">${rewardHTML(r)}</div>
+      ${i <= got && d.login.count ? '<div class="lstamp ol">済</div>' : ''}
+    </div>`).join('');
+  if (justIdx !== null && justIdx !== undefined) sfx('levelup');
+  return modal({
+    title: 'ログインボーナス',
+    body: `<div class="lgrid">${cells}</div>
+      <p style="text-align:center;margin:10px 0 0">${justIdx !== null && justIdx !== undefined ? `<b>${justIdx + 1}日目のボーナス</b>をプレゼントボックスに送りました！` : '毎日0時に更新されます'}</p>
+      <p class="muted" style="text-align:center;margin:2px 0 0">累計ログイン ${d.login.total}日</p>`,
+    buttons: justIdx !== null && justIdx !== undefined ? [{ label: 'あとで', value: null }, { label: 'プレゼントを受け取る', value: 'open', cls: 'red' }] : [{ label: '閉じる', value: null }],
+    onMount: hydrate,
+  }).then((v) => { if (v === 'open') presentModal(); });
 }
 
 // ----- 設定 -----
@@ -708,19 +872,14 @@ async function onAction(act, el) {
     case 'char-up': {
       const cs = d.chars[el.dataset.id];
       const cost = D.charUpgradeCost(cs.level);
-      if (d.gold >= cost && cs.level < D.CHAR_MAX_LV) { d.gold -= cost; cs.level++; sfx('levelup'); commit(); }
+      if (d.gold >= cost && cs.level < D.CHAR_MAX_LV) { d.gold -= cost; cs.level++; M.track('upgrade'); sfx('levelup'); commit(); }
       break;
     }
-    case 'char-unlock': {
-      const c = D.CHARACTERS[el.dataset.id];
-      if (d.crystal >= c.unlock.crystal && await confirmBox('キャラ解放', `クリスタル ${c.unlock.crystal} を使って ${c.name} を仲間にしますか？`, '解放する', 'red')) {
-        d.crystal -= c.unlock.crystal;
-        d.chars[el.dataset.id].unlocked = true;
-        sfx('unlock'); commit();
-        toast(`${c.name} が仲間になった！`);
-      }
-      break;
-    }
+    case 'goto-gacha': gachaType = 'char'; tab = 'gacha'; sfx('click'); render(); break;
+    case 'gacha-type': gachaType = el.dataset.t; sfx('click'); render(); break;
+    case 'present': presentModal(); break;
+    case 'missions': missionModal(); break;
+    case 'login': loginModal(null); break;
     case 'item': sfx('click'); itemModal(+el.dataset.uid); break;
     case 'slot': {
       sfx('click');
@@ -742,7 +901,7 @@ async function onAction(act, el) {
       }
       break;
     }
-    case 'gacha': doGacha(+el.dataset.n); break;
+    case 'gacha': doGacha(+el.dataset.n, el.dataset.by); break;
     case 'news': showChangelog(); break;
     case 'install': installApp(); break;
     case 'login':
@@ -1075,11 +1234,13 @@ async function endBattle(res) {
   const n = d.selectedStage;
   const info = D.stageInfo(n);
   const rw = D.clearReward(n);
-  let gold, crystal = 0, item = null, first = false;
+  let gold, ticket = 0, item = null, first = false;
   if (res.cleared) {
     first = n > d.maxStage;
     gold = rw.gold + res.gold + res.kills;
-    crystal = rw.crystal + (first ? rw.firstCrystal : 0);
+    ticket = first ? rw.firstTicket : 0;
+    M.track('boss');
+    d.stats.bossKills = (d.stats.bossKills || 0) + 1;
     let rar = D.rollRarity(Math.floor(n / 2));
     if (first && rar === 'N') rar = 'R';
     item = addItem(D.randomEquipBase(), rar);
@@ -1089,12 +1250,14 @@ async function endBattle(res) {
     gold = Math.round(res.gold + res.kills * 0.6 + (res.room - 1) / D.ROOMS_PER_STAGE * rw.gold * 0.5);
   }
   d.gold += gold;
-  d.crystal += crystal;
+  d.tickets += ticket;
+  M.track('play');
+  M.track('kill', res.kills);
   d.stats.runs++;
   d.stats.kills += res.kills;
   const unlocked = [];
   for (const [id, c] of Object.entries(D.CHARACTERS)) {
-    if (c.unlock && !d.chars[id].unlocked && d.maxStage >= c.unlock.stage) { d.chars[id].unlocked = true; unlocked.push(c.name); }
+    if (c.unlock && c.unlock.stage && !d.chars[id].unlocked && d.maxStage >= c.unlock.stage) { d.chars[id].unlocked = true; unlocked.push(c.name); }
   }
   if (first) d.selectedStage = n + 1;
   commit();
@@ -1112,7 +1275,7 @@ async function endBattle(res) {
       </div>
       <div class="rewards">
         <div class="reward"><img class="px" data-icon="coin" data-color="#ffcf3a" alt="">${gold.toLocaleString()}</div>
-        ${crystal ? `<div class="reward"><img class="px" data-icon="gem" data-color="#ff7ad8" alt="">${crystal}${first ? '（初回ボーナス込み）' : ''}</div>` : ''}
+        ${ticket ? `<div class="reward"><img class="px" data-icon="ticket" data-color="#ff7a9a" alt="">×${ticket}（初回クリア）</div>` : ''}
       </div>
       ${item ? `<div style="display:flex;gap:10px;align-items:center;justify-content:center;margin-top:10px"><div style="width:64px">${itemTile(item, { act: 'none', noOwner: true })}</div><div>${D.EQUIP[item.base].name}<br><span class="muted">を手に入れた！</span></div></div>` : ''}
       ${unlocked.length ? `<p style="text-align:center;color:#c4103c">${unlocked.join('、')} が仲間になった！</p>` : ''}`,

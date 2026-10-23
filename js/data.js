@@ -28,34 +28,62 @@ export const CHARACTERS = {
     name: 'ゼロ', stars: 5, role: '戦闘用アンドロイド', hp: 120, atk: 13, spd: 58, crit: 0.08,
     weapon: 'blade', trait: { name: '装甲フレーム', desc: '受けるダメージ -15%', armor: 0.15 },
     look: { hairStyle: 'bob', hair: '#e6ebf5', eye: '#ff3b5c', top: '#eef1f8', collar: '#ff3b5c', sleeve: '#9aa3bd', belt: '#3a3f5c', bottom: '#c9cfe0', legs: '#6b7390', shoes: '#ff3b5c', acc: ['antenna'], acc1: '#ff3b5c' },
-    unlock: { stage: 2, crystal: 500 }, bg: '#5a5a7a',
+    unlock: { stage: 2 }, bg: '#5a5a7a',
   },
   kon: {
     name: 'コン', stars: 4, role: 'きつね配信者', hp: 95, atk: 9, spd: 64, crit: 0.05,
     weapon: 'foxfire', trait: { name: 'もふもふ吸引', desc: '回収範囲 +40%', magnet: 0.4 },
     look: { hairStyle: 'long', hair: '#ff9a3c', eye: '#3be38a', top: '#ffffff', collar: '#8a4dff', sleeve: '#ffffff', belt: '#ff4f6d', bottom: '#8a4dff', legs: '#ffffff', shoes: '#5a2bc0', acc: ['foxEars'], acc1: '#ffe8b0' },
-    unlock: { stage: 3, crystal: 600 }, bg: '#c8783a',
+    unlock: { stage: 3 }, bg: '#c8783a',
   },
   mint: {
     name: 'ミント', stars: 4, role: '雪の魔女', hp: 90, atk: 11, spd: 60, crit: 0.05,
     weapon: 'ice', trait: { name: '凍える風', desc: '敵の移動速度 -12%', slow: 0.12 },
     look: { hairStyle: 'long', hair: '#7fe0c8', eye: '#6a5cff', top: '#3a5fc8', collar: '#ffffff', sleeve: '#3a5fc8', belt: '#ffd23a', bottom: '#2d3f9a', legs: '#22264a', shoes: '#5a3a2a', acc: ['witchHat'], acc1: '#3a3fa8', acc2: '#ffd23a' },
-    unlock: { stage: 4, crystal: 700 }, bg: '#4a7ac8',
+    unlock: { stage: 4 }, bg: '#4a7ac8',
   },
   noir: {
     name: 'ノワ', stars: 5, role: '吸血鬼のお嬢様', hp: 105, atk: 12, spd: 62, crit: 0.07,
     weapon: 'scythe', trait: { name: '吸血', desc: '敵を倒すとHP回復', lifesteal: 1 },
     look: { hairStyle: 'long', hair: '#2e2440', eye: '#ff3b5c', skin: '#f6e6ea', top: '#2a2238', collar: '#c4103c', sleeve: '#2a2238', belt: '#c4103c', bottom: '#3a1e52', legs: '#1a1424', shoes: '#c4103c', acc: ['horns', 'wings'], acc1: '#7a1838', acc2: '#3a1e52' },
-    unlock: { stage: 6, crystal: 900 }, bg: '#6a2a5a',
+    unlock: { stage: 6 }, bg: '#6a2a5a',
   },
   sora: {
     name: 'ソラ', stars: 3, role: '森の狩人', hp: 95, atk: 10, spd: 70, crit: 0.06,
     weapon: 'arrow', trait: { name: '俊足', desc: '移動速度 +15%', spdPct: 0.15 },
     look: { hairStyle: 'pony', hair: '#4ab84a', eye: '#c88a3a', top: '#3f8a3a', collar: '#e8d8a0', sleeve: '#3f8a3a', belt: '#8a5a34', bottom: '#6a4a2a', legs: '#e8d8a0', shoes: '#6a4a2a', pants: true, acc: ['cap'], acc1: '#2f6a2a', acc2: '#ffd23a', acc1b: '' },
-    unlock: { stage: 5, crystal: 600 }, bg: '#4a8a4a',
+    unlock: { stage: 5 }, bg: '#4a8a4a',
   },
 };
+// ===== ガチャ限定キャラ（gacha: true） =====
+Object.assign(CHARACTERS, {
+  sera: {
+    name: 'セラ', stars: 5, role: '光の天使', hp: 115, atk: 13, spd: 62, crit: 0.06, gacha: true,
+    weapon: 'holy', trait: { name: '祝福', desc: '毎秒HPが自然回復する', regen: 2 },
+    look: { hairStyle: 'long', hair: '#ffe39a', eye: '#4ac8ff', top: '#ffffff', collar: '#ffd23a', sleeve: '#ffffff', belt: '#ffd23a', bottom: '#e8f0ff', legs: '#ffffff', shoes: '#e0b030', acc: ['halo', 'wings'], acc1: '#ffe14d', acc2: '#ffffff' },
+    unlock: { gacha: true }, bg: '#c8a84a',
+  },
+  kagura: {
+    name: 'カグラ', stars: 5, role: '神楽の巫女', hp: 105, atk: 14, spd: 63, crit: 0.07, gacha: true,
+    weapon: 'talisman', trait: { name: '神楽舞', desc: '攻撃速度 +12%', cd: 0.12 },
+    look: { hairStyle: 'long', hair: '#22202e', eye: '#c4103c', top: '#ffffff', collar: '#e03040', sleeve: '#ffffff', belt: '#e03040', bottom: '#d8203a', legs: '#ffffff', shoes: '#5a3a24', acc: ['bigRibbon'], acc1: '#e03040' },
+    unlock: { gacha: true }, bg: '#b04050',
+  },
+  volt: {
+    name: 'ヴォルト', stars: 5, role: '雷の騎士', hp: 125, atk: 14, spd: 64, crit: 0.06, gacha: true,
+    weapon: 'thunder', trait: { name: '雷速', desc: '会心率 +8%・移動速度 +8%', crit: 0.08, spdPct: 0.08 },
+    look: { hairStyle: 'spiky', hair: '#ffd23a', eye: '#3a6acc', top: '#3a4a8a', collar: '#ffd23a', sleeve: '#2a3060', belt: '#ffd23a', bottom: '#2a3060', legs: '#2a3060', shoes: '#ffd23a', pants: true, acc: ['headband'], acc1: '#36f2ff' },
+    unlock: { gacha: true }, bg: '#3a4a8a',
+  },
+  mimi: {
+    name: 'ミミ', stars: 4, role: 'ねこハッカー', hp: 95, atk: 11, spd: 66, crit: 0.06, gacha: true,
+    weapon: 'yarn', trait: { name: 'ハッキング', desc: '敵の移動速度 -8%・経験値 +5%', slow: 0.08, exp: 0.05 },
+    look: { hairStyle: 'bob', hair: '#b8a0ff', eye: '#ffd23a', top: '#2e2e40', collar: '#ff6ab8', sleeve: '#2e2e40', belt: '#ff6ab8', bottom: '#3a3a5a', legs: '#2e2e40', shoes: '#ff6ab8', pants: true, acc: ['catEars', 'headphones'], acc1: '#ff9ad0', acc2: '#36f2ff' },
+    unlock: { gacha: true }, bg: '#6a5aa8',
+  },
+});
 for (const [id, c] of Object.entries(CHARACTERS)) c.id = id;
+export const AWAKEN_MAX = 5; // 覚醒（ガチャで同じキャラが出たとき）の上限
 
 // ===== スキル（ステージ中のレベルアップで選ぶ） =====
 // kind: w=武器 / p=強化 / s=特殊（その場で発動、重複可）
@@ -69,6 +97,10 @@ export const SKILLS = {
   ice: { kind: 'w', sig: 'mint', name: 'アイスシャード', icon: 'snow', color: '#9fe6ff', desc: '氷のつぶてで敵を遅くする' },
   scythe: { kind: 'w', sig: 'noir', name: 'ブラッドサイス', icon: 'scythe', color: '#c4103c', desc: '周囲をまとめて刈り取る' },
   arrow: { kind: 'w', sig: 'sora', name: '疾風の矢', icon: 'arrow', color: '#7ad85a', desc: '進む方向へ貫通する矢を放つ' },
+  holy: { kind: 'w', sig: 'sera', name: 'ホーリーピラー', icon: 'star', color: '#ffe14d', desc: '敵の足元に光の柱を落とす' },
+  talisman: { kind: 'w', sig: 'kagura', name: '追尾のお札', icon: 'scroll', color: '#fff4d8', desc: '敵を追いかけるお札を放つ' },
+  thunder: { kind: 'w', sig: 'volt', name: 'サンダーフォール', icon: 'bolt', color: '#ffd23a', desc: '空から雷を落とし周りを巻き込む' },
+  yarn: { kind: 'w', sig: 'mimi', name: '毛糸ボール', icon: 'orb', color: '#ff8ad0', desc: '壁で跳ね返る毛糸玉を投げる' },
   // 共通武器
   drone: { kind: 'w', name: 'サポートドローン', icon: 'drone', color: '#a9b3cc', desc: 'ドローンが一緒に戦う' },
   missile: { kind: 'w', name: 'ホーミング弾', icon: 'rocket', color: '#ffd23a', desc: '敵を追いかけて爆発する' },
@@ -161,9 +193,9 @@ export const CHAR_MAX_LV = 80;
 export function charStats(data, charId) {
   const c = CHARACTERS[charId];
   const cs = data.chars[charId];
-  const lvMul = 1 + 0.08 * (cs.level - 1);
+  const lvMul = (1 + 0.08 * (cs.level - 1)) * (1 + 0.08 * (cs.awaken || 0));
   const t = c.trait;
-  const st = { hp: c.hp * lvMul, atk: c.atk * lvMul, def: 0, spd: t.spdPct || 0, crit: c.crit + (t.crit || 0), cd: 0, exp: t.exp || 0, magnet: t.magnet || 0, armor: t.armor || 0, slow: t.slow || 0, lifesteal: t.lifesteal || 0 };
+  const st = { hp: c.hp * lvMul, atk: c.atk * lvMul, def: 0, spd: t.spdPct || 0, crit: c.crit + (t.crit || 0), cd: t.cd || 0, exp: t.exp || 0, magnet: t.magnet || 0, armor: t.armor || 0, slow: t.slow || 0, lifesteal: t.lifesteal || 0, regen: t.regen || 0 };
   for (const slot of SLOTS) {
     const uid = cs.equip[slot.id];
     if (uid == null) continue;
@@ -253,7 +285,7 @@ export function expNeed(lv) {
   return Math.floor(5 + lv * 4 + lv * lv * 0.55);
 }
 export function clearReward(n) {
-  return { gold: 150 + n * 70, crystal: 20 + Math.min(n, 20) * 2, firstCrystal: 60 };
+  return { gold: 150 + n * 70, firstTicket: 1 };
 }
 export function rollRarity(bonus = 0) {
   const rates = { N: 58 - bonus * 2, R: 30, SR: 10 + bonus * 1.4, SSR: 2 + bonus * 0.6 };
@@ -270,5 +302,16 @@ export function randomEquipBase() {
   const keys = Object.keys(EQUIP);
   return keys[Math.floor(Math.random() * keys.length)];
 }
-export const GACHA = { single: 100, ten: 900 };
-export const DAILY_CRYSTAL = 50;
+// ===== ガチャ =====
+// cost：コインで引くときの値段（1回 / 10連）。チケットは1回=1枚、10連=10枚
+export const GACHAS = {
+  char: {
+    name: 'キャラガチャ', coin1: 1500, coin10: 13500,
+    rates: { 5: 3, 4: 22, 3: 75 }, // ★ごとの確率（%）
+    desc: 'ガチャ限定の★5キャラが登場！ 同じキャラが出ると覚醒（ステータスアップ）',
+  },
+  equip: {
+    name: '装備ガチャ', coin1: 500, coin10: 4500,
+    desc: '武器・防具・アクセサリーが手に入る',
+  },
+};

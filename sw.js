@@ -1,6 +1,6 @@
 // Service Worker：オフライン対応・アップデート配信・プッシュ通知
 // VERSION を変えると全プレイヤーに「アップデートがあります」が表示されます（tools/bump-version.mjs が自動で変更）
-const VERSION = '0.2.0';
+const VERSION = '0.3.0';
 const CACHE = 'nds-' + VERSION;
 const RUNTIME = 'nds-runtime';
 
@@ -18,6 +18,7 @@ const ASSETS = [
   './js/cloud.js',
   './js/pwa.js',
   './js/ui.js',
+  './js/meta.js',
   './js/config.js',
   './js/version.js',
   './manifest.webmanifest',
@@ -53,12 +54,12 @@ self.addEventListener('fetch', (e) => {
   // 同じサイト内のファイル
   if (url.origin === self.location.origin) {
     // 更新履歴は常に最新を取りに行く（オフライン時はキャッシュ）
-    if (url.pathname.endsWith('/changelog.json')) {
+    if (url.pathname.endsWith('/changelog.json') || url.pathname.endsWith('/gifts.json')) {
       e.respondWith(fetch(req).then((res) => {
         const copy = res.clone();
-        caches.open(CACHE).then((c) => c.put('./changelog.json', copy));
+        caches.open(CACHE).then((c) => c.put(url.pathname.endsWith('/gifts.json') ? './gifts.json' : './changelog.json', copy));
         return res;
-      }).catch(() => caches.match('./changelog.json')));
+      }).catch(() => caches.match(url.pathname.endsWith('/gifts.json') ? './gifts.json' : './changelog.json')));
       return;
     }
     if (url.pathname.endsWith('/sw.js')) return;

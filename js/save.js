@@ -21,12 +21,12 @@ function emit() { for (const fn of listeners) fn(store.save); }
 export function defaultData() {
   const chars = {};
   for (const [id, c] of Object.entries(CHARACTERS)) {
-    chars[id] = { unlocked: !c.unlock, level: 1, equip: emptyEquip() };
+    chars[id] = { unlocked: !c.unlock, level: 1, awaken: 0, equip: emptyEquip() };
   }
   Object.assign(chars.neo.equip, { weapon: 1, body: 2, feet: 3 }); // 初期装備
   return {
-    gold: 300,
-    crystal: 200,
+    gold: 1500,
+    tickets: 5,
     maxStage: 0,
     selectedStage: 1,
     selectedChar: 'neo',
@@ -39,8 +39,11 @@ export function defaultData() {
     ],
     nextUid: 5,
     settings: { bgmVol: 60, seVol: 80, notify: false },
-    stats: { runs: 0, kills: 0, clears: 0 },
-    lastLoginDay: '',
+    stats: { runs: 0, kills: 0, clears: 0, gachaTotal: 0, bossKills: 0 },
+    login: { lastDay: '', count: 0, total: 0 },
+    missions: { day: '', week: '', d: {}, w: {}, dc: [], wc: [], perm: [] },
+    presents: [],
+    receivedGifts: [],
     seenNews: '',
   };
 }
@@ -67,6 +70,15 @@ const MIGRATIONS = {
     }
     return d;
   },
+  // v2 → v3：クリスタルを廃止し、ガチャチケット（100個→1枚）とコイン（端数×10）に両替
+  3: (d) => {
+    const cr = d.crystal || 0;
+    d.tickets = (d.tickets || 0) + Math.floor(cr / 100);
+    d.gold = (d.gold || 0) + (cr % 100) * 10;
+    delete d.crystal;
+    delete d.lastLoginDay;
+    return d;
+  },
 };
 
 function migrate(save) {
@@ -89,6 +101,9 @@ function migrate(save) {
   if (typeof d.settings.bgm === 'boolean') { if (!d.settings.bgm) d.settings.bgmVol = 0; delete d.settings.bgm; }
   if (typeof d.settings.se === 'boolean') { if (!d.settings.se) d.settings.seVol = 0; delete d.settings.se; }
   d.stats = { ...def.stats, ...d.stats };
+  d.login = { ...def.login, ...d.login };
+  d.missions = { ...def.missions, ...d.missions };
+  for (const c of Object.values(d.chars)) if (c.awaken === undefined) c.awaken = 0;
   return save;
 }
 

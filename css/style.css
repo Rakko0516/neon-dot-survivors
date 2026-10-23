@@ -382,3 +382,83 @@ img.px, canvas { image-rendering: pixelated; image-rendering: crisp-edges; }
 .stile .lk { position: absolute; width: 22px; height: 22px; bottom: 2px; right: 2px; filter: none; }
 .stile .ck { position: absolute; top: 0; right: 4px; font-size: 13px; color: #7aff8a; }
 .stile.sel { box-shadow: 0 0 0 3px #ffe27a, 0 2px 0 var(--ink); }
+
+/* ===== ホームのアイコンボタン ===== */
+.home-icons { display: flex; gap: 8px; justify-content: space-between; margin: 2px 0 6px; }
+.hicon {
+  position: relative; flex: 1; height: 62px; padding: 4px 0 2px; border: 3px solid var(--ink); border-radius: 10px;
+  background: linear-gradient(#5a4232, #3a2a20); box-shadow: inset 0 0 0 2px #3fb6aa88, 0 3px 0 var(--ink);
+  display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 1px; font-size: 11px;
+}
+.hicon img { height: 32px; width: auto; }
+.hicon:active { transform: translateY(2px); box-shadow: inset 0 0 0 2px #3fb6aa88, 0 1px 0 var(--ink); }
+.hbadge { position: absolute; top: -7px; right: -5px; min-width: 20px; height: 20px; padding: 0 4px; border-radius: 10px; background: var(--red); border: 2px solid var(--ink); color: #fff; font-size: 11px; font-style: normal; line-height: 16px; text-align: center; }
+
+/* キャラ：覚醒・★5 */
+.awk { margin-left: 6px; font-size: 11px; padding: 1px 6px; border-radius: 8px; background: var(--red); color: #fff; vertical-align: 2px; }
+.ctile .pct { top: auto; bottom: 1px; left: 3px; right: auto; font-size: 11px; color: #ffe27a; }
+.ctile .star5 { position: absolute; inset: 0; pointer-events: none; border-radius: 3px; box-shadow: inset 0 0 0 2px #ffe27a, inset 0 0 12px #ffd23a88; }
+
+/* ===== ガチャ ===== */
+.gbanner {
+  position: relative; height: 170px; margin: 8px 0; border: 3px solid var(--ink); border-radius: 8px; overflow: hidden;
+  display: flex; flex-direction: column; align-items: center; justify-content: flex-end; padding-bottom: 10px;
+  box-shadow: inset 0 0 0 3px #ffe27a, 0 3px 0 var(--ink);
+}
+.gbanner.char { background: radial-gradient(ellipse at 50% 40%, #fff6c8 0, #ffb84a 35%, #c8406a 75%, #5a1a4a 100%); }
+.gbanner.equip { background: radial-gradient(ellipse at 50% 40%, #e8f8ff 0, #6ac8ff 35%, #3a5ac8 75%, #1a1a5a 100%); }
+.gbanner::before { content: ''; position: absolute; inset: 0; background: repeating-conic-gradient(from 0deg at 50% 45%, #ffffff22 0 8deg, transparent 8deg 20deg); animation: spin 12s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.gb-chars, .gb-items { position: absolute; top: 12px; left: 0; right: 0; display: flex; justify-content: center; gap: 2px; }
+.gb-chars img { width: 25%; max-width: 92px; animation: bob 1.4s steps(2) infinite; filter: drop-shadow(0 4px 0 #0004); }
+.gb-chars img:nth-child(2) { animation-delay: .35s; } .gb-chars img:nth-child(3) { animation-delay: .7s; }
+.gb-items img { width: 15%; max-width: 60px; animation: bob 1.6s steps(2) infinite; }
+.gb-title { position: relative; font-size: 20px; }
+.gb-names { position: relative; font-size: 12px; }
+.gpay { display: flex; align-items: center; gap: 6px; margin: 10px 0 6px; font-size: 14px; }
+.gpay img { width: 24px; height: 24px; }
+.gpay .own { font-size: 12px; color: var(--gold); }
+.btn small { display: block; font-size: 11px; font-weight: 500; }
+.btn > small { display: block; font-size: 11px; opacity: .9; }
+.gacha-result.chars { grid-template-columns: repeat(5, 1fr); }
+.ctile.res { animation: pop .35s steps(4) both; }
+.ctile.res.s5 { box-shadow: 0 0 0 3px #ffe27a, 0 0 12px #ffd23a; }
+.ctile.res.s4 { box-shadow: 0 0 0 2px #c45cff; }
+.ctile .rs { position: absolute; top: 1px; left: 0; right: 0; text-align: center; font-size: 8px; color: #ffd23a; letter-spacing: -1px; }
+.ctile .rn { position: absolute; bottom: 1px; left: 0; right: 0; text-align: center; font-size: 9px; }
+.ctile .rnew { font-size: 9px; background: var(--red); color: #fff; padding: 0 3px; border-radius: 3px; border: 1px solid var(--ink); text-shadow: none; font-weight: 800; }
+
+
+/* ガチャ演出 */
+.greveal { position: fixed; inset: 0; z-index: 70; display: flex; flex-direction: column; align-items: center; justify-content: center; background: radial-gradient(circle, #2a1a3a, #0a0610); animation: fade .2s; }
+.gorb { width: 90px; height: 90px; border-radius: 50%; background: radial-gradient(circle at 40% 35%, #fff, #9ad0ff 40%, #3a5ac8); box-shadow: 0 0 40px #9ad0ff; animation: orb 1.2s ease-in forwards; }
+.greveal.g4 .gorb { background: radial-gradient(circle at 40% 35%, #fff, #ffe27a 40%, #e0a020); box-shadow: 0 0 50px #ffd23a; }
+.greveal.g5 .gorb { background: conic-gradient(#ff7a9a, #ffd23a, #6ae86a, #4ac8ff, #c45cff, #ff7a9a); box-shadow: 0 0 70px #fff; animation: orb 1.2s ease-in forwards, spin .6s linear infinite; }
+@keyframes orb { 0% { transform: scale(.2); } 70% { transform: scale(1); } 85% { transform: scale(1.4); } 100% { transform: scale(8); opacity: 0; } }
+.gtext { margin-top: 28px; font-size: 18px; animation: blink .8s steps(2) infinite; }
+
+/* ===== プレゼント・ミッション・ログボ ===== */
+.plist, .mlist { display: flex; flex-direction: column; gap: 6px; max-height: 52vh; overflow-y: auto; }
+.prow, .mrow { display: flex; align-items: center; gap: 8px; padding: 8px; background: #fff8; border: 3px solid var(--ink); border-radius: 8px; }
+.pic { width: 34px; height: 34px; flex-shrink: 0; }
+.pinfo, .minfo { flex: 1; min-width: 0; font-size: 13px; font-weight: 800; }
+.pdate { font-size: 10px; color: #8a7050; font-weight: 500; }
+.prw { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 2px; }
+.rw { display: inline-flex; align-items: center; gap: 2px; font-size: 12px; }
+.rw img { width: 20px; height: 20px; }
+.mtabs { display: flex; gap: 4px; }
+.mtabs .btn { flex: 1; position: relative; font-size: 12px; padding: 6px 2px; white-space: nowrap; }
+.mtabs .btn.active { background: linear-gradient(#ff5a80, #d8204c); color: #fff; box-shadow: inset 0 -4px 0 var(--red-d), 0 3px 0 var(--ink); }
+.mbar { position: relative; height: 14px; margin: 4px 0 2px; background: #2a1c14; border: 2px solid var(--ink); border-radius: 7px; overflow: hidden; }
+.mbar div { height: 100%; background: linear-gradient(#7aff8a, #2ab83a); }
+.mbar span { position: absolute; inset: 0; text-align: center; font-size: 10px; line-height: 10px; color: #fff; text-shadow: 0 1px 0 #000; }
+.mrow.claimed { opacity: .55; }
+.mdone { font-size: 12px; color: #8a7050; }
+.lgrid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.lcell { position: relative; padding: 6px 2px; text-align: center; background: #fff8; border: 3px solid var(--ink); border-radius: 8px; min-height: 74px; }
+.lcell:last-child { grid-column: span 2; background: linear-gradient(#fff6c8, #ffd86a); }
+.lcell .lday { font-size: 11px; }
+.lcell .prw { justify-content: center; }
+.lcell.got { background: #d8c8a8; }
+.lcell.today { box-shadow: 0 0 0 3px var(--red); animation: pop .4s steps(4); }
+.lstamp { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 28px; color: #ff4f6d; transform: rotate(-15deg); }

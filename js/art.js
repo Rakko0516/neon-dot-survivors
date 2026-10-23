@@ -364,6 +364,13 @@ const ACC = {
     ],
     map: { W: 'acc2' },
   },
+  halo: { layer: 'front', y: 0, rows: ['......YYYYYYYY......', '.....Y........Y.....'], map: { Y: 'acc1' }, flatKeys: ['Y'] },
+  bigRibbon: {
+    layer: 'front', y: 1,
+    rows: ['..RR............RR..', '.RRRR..........RRRR.', '..RR............RR..'],
+    map: { R: 'acc1' },
+  },
+  headphones: { layer: 'front', y: 7, rows: ['..PP............PP..', '..PP............PP..', '..PP............PP..'], map: { P: 'acc2' } },
 };
 
 const charCache = new Map();
@@ -573,6 +580,11 @@ const ICON_ROWS = {
   gear: ['....AA......', '.A.AAAA.A...', '..AAAAAAA...', '.AAA..AAAA..', 'AAA....AAA..', '.AAA..AAAA..', '..AAAAAAA...', '.A.AAAA.A...', '....AA......'],
   coin: ['...AAAA...', '..AwAAAA..', '.AwAAAABA.', '.AwAAAABA.', '.AAAAAABA.', '.AAAABBBA.', '..ABBBBA..', '...AAAA...'],
   gem: ['..AAAA....', '.AwAAAA...', 'AwAAAAAA..', 'AAAAAAAB..', '.AAAAAB...', '..AAAB....', '...AB.....'],
+  gift: ['...B..B.....', '....BB......', 'AAAAABAAAAA.', 'AwwAABAAAAA.', 'AAAAABAAAAA.', '.AAAABAAAA..', '.AAAABAAAA..', '.AAAABAAAA..', '.AAAABAAAA..'],
+  scroll: ['.BBBBBBBBB..', 'BwwwwwwwwwB.', '.AwBBBBBwA..', '.AwwwwwwwA..', '.AwBBBBwwA..', '.AwwwwwwwA..', '.AwBBBBBwA..', 'BwwwwwwwwwB.', '.BBBBBBBBB..'],
+  calendar: ['.B.....B....', 'AAAAAAAAAA..', 'ABBBBBBBBA..', 'AwwwwwwwwA..', 'AwBwBwBwwA..', 'AwwwwwwwwA..', 'AwBwBwCCwA..', 'AwwwwwCCwA..', 'AAAAAAAAAA..'],
+  ticket: ['AAAAAAAAAAA.', 'AwwAAAAAAAA.', '.AAAABAAAA..', 'AAAABBBAAAA.', '.AAAABAAAA..', 'AAAAAAAAAAA.'],
+  check: ['.........AA.', '........AA..', '.......AA...', 'AA....AA....', '.AA..AA.....', '..AAAA......', '...AA.......'],
   lock: ['...AAA....', '..A...A...', '..A...A...', '.BBBBBBB..', '.BBBwBBB..', '.BBBwBBB..', '.BBBBBBB..'],
 };
 

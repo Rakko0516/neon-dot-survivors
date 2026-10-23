@@ -126,7 +126,7 @@ export class Game {
       exp: 1 + b.exp + 0.12 * lv('expUp'),
       def: b.def,
       armor: Math.min(0.7, b.armor + 0.08 * lv('armor')),
-      regen: lv('regen'),
+      regen: lv('regen') + (b.regen || 0),
       slow: b.slow,
       lifesteal: b.lifesteal,
     };
@@ -618,6 +618,56 @@ export class Game {
         sfx('slash');
         break;
       }
+      case 'holy': {
+        w.t = this.cd(1.6, lv, 0.06);
+        const n = 1 + Math.floor(lv / 2) + rs.multi;
+        const R = 18 * rs.area * (1 + 0.08 * lv);
+        for (let i = 0; i < n; i++) {
+          const tg = this.randomEnemyNear(140);
+          const x = tg ? tg.x : P.x + rand(-50, 50), y = tg ? tg.y : P.y + rand(-50, 50);
+          this.fx.push({ kind: 'holy', x, y, R, life: 0.5, max: 0.5, dmg: rs.atk * 2.2 * (1 + 0.2 * (lv - 1)) });
+        }
+        break;
+      }
+      case 'talisman': {
+        w.t = this.cd(0.85, lv, 0.06);
+        const n = 1 + Math.floor((lv + 1) / 2) + rs.multi;
+        for (let i = 0; i < n; i++) {
+          const a = -Math.PI / 2 + (i - (n - 1) / 2) * 0.5;
+          this.bullets.push({ kind: 'talisman', x: P.x, y: sy, vx: Math.cos(a) * 90, vy: Math.sin(a) * 90, life: 2.2, dmg: rs.atk * 0.95 * (1 + 0.16 * (lv - 1)), pierce: 1 + Math.floor(lv / 3), r: 3, hit: new Set() });
+        }
+        sfx('shoot2');
+        break;
+      }
+      case 'thunder': {
+        w.t = this.cd(1.3, lv, 0.06);
+        const n = 1 + Math.floor(lv / 2) + rs.multi;
+        const R = 16 * rs.area * (1 + 0.08 * lv);
+        const dmg = rs.atk * 1.6 * (1 + 0.18 * (lv - 1));
+        for (let i = 0; i < n; i++) {
+          const tg = this.randomEnemyNear(140);
+          if (!tg) break;
+          this.fx.push({ kind: 'bolt', x1: tg.x + rand(-6, 6), y1: tg.y - 90, x2: tg.x, y2: tg.y, life: 0.18 });
+          this.fx.push({ kind: 'boom', x: tg.x, y: tg.y, R: R * 0.8, life: 0.2, max: 0.2, color: '#ffe14d' });
+          for (const e of this.query(tg.x, tg.y, R + 8)) {
+            if (!e.dead && Math.hypot(e.x - tg.x, e.y - tg.y) < R + e.r) this.damage(e, dmg);
+          }
+        }
+        sfx('zap');
+        break;
+      }
+      case 'yarn': {
+        w.t = this.cd(1.2, lv, 0.06);
+        const n = 1 + Math.floor(lv / 2) + rs.multi;
+        const tg = this.nearest(150);
+        const base = tg ? Math.atan2(tg.y - sy, tg.x - P.x) : rand(0, TAU);
+        for (let i = 0; i < n; i++) {
+          const a = base + (i - (n - 1) / 2) * 0.6;
+          this.bullets.push({ kind: 'yarn', x: P.x, y: sy, vx: Math.cos(a) * 160, vy: Math.sin(a) * 160, life: 2.6, dmg: rs.atk * 0.85 * (1 + 0.16 * (lv - 1)), pierce: 999, r: 4 * rs.area, bounces: 3 + lv, hit: new Map() });
+        }
+        sfx('shoot2');
+        break;
+      }
       case 'drone': {
         w.t = this.cd(1.0, lv, 0.08);
         const tg = this.nearest(150);
@@ -710,6 +760,22 @@ export class Game {
           b.vy += (ty / d * 230 - b.vy) * Math.min(1, dt * 5);
           if (d < 8 && b.t > 0.6) b.dead = true;
         } else { b.vx *= 0.97; b.vy *= 0.97; }
+      }
+      if (b.kind === 'talisman') {
+        if (!b.target || b.target.dead) b.target = this.nearest(180);
+        if (b.target) {
+          const a = Math.atan2(b.target.y - b.y, b.target.x - b.x);
+          const sp = Math.min(200, Math.hypot(b.vx, b.vy) + dt * 200);
+          b.vx += (Math.cos(a) * sp - b.vx) * Math.min(1, dt * 5);
+          b.vy += (Math.sin(a) * sp - b.vy) * Math.min(1, dt * 5);
+        }
+      }
+      if (b.kind === 'yarn') {
+        // 壁で跳ね返る
+        const nx = b.x + b.vx * dt, ny = b.y + b.vy * dt;
+        if (this.map.solidAt(nx, b.y, true)) { b.vx = -b.vx; b.bounces--; }
+        if (this.map.solidAt(b.x, ny, true)) { b.vy = -b.vy; b.bounces--; }
+        if (b.bounces < 0) b.life = 0;
       }
       b.x += b.vx * dt;
       b.y += b.vy * dt;
@@ -847,6 +913,11 @@ export class Game {
       f.life -= dt;
       if (f.kind === 'spark' || f.kind === 'dust') { f.x += f.vx * dt; f.y += f.vy * dt; f.vx *= 0.9; f.vy *= 0.9; }
       if (f.kind === 'bomb' && f.life <= 0 && !f.done) { f.done = true; this.explode(f.x, f.y, f.R, f.dmg); }
+      if (f.kind === 'holy' && f.life <= 0.15 && !f.done) {
+        f.done = true;
+        for (const e of this.query(f.x, f.y, f.R + 8)) if (!e.dead && Math.hypot(e.x - f.x, e.y - f.y) < f.R + e.r) this.damage(e, f.dmg);
+        sfx('heal');
+      }
     }
     this.fx = this.fx.filter((f) => f.life > 0);
     for (const n of this.nums) { n.life -= dt; n.y -= dt * 20; }
@@ -1035,6 +1106,15 @@ export class Game {
           g.fillStyle = '#7ad85a'; g.fillRect(Math.round(x - ux * 7) - 1, Math.round(y - uy * 7) - 1, 2, 2);
           break;
         }
+        case 'talisman':
+          g.fillStyle = '#fff4d8'; g.fillRect(x - 2, y - 3, 4, 6);
+          g.fillStyle = '#e03040'; g.fillRect(x - 1, y - 2, 2, 1); g.fillRect(x - 1, y, 2, 1);
+          break;
+        case 'yarn':
+          g.fillStyle = '#c84a98'; g.fillRect(x - 3, y - 3, 6, 6);
+          g.fillStyle = '#ff8ad0'; g.fillRect(x - 2, y - 2, 4, 4);
+          g.fillStyle = '#ffd0ec'; g.fillRect(x - 1, y - 2, 1, 4); g.fillRect(x - 2, y, 4, 1);
+          break;
         case 'axe': {
           const s = icon('axe', '#c8ccd8');
           g.save(); g.translate(x, y); g.rotate(this.t * 18); g.drawImage(s, -Math.round(s.width / 2), -Math.round(s.height / 2)); g.restore();
@@ -1075,10 +1155,24 @@ export class Game {
         else g.arc(f.x, f.y, f.R * (0.6 + k * 0.4), f.a - 0.9, f.a + 0.9);
         g.stroke();
         g.globalAlpha = 1;
+      } else if (f.kind === 'holy') {
+        const k = 1 - f.life / f.max;
+        if (k < 0.7) {
+          g.globalAlpha = 0.5 + Math.sin(this.t * 40) * 0.3;
+          g.strokeStyle = '#ffe14d'; g.lineWidth = 1;
+          g.beginPath(); g.ellipse(f.x, f.y, f.R * k / 0.7, f.R * k / 0.7 * 0.5, 0, 0, TAU); g.stroke();
+          g.globalAlpha = 1;
+        } else {
+          g.globalAlpha = 0.85;
+          g.fillStyle = '#fff6b0'; g.fillRect(Math.round(f.x - 5), Math.round(f.y - 80), 10, 80);
+          g.fillStyle = '#ffffff'; g.fillRect(Math.round(f.x - 2), Math.round(f.y - 80), 4, 80);
+          g.fillStyle = 'rgba(255,230,120,0.5)'; g.beginPath(); g.ellipse(f.x, f.y, f.R, f.R * 0.5, 0, 0, TAU); g.fill();
+          g.globalAlpha = 1;
+        }
       } else if (f.kind === 'boom') {
         const k = 1 - f.life / f.max;
         g.globalAlpha = 1 - k;
-        g.fillStyle = '#ff8a3a'; g.beginPath(); g.arc(f.x, f.y, f.R * (0.4 + k * 0.6), 0, TAU); g.fill();
+        g.fillStyle = f.color || '#ff8a3a'; g.beginPath(); g.arc(f.x, f.y, f.R * (0.4 + k * 0.6), 0, TAU); g.fill();
         g.fillStyle = '#ffe14d'; g.beginPath(); g.arc(f.x, f.y, f.R * 0.45 * (1 - k), 0, TAU); g.fill();
         g.globalAlpha = 1;
       } else if (f.kind === 'bolt') {
