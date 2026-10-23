@@ -11,7 +11,7 @@ import {
 } from './cloud.js';
 import { pwa, initPWA, applyUpdate, fetchChangelog, isStandalone, isIOS } from './pwa.js';
 import { APP_VERSION } from './version.js';
-import { initAudio, sfx, setVolume, playBgm, stopBgm, bgmForBiome, TRACK_NAMES } from './audio.js';
+import { initAudio, preloadAudio, sfx, setVolume, playBgm, stopBgm, bgmForBiome, TRACK_NAMES } from './audio.js';
 import { modal, toast, confirmBox, esc, closeAllModals } from './ui.js';
 import { Game } from './game.js';
 import * as M from './meta.js';
@@ -70,6 +70,7 @@ async function boot() {
   load();
   const d = data();
   setVolume({ bgm: d.settings.bgmVol, se: d.settings.seVol });
+  preloadAudio();
   hydrate(document);
   render();
   bindGlobal();
@@ -118,6 +119,7 @@ async function handleMove() {
   if (location.origin === target.origin || location.hostname.endsWith('.' + target.hostname) || ['localhost', '127.0.0.1'].includes(location.hostname)) return false;
   const v = await modal({
     title: 'ゲームのURLが変わりました',
+    sound: 'panel',
     dismiss: false,
     body: `<p style="margin-top:0">新しいURLに引っ越しました。<br><b>${esc(target.host)}</b></p>
       <p>下のボタンを押すと、<b>今のセーブデータを持ったまま</b>新しいURLで開きます。</p>
@@ -704,6 +706,7 @@ async function doGacha(n, by) {
     const best = Math.max(...res.map((r) => r.star));
     await modal({
       title: best >= 5 ? '★5 獲得！' : '獲得キャラ',
+      sound: 'panel',
       body: `<div class="gacha-result chars">${res.map((r, i) => {
         const c = D.CHARACTERS[r.id];
         return `<div class="gres" style="animation-delay:${i * 0.05}s"><div class="ctile res s${r.star}" style="--cbg:${c.bg}">
@@ -724,6 +727,7 @@ async function doGacha(n, by) {
     const best = Math.max(...got.map((g) => D.RARITY_ORDER.indexOf(g.rarity)));
     await modal({
       title: best >= 3 ? '★ SSR 獲得！ ★' : best >= 2 ? 'SR 獲得！' : '獲得アイテム',
+      sound: 'panel',
       body: `<div class="gacha-result">${got.map((it, i) => `<div class="gres" style="animation-delay:${i * 0.05}s">${itemTile(it, { act: 'none', noOwner: true })}<div class="gname r-${it.rarity}">${D.EQUIP[it.base].name}</div></div>`).join('')}</div>`,
       buttons: [{ label: 'OK', value: true, cls: 'teal' }],
       onMount: hydrate,
@@ -788,10 +792,10 @@ function profileModal() {
 /** ランクアップ演出（報酬一覧） */
 async function rankUpModal(ups) {
   for (const u of ups) {
-    sfx('levelup');
     const d = data();
     await modal({
       cls: 'rankup',
+      sound: 'panel',
       body: `<div class="ru-burst"></div>
         <div class="ru-title ol">RANK UP!</div>
         <div class="ru-lv"><span>${u.lv - 1}</span><b>→</b><span class="ol">${u.lv}</span></div>
@@ -898,9 +902,9 @@ function loginModal(justIdx) {
       <div class="prw">${rewardHTML(r)}</div>
       ${i <= got && d.login.count ? '<div class="lstamp ol">済</div>' : ''}
     </div>`).join('');
-  if (justIdx !== null && justIdx !== undefined) sfx('levelup');
   return modal({
     title: 'ログインボーナス',
+    sound: 'panel',
     body: `<div class="lgrid">${cells}</div>
       <p style="text-align:center;margin:10px 0 0">${justIdx !== null && justIdx !== undefined ? `<b>${justIdx + 1}日目のボーナス</b>をプレゼントボックスに送りました！` : '毎日0時に更新されます'}</p>
       <p class="muted" style="text-align:center;margin:2px 0 0">累計ログイン ${d.login.total}日</p>`,
@@ -1000,6 +1004,11 @@ function bindGlobal() {
     const sel = e.target.closest('select[data-act="bgm-test"]');
     if (sel) { initAudio(); playBgm(sel.value); toast(`試聴中：${TRACK_NAMES[sel.value]}`); }
   });
+  // ボタン音：どの画面でも、押せるボタンを押したら鳴らす
+  document.addEventListener('click', (e) => {
+    const b = e.target.closest('button, [role="button"]');
+    if (b && !b.disabled) sfx('click');
+  }, true);
   document.addEventListener('click', (e) => {
     initAudio();
     const t = e.target.closest('[data-tab]');
@@ -1236,6 +1245,7 @@ async function showChangelog() {
     </div>`).join('');
   modal({
     title: 'お知らせ・更新履歴',
+    sound: 'panel',
     body: entries.length ? `<div class="log-list reveal">${rows}</div>` : '<p class="muted">更新履歴はまだありません。</p>',
     buttons: [{ label: '閉じる', value: null }],
     onMount: (ov) => {
@@ -1257,7 +1267,7 @@ function showNewsIfUnread() {
   if (pendingUpdate || inBattle) return;
   d.seenNews = latest.id;
   commit();
-  modal({ title: 'お知らせ', body: logHTML([latest]), buttons: [{ label: '履歴を全部見る', value: 'all' }, { label: 'OK', value: null, cls: 'teal' }] })
+  modal({ title: 'お知らせ', sound: 'panel', body: logHTML([latest]), buttons: [{ label: '履歴を全部見る', value: 'all' }, { label: 'OK', value: null, cls: 'teal' }] })
     .then((v) => { if (v === 'all') showChangelog(); });
 }
 function onUpdateReady(info) {
@@ -1268,6 +1278,7 @@ async function showUpdatePopup() {
   if (!pendingUpdate) return;
   const v = await modal({
     title: 'アップデートがあります',
+    sound: 'panel',
     body: `<p style="margin-top:0">新しいバージョンが配信されました。セーブデータはそのまま引き継がれます。</p>${logHTML(pendingUpdate.entries.slice(0, 3))}`,
     buttons: [{ label: 'あとで', value: false }, { label: '今すぐ更新', value: true, cls: 'red' }],
   });
@@ -1500,6 +1511,7 @@ async function endBattle(res) {
   playBgm(res.cleared ? 'clear' : 'gameover');
   const v = await modal({
     dismiss: false,
+    sound: 'panel',
     body: `<div class="result-title ol ${res.cleared ? 'win' : 'lose'}">${res.cleared ? 'STAGE CLEAR!' : 'GAME OVER'}</div>
       <div class="result-grid">
         <b>ステージ</b><span>${info.name} ${info.sub}</span>

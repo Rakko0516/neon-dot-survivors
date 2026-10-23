@@ -15,7 +15,8 @@ export function toast(msg) {
 
 /**
  * モーダルを表示し、押されたボタンの value を返す
- * @param {{title?:string, body:string, buttons?:{label:string,value:any,cls?:string}[], cls?:string, dismiss?:boolean, onMount?:(el)=>void}} o
+ * @param {{title?:string, body:string, buttons?:{label:string,value:any,cls?:string}[], cls?:string, dismiss?:boolean, onMount?:(el)=>void, sound?:'panel'|'panel2'|false}} o
+ *   sound：表示したときの音。大きなお知らせ系は 'panel'、ふつうの画面は 'panel2'（省略時）
  */
 let lastClose = 0;
 export function modal(o) {
@@ -44,7 +45,6 @@ export function modal(o) {
     ov.addEventListener('click', (e) => {
       const b = e.target.closest('[data-i]');
       if (b && b.closest('.mbtns')) {
-        sfx('click');
         const def = btns[+b.dataset.i];
         if (def.keep) { def.onClick && def.onClick(ov); return; }
         close(def.value);
@@ -53,6 +53,8 @@ export function modal(o) {
       if (e.target === ov && o.dismiss !== false) close(undefined);
     });
     root.appendChild(ov);
+    // 表示音（同じ画面を開き直しただけのときは鳴らさない）
+    if (o.sound !== false && !ov.classList.contains('still')) sfx(o.sound || 'panel2');
     // 一覧の段差表示用に順番を振る
     ov.querySelectorAll('.reveal').forEach((g) => [...g.children].forEach((c, i) => c.style.setProperty('--i', Math.min(i, 20))));
     if (ov.classList.contains('still')) ov.querySelectorAll('.reveal').forEach((g) => g.classList.remove('reveal'));

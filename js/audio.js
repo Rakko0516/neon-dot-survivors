@@ -3,6 +3,7 @@
 // - BGM：audio要素 + WebAudio の音量ノード（iPhoneでも音量バーが効くように）
 // - 音源ファイルがまだ無いものは鳴らないだけで、エラーにはならない
 
+const DEBUG = ['localhost', '127.0.0.1'].includes(location.hostname);
 const KEY = new TextEncoder().encode('NDS-audio-pack-2026');
 const MAGIC = 'NDSA';
 
@@ -32,9 +33,9 @@ async function fetchDecoded(path) {
   return out;
 }
 
-/** 最初のタップで呼ぶ（スマホは操作しないと音を出せない） */
-export function initAudio() {
-  if (ctx) { if (ctx.state === 'suspended') ctx.resume(); return; }
+/** 起動時に呼ぶ：音の読み込みだけ先に済ませておく（スマホは操作するまで鳴らせないので、鳴らすのは initAudio 後） */
+export function preloadAudio() {
+  if (ctx) return;
   try {
     ctx = new (window.AudioContext || window.webkitAudioContext)();
     master = ctx.createGain(); master.connect(ctx.destination);
@@ -42,8 +43,16 @@ export function initAudio() {
     seGain = ctx.createGain(); seGain.connect(master);
     applyVolume();
     loadSources().then((s) => { for (const name of Object.keys(s.se || {})) loadSe(name); });
-    if (wantBgm) playBgm(wantBgm);
   } catch { ctx = null; }
+}
+
+/** 最初のタップで呼ぶ（スマホは操作しないと音を出せない） */
+export function initAudio() {
+  if (!ctx) preloadAudio();
+  if (!ctx) return;
+  if (ctx.state !== 'running') ctx.resume().catch(() => {});
+  if (wantBgm && !bgmCur) playBgm(wantBgm);
+  else if (bgmCur && bgmCur.loop && bgmCur.el.paused && vol.bgm > 0) bgmCur.el.play().catch(() => {});
 }
 
 // 人の耳に合わせて音量バーの値を2乗する
@@ -81,12 +90,13 @@ const GAP = { hit: 70, kill: 60, gem: 45, shoot: 80, shoot2: 110, reel: 60, slas
 const SE_VOL = { gem: 0.35, hit: 0.35, kill: 0.5, shoot: 0.45, reel: 0.45, shoot2: 0.5, fire: 0.35, coin: 0.55, slash: 0.7, ice: 0.6, arrow: 0.6, missile: 0.6, click: 0.8 };
 
 export function sfx(name) {
-  if (!ctx || vol.se === 0) return;
+  if (!ctx || vol.se === 0 || ctx.state !== 'running') return;
   const now = performance.now();
   if (lastPlay[name] && now - lastPlay[name] < (GAP[name] ?? 60)) return;
   const buf = seBuf.get(name);
   if (!buf) { if (!seBuf.has(name)) loadSe(name); return; }
   lastPlay[name] = now;
+  if (DEBUG) (window.__sfxLog ||= []).push(name);
   const src = ctx.createBufferSource();
   src.buffer = buf;
   let out = seGain;
