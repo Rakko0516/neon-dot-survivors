@@ -23,6 +23,11 @@ export const GITHUB_BRANCH = 'main';
 // MOVED_TO にURLを入れると、それ以外の住所で開いた人に「引っ越しました」と案内し、
 // セーブデータごと新しいURLへ移動できるボタンを出します。空なら何もしません。
 export const MOVED_TO = 'https://dot-rush.pages.dev/';
+// 引っ越しデータを受け付ける移動元（旧URL）
+export const MOVE_FROM = ['https://rakko0516.github.io/'];
+
+// （任意）Firebase App Check の reCAPTCHA Enterprise サイトキー。入れると、このゲーム以外からのデータアクセスを遮断できる
+export const APPCHECK_SITE_KEY = '';
 
 // Firebase SDK の読み込み元
 export const FIREBASE_SDK = 'https://www.gstatic.com/firebasejs/10.12.2';

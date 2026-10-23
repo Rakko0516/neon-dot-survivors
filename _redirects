@@ -1,0 +1,5 @@
+# 公開する必要のない開発用ファイルは開けないようにする（GitHub上のソースは公開リポジトリのため秘密情報は置かない方針）
+/tools/*  /  302
+/.github/*  /  302
+/wrangler.jsonc  /  302
+/firestore.rules  /  302

@@ -1,6 +1,6 @@
 // セーブデータ管理（端末内オートセーブ / JSONバックアップ / マイグレーション）
 import { APP_VERSION, SCHEMA_VERSION } from './version.js';
-import { CHARACTERS, SLOTS, EQUIP } from './data.js';
+import { CHARACTERS, SLOTS, EQUIP, RARITIES } from './data.js';
 
 export function emptyEquip() {
   const e = {};
@@ -113,7 +113,58 @@ function migrate(save) {
   d.profile = { ...def.profile, ...d.profile };
   d.rank = { ...def.rank, ...d.rank };
   for (const c of Object.values(d.chars)) if (c.awaken === undefined) c.awaken = 0;
+  sanitize(d);
   return save;
+}
+
+// ===== データの無害化 =====
+// ファイル読み込み・クラウド・引っ越しリンクなど「外から来たデータ」に
+// 画面を乗っ取る文字列（HTMLやスクリプト）や異常な値が入っていても、ここで取り除く
+const num = (v, min, max, def = 0) => (Number.isFinite(+v) ? Math.min(max, Math.max(min, Math.floor(+v))) : def);
+const safeText = (v, max) => String(v ?? '').replace(/[<>"'`&\u0000-\u001f\u007f\u200b-\u200f\u202a-\u202e\u2066-\u2069]/g, '').slice(0, max);
+const safeId = (v, max = 40) => String(v ?? '').replace(/[^a-zA-Z0-9:_-]/g, '').slice(0, max);
+function sanitize(d) {
+  d.gold = num(d.gold, 0, 1e12);
+  d.tickets = num(d.tickets, 0, 1e7);
+  d.maxStage = num(d.maxStage, 0, 9999);
+  d.selectedStage = num(d.selectedStage, 1, 9999, 1);
+  d.nextUid = num(d.nextUid, 1, 1e9, 1);
+  if (!CHARACTERS[d.selectedChar]) d.selectedChar = 'neo';
+  // キャラ：知らないキャラは捨てる
+  for (const id of Object.keys(d.chars)) {
+    if (!CHARACTERS[id]) { delete d.chars[id]; continue; }
+    const c = d.chars[id];
+    c.unlocked = !!c.unlocked;
+    c.level = num(c.level, 1, 999, 1);
+    c.awaken = num(c.awaken, 0, 99);
+    const eq = emptyEquip();
+    for (const k of Object.keys(eq)) eq[k] = c.equip && Number.isFinite(c.equip[k]) ? c.equip[k] : null;
+    c.equip = eq;
+  }
+  // 装備：知らない種類・レア度は捨てる、個数の上限
+  d.items = (Array.isArray(d.items) ? d.items : [])
+    .filter((i) => i && EQUIP[i.base] && RARITIES[i.rarity] && Number.isFinite(i.uid))
+    .slice(0, 3000)
+    .map((i) => ({ uid: num(i.uid, 1, 1e9), base: i.base, rarity: i.rarity, level: num(i.level, 1, 999, 1) }));
+  // プロフィール
+  d.profile = d.profile || {};
+  d.profile.name = safeText(d.profile.name, 12) || 'プレイヤー';
+  d.profile.icon = safeId(d.profile.icon) || 'char:neo';
+  d.profile.frame = safeId(d.profile.frame) || 'basic';
+  d.rank = { lv: num(d.rank?.lv, 1, 99, 1), exp: num(d.rank?.exp, 0, 1e9) };
+  // プレゼント：題名は文字だけ、報酬はコインとチケットだけ
+  d.presents = (Array.isArray(d.presents) ? d.presents : []).slice(0, 100).map((p) => ({
+    id: safeId(p?.id, 40) || Math.random().toString(36).slice(2),
+    title: safeText(p?.title, 40) || 'プレゼント',
+    reward: { ...(p?.reward?.gold ? { gold: num(p.reward.gold, 0, 1e9) } : {}), ...(p?.reward?.ticket ? { ticket: num(p.reward.ticket, 0, 1e5) } : {}) },
+    from: ['login', 'gift', 'system'].includes(p?.from) ? p.from : 'system',
+    at: num(p?.at, 0, 4e12),
+  }));
+  d.receivedGifts = (Array.isArray(d.receivedGifts) ? d.receivedGifts : []).map((x) => safeId(x, 60)).slice(-500);
+  d.seenNews = safeText(d.seenNews, 80);
+  d.settings = { bgmVol: num(d.settings?.bgmVol, 0, 100, 60), seVol: num(d.settings?.seVol, 0, 100, 80), notify: !!d.settings?.notify };
+  for (const k of Object.keys(d.stats)) d.stats[k] = num(d.stats[k], 0, 1e12);
+  return d;
 }
 
 // FNV-1a ハッシュ（改ざん検知の目安。完全な対策ではありません）
@@ -284,6 +335,7 @@ export async function unpackMove(str) {
 }
 
 export function parseImportText(text) {
+  if (typeof text !== 'string' || text.length > 2_000_000) return { ok: false, error: 'ファイルが大きすぎます' };
   let obj;
   try { obj = JSON.parse(text); } catch { return { ok: false, error: 'JSONとして読み込めませんでした' }; }
   return validate(obj);

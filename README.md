@@ -119,3 +119,14 @@ git add -A && git commit -m "v0.2.0" && git push
 - アイコン：全キャラ（最初から使える）＋ランク報酬の特別アイコン（`SPECIAL_ICONS`）
 - フレーム：`FRAMES`（見た目は css の `.fr-<id>`）。`rank` で解放ランクを指定
 - ランク経験値はステージを遊ぶたびに入る（`battleRankExp`）。ランクアップ報酬は `rankReward()`（コイン・チケット・アイコン・フレーム）
+
+## セキュリティ
+
+- サーバー側のプログラム（PHPなど）を持たない構成：静的ファイル（Cloudflare Pages）＋ Firebase（Google管理）。サーバーの乗っ取りや実行環境の脆弱性（例：2026年10月のPHP2Shell）の影響を受けない
+- `_headers`：CSP（決められた場所以外のスクリプト・通信を禁止）、クリックジャッキング防止、HSTS など。新しい外部サービスを使うときは CSP に追加が必要
+- `firestore.rules`：本人のセーブだけ読み書き可、項目とサイズを制限、それ以外は全部禁止（Firebaseコンソールに貼り付けて公開）
+- 外から入るデータ（ファイル読み込み・クラウド・引っ越しリンク）は `save.js` の `sanitize()` で必ず無害化
+- 引っ越しリンク（#move=）は旧URLから来たときだけ受け付け、必ず確認を出す
+- HTML内にスクリプトを直接書かない（CSPで禁止しているため。`editor.html` も `js/editor.js` を読み込む）
+- 秘密情報（サービスアカウント鍵など）はリポジトリに置かず GitHub Secrets に置く
+- （任意）App Check：`js/config.js` の `APPCHECK_SITE_KEY` に reCAPTCHA Enterprise のサイトキーを入れる

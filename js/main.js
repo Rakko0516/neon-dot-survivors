@@ -17,10 +17,30 @@ import { Game } from './game.js';
 import * as M from './meta.js';
 import * as PF from './profile.js';
 import { playGacha } from './gachafx.js';
-import { MOVED_TO } from './config.js';
+import { MOVED_TO, MOVE_FROM } from './config.js';
 import { packForMove, unpackMove } from './save.js';
 
+// 他のサイトの中に埋め込まれて操作を盗まれないようにする（クリックジャッキング対策の二重化）
+if (window.top !== window.self) {
+  try { window.top.location = window.self.location; } catch { document.documentElement.innerHTML = ''; throw new Error('framed'); }
+}
+
 const $ = (s, r = document) => r.querySelector(s);
+
+// ===== 画面サイズに合わせた自動調整 =====
+// スマホは等倍、タブレット・PCなど大きい画面では、スマホと同じ見た目のまま全体を拡大する
+function fitScreen() {
+  const vv = window.visualViewport;
+  const w = vv ? vv.width : innerWidth, h = vv ? vv.height : innerHeight;
+  const z = Math.max(1, Math.min(1.6, Math.min(w / 440, h / 860)));
+  const r = document.documentElement.style;
+  r.setProperty('--z', z.toFixed(3));
+  r.setProperty('--app-h', h + 'px');
+}
+fitScreen();
+addEventListener('resize', fitScreen);
+addEventListener('orientationchange', () => setTimeout(fitScreen, 300));
+if (window.visualViewport) visualViewport.addEventListener('resize', fitScreen);
 const data = () => store.save.data;
 
 let tab = 'home';
@@ -70,14 +90,18 @@ async function boot() {
 /** URLの引っ越し：旧URLでは案内を出し、新URLでは持ってきたセーブを読み込む */
 async function handleMove() {
   // 新URL側：#move=... で届いたセーブを読み込む
-  const m = location.hash.match(/^#move=(.+)$/);
+  const m = location.hash.match(/^#move=([A-Za-z0-9_-]{1,400000})$/);
+  if (location.hash.startsWith('#move=')) history.replaceState(null, '', location.pathname + location.search);
   if (m) {
-    history.replaceState(null, '', location.pathname + location.search);
+    // 悪意のあるリンクでセーブを書き換えられないよう、旧URLから移動してきたときだけ受け付ける
+    if (!MOVE_FROM.some((o) => document.referrer.startsWith(o))) {
+      toast('このリンクからはデータを読み込めません');
+      return false;
+    }
     try {
       const r = await unpackMove(m[1]);
       if (!r.ok) throw new Error(r.error);
-      const fresh = (store.save.data.stats.runs || 0) === 0;
-      if (fresh || await confirmCompare('引っ越しデータを読み込みますか？', r.save, 'この端末の新しいURLのデータは上書きされます。')) {
+      if (await confirmCompare('引っ越しデータを読み込みますか？', r.save, '旧URLから持ってきたデータで、この端末のデータを上書きします。')) {
         replaceSave(r.save, false);
         toast('セーブデータを引き継ぎました！');
         autoBackup(true);
@@ -940,6 +964,15 @@ function settingsHTML() {
     ${!isStandalone() ? '<div class="set-row"><div class="lbl">ホーム画面に追加<small>アプリのように全画面で遊べます</small></div><button class="btn small" data-act="install">追加</button></div>' : ''}
   </div>
   <div class="panel">
+    <h3>データとプライバシー</h3>
+    <div class="muted" style="line-height:1.8">
+      ・クラウドに保存するのは<b>ゲームの進み具合だけ</b>です（メールアドレスやGoogleの名前・写真は保存しません）<br>
+      ・あなたのセーブはあなた本人しか読み書きできません<br>
+      ・通知をオンにした場合だけ、通知を届けるための番号を保存します（オフにすると削除）<br>
+      ・このゲームがパスワードや個人情報を聞くことはありません。ログインはGoogleの画面でだけ行います
+    </div>
+  </div>
+  <div class="panel">
     <h3>クレジット</h3>
     <div class="muted" style="line-height:1.9">音楽：魔王魂<br>音楽：OpenTracks（Hupple／もっぴーさうんど／Maniira）<br>効果音：効果音ラボ</div>
   </div>
@@ -1191,7 +1224,30 @@ async function showChangelog() {
   sfx('click');
   const entries = await fetchChangelog();
   if (entries[0]) { data().seenNews = entries[0].id; commit(); }
-  modal({ title: '更新履歴', body: logHTML(entries) });
+  // 一覧（主な更新・バージョン・日付）→ 押すとその場で詳細が開く
+  const rows = entries.map((e, i) => `<div class="log-item">
+      <button class="log-row" data-log="${i}" aria-expanded="false">
+        <span class="log-ver">${e.version ? 'v' + esc(e.version) : 'お知らせ'}</span>
+        <span class="log-title">${esc(e.title || '更新')}</span>
+        <span class="log-date">${esc(e.date || '')}</span>
+        <i class="log-chev">›</i>
+      </button>
+      <div class="log-detail" hidden>${e.items?.length ? `<ul>${e.items.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>` : '<p class="muted">詳しい内容はありません</p>'}</div>
+    </div>`).join('');
+  modal({
+    title: 'お知らせ・更新履歴',
+    body: entries.length ? `<div class="log-list reveal">${rows}</div>` : '<p class="muted">更新履歴はまだありません。</p>',
+    buttons: [{ label: '閉じる', value: null }],
+    onMount: (ov) => {
+      ov.querySelectorAll('[data-log]').forEach((b) => b.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const open = b.getAttribute('aria-expanded') === 'true';
+        b.setAttribute('aria-expanded', String(!open));
+        b.nextElementSibling.hidden = open;
+        sfx('click');
+      }));
+    },
+  });
 }
 function showNewsIfUnread() {
   const d = data();
@@ -1483,6 +1539,8 @@ function leaveBattle() {
 }
 
 // 動作確認用（ブラウザのコンソールから __nds.game で戦闘中の状態を見られる）
-window.__nds = { get game() { return game; }, store, audio: () => import('./audio.js').then((m) => m.audioState()) };
+if (['localhost', '127.0.0.1'].includes(location.hostname)) {
+  window.__nds = { get game() { return game; }, store, audio: () => import('./audio.js').then((m) => m.audioState()) };
+}
 
 boot();

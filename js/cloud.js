@@ -1,6 +1,6 @@
 // クラウドセーブ（Firebase Auth + Firestore）とプッシュ通知トークン登録
 // config.js に FIREBASE_CONFIG が無い場合は何もしない（オフラインでも遊べる）
-import { FIREBASE_CONFIG, FIREBASE_SDK, VAPID_KEY } from './config.js';
+import { FIREBASE_CONFIG, FIREBASE_SDK, VAPID_KEY, APPCHECK_SITE_KEY } from './config.js';
 import { store, validate, summary } from './save.js';
 
 const SYNC_KEY = 'nds_sync'; // { uid, lastSyncedAt }
@@ -42,6 +42,13 @@ export async function initCloud() {
       import(`${FIREBASE_SDK}/firebase-firestore.js`),
     ]);
     const app = appM.initializeApp(FIREBASE_CONFIG);
+    // App Check：このゲーム（正規のURL）からのアクセスだけをFirebaseが受け付けるようにする
+    if (APPCHECK_SITE_KEY) {
+      try {
+        const acM = await import(`${FIREBASE_SDK}/firebase-app-check.js`);
+        acM.initializeAppCheck(app, { provider: new acM.ReCaptchaEnterpriseProvider(APPCHECK_SITE_KEY), isTokenAutoRefreshEnabled: true });
+      } catch (e) { console.warn('App Check init failed', e); }
+    }
     const auth = authM.getAuth(app);
     const db = fsM.getFirestore(app);
     fb = { app, auth, db, authM, fsM };
@@ -111,8 +118,10 @@ export async function upload(force = false) {
   try {
     // Firestore は undefined を受け付けないので、JSONを通して取り除く
     const clean = (o) => JSON.parse(JSON.stringify(o));
+    const body = JSON.stringify(save);
+    if (body.length > 590000) throw new Error('セーブデータが大きすぎます');
     await fb.fsM.setDoc(docRef(), {
-      save: JSON.stringify(save),
+      save: body,
       updatedAt: save.updatedAt || Date.now(),
       gameVersion: save.gameVersion || '',
       summary: clean(summary(save)),

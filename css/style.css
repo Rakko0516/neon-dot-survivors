@@ -654,3 +654,122 @@ img.px, canvas { image-rendering: pixelated; image-rendering: crisp-edges; }
 .gfx-beam { position: absolute; left: 0; bottom: 20px; width: 150px; height: 70vh; transform-origin: 50% 100%; pointer-events: none;
   background: linear-gradient(to top, var(--gc), transparent 85%); filter: blur(6px); opacity: 0; }
 .gfx-SSR .gfx-beam { background: linear-gradient(to top, #fffbe8, #ffe27a 30%, transparent 85%); }
+
+/* =====================================================================
+   画面サイズ・安全領域（ノッチ／ダイナミックアイランド／ホームバー）対応
+   iPhone・iPad・Android・PC のどれでも見やすくなるように調整
+   ===================================================================== */
+:root {
+  --safe-l: env(safe-area-inset-left, 0px);
+  --safe-r: env(safe-area-inset-right, 0px);
+  /* 端末の画面の高さ（アドレスバーの出入りに追従） */
+  --app-h: 100dvh;
+  /* 画面の幅に合わせて文字とUIを少しだけ拡大縮小 */
+  --ui: clamp(0.88, calc(100vw / 400px), 1.12);
+}
+@supports not (height: 100dvh) { :root { --app-h: 100vh; } }
+html { font-size: calc(15px * var(--ui)); }
+body { font-size: 1rem; }
+#app { height: var(--app-h); padding-left: var(--safe-l); padding-right: var(--safe-r); }
+
+/* ダイアログ：上下の安全領域を避け、ボタンは常に下に表示（中身だけスクロール） */
+#modal-root .overlay {
+  padding: calc(12px + var(--safe-t)) calc(12px + var(--safe-r)) calc(12px + var(--safe-b)) calc(12px + var(--safe-l));
+  align-items: center;
+}
+.modal {
+  display: flex; flex-direction: column; overflow: hidden;
+  max-height: calc(var(--app-h) - var(--safe-t) - var(--safe-b) - 24px);
+}
+.modal > h2 { flex-shrink: 0; }
+.modal .mbody { flex: 1 1 auto; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; padding-right: 2px; }
+.modal .mbtns { flex-shrink: 0; margin-top: 10px; padding-top: 10px; border-top: 2px dotted #c8b48a88; }
+/* 中で独自にスクロールしていた一覧は、外側のスクロールに任せる */
+.modal .plist, .modal .mlist, .modal .pick-grid, .modal .stage-grid { max-height: none; overflow: visible; }
+
+/* ガチャ演出・ロード画面・レベルアップ：上下の安全領域を避ける */
+.gfx-skip { top: calc(12px + var(--safe-t)); right: calc(12px + var(--safe-r)); }
+.gfx-count { top: calc(18px + var(--safe-t)); left: calc(16px + var(--safe-l)); }
+#levelup { padding: calc(12px + var(--safe-t)) calc(12px + var(--safe-r)) calc(12px + var(--safe-b)) calc(12px + var(--safe-l)); overflow-y: auto; }
+.round-btn { right: calc(8px + var(--safe-r)); }
+.hud-left { left: var(--safe-l); }
+
+/* ===== 小さい画面（iPhone SE・小型Android） ===== */
+@media (max-height: 700px) {
+  .tabbar button { height: 56px; }
+  .tabbar button img { height: 28px; }
+  .home-icons .hicon { height: 54px; }
+  .hicon img { height: 26px; }
+  .btn-start { font-size: 24px; padding: 9px 0 11px; }
+  .lv-card { min-height: 80px; }
+  .reel-frame { width: 58px; height: 58px; }
+}
+@media (max-width: 350px) {
+  .me-info { display: none; }
+  .inv { grid-template-columns: repeat(4, 1fr); }
+}
+
+/* ===== タブレット・PC（横に広い画面）：メニューを中央に、読みやすい幅で ===== */
+@media (min-width: 700px) {
+  #menu > header, #menu > main, #menu > nav { max-width: 620px; }
+  .modal { max-width: 520px; }
+  .modal.wide { max-width: 600px; }
+  .pick-grid { grid-template-columns: repeat(6, 1fr); }
+  .inv { grid-template-columns: repeat(7, 1fr); }
+  .gacha-result { grid-template-columns: repeat(10, 1fr); }
+  .modal .gacha-result { grid-template-columns: repeat(5, 1fr); }
+  .lv-cards { max-width: 560px; }
+}
+/* PC・iPad横向き：左右の余白に模様を見せ、中央にアプリを置く */
+@media (min-width: 1000px) {
+  #menu { background-size: 32px 32px; }
+  #menu > main { padding-left: 16px; padding-right: 16px; }
+  .equip-stage, .char-show { max-width: 560px; margin-left: auto; margin-right: auto; }
+}
+/* スマホ横向き（高さがとても低い）：HUDとレベルアップ画面を詰める */
+@media (orientation: landscape) and (max-height: 500px) {
+  .hud-left { top: calc(8px + var(--safe-t)); transform: scale(.85); transform-origin: left top; }
+  .hud-right { transform: scale(.85); transform-origin: right top; }
+  #levelup { justify-content: flex-start; }
+  .lv-cards { flex-direction: row; max-width: none; }
+  .lv-card { flex: 1; min-height: 0; flex-direction: column; text-align: center; }
+  .lv-title { font-size: 14px; margin-bottom: 6px; }
+  .tabbar button { height: 48px; }
+  .tabbar button img { height: 22px; }
+}
+/* マウスで操作する端末：ホバーで少し明るく、カーソルを指に */
+@media (hover: hover) and (pointer: fine) {
+  .itile, .ctile, .stile, .pick, .hicon, .log-row { cursor: pointer; }
+}
+
+/* お知らせ一覧（アコーディオン） */
+.log-list { display: flex; flex-direction: column; gap: 6px; }
+.log-item { background: #fff8; border: 3px solid var(--ink); border-radius: 8px; overflow: hidden; }
+.log-row { width: 100%; display: grid; grid-template-columns: auto 1fr auto auto; align-items: center; gap: 8px; padding: 10px; background: none; border: 0; text-align: left; color: var(--ink); font-size: 14px; }
+.log-ver { font-size: 12px; color: #fff; background: var(--teal-d); padding: 1px 7px; border-radius: 8px; white-space: nowrap; }
+.log-title { font-weight: 800; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.log-date { font-size: 11px; color: #8a7050; white-space: nowrap; }
+.log-chev { font-style: normal; font-size: 18px; color: #8a7050; transition: transform .25s var(--spring); }
+.log-row[aria-expanded="true"] .log-chev { transform: rotate(90deg); }
+.log-row[aria-expanded="true"] .log-title { white-space: normal; }
+.log-detail { padding: 0 12px 10px; border-top: 2px dotted #c8b48a88; animation: rise .25s var(--ease-out); }
+.log-detail ul { margin: 8px 0 0; padding-left: 18px; font-size: 13px; line-height: 1.6; font-weight: 500; }
+
+/* ===== 大きい画面の自動拡大（--z は main.js の fitScreen が計算） ===== */
+:root { --z: 1; }
+#menu > header, #menu > main, #menu > nav { zoom: var(--z); }
+#menu > main { min-height: 0; }
+.modal { zoom: var(--z); max-height: calc((var(--app-h) - var(--safe-t) - var(--safe-b) - 24px) / var(--z)); }
+#toast { zoom: var(--z); }
+#levelup .lv-title, #levelup .lv-cards, #levelup .lv-build { zoom: var(--z); }
+.load-body { zoom: var(--z); }
+.gfx-stage, .gfx-skip, .gfx-count, .gfx-hint { zoom: var(--z); }
+/* 戦闘のHUDはプレイ画面の近くに集める（PCで左右に離れすぎないように） */
+.hud { left: 50%; right: auto; width: min(100%, calc(520px * var(--z))); transform: translateX(-50%); }
+.hud > * { zoom: var(--z); }
+/* 小さいiPhone（SEなど）：ステージの見本を低くして出撃ボタンまで1画面に収める */
+@media (max-height: 700px) {
+  .stage-view canvas { height: 128px; object-fit: cover; }
+  .home-top { margin-bottom: 2px; }
+  .ticker { height: 22px; margin-bottom: 4px; }
+}
