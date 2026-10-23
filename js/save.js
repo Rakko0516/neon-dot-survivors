@@ -26,7 +26,8 @@ export function defaultData() {
   Object.assign(chars.neo.equip, { weapon: 1, body: 2, feet: 3 }); // 初期装備
   return {
     gold: 1500,
-    tickets: 5,
+    ticketsChar: 5,   // キャラガチャチケット
+    ticketsEquip: 5,  // 装備ガチャチケット
     maxStage: 0,
     selectedStage: 1,
     selectedChar: 'neo',
@@ -86,6 +87,19 @@ const MIGRATIONS = {
     d.rank = { lv: Math.max(1, (d.maxStage || 0) + 1), exp: 0 };
     return d;
   },
+  // v4 → v5：ガチャチケットを「キャラガチャチケット」と「装備ガチャチケット」の2種類に分ける。
+  // 今までのチケットは回収（未受け取りのプレゼントのチケットも）。代わりに gifts.json で各50枚を配布
+  5: (d) => {
+    delete d.tickets;
+    d.ticketsChar = 0;
+    d.ticketsEquip = 0;
+    d.presents = (d.presents || []).map((p) => {
+      const r = { ...(p.reward || {}) };
+      delete r.ticket;
+      return { ...p, reward: r };
+    }).filter((p) => Object.keys(p.reward).length);
+    return d;
+  },
 };
 
 function migrate(save) {
@@ -123,9 +137,19 @@ function migrate(save) {
 const num = (v, min, max, def = 0) => (Number.isFinite(+v) ? Math.min(max, Math.max(min, Math.floor(+v))) : def);
 const safeText = (v, max) => String(v ?? '').replace(/[<>"'`&\u0000-\u001f\u007f\u200b-\u200f\u202a-\u202e\u2066-\u2069]/g, '').slice(0, max);
 const safeId = (v, max = 40) => String(v ?? '').replace(/[^a-zA-Z0-9:_-]/g, '').slice(0, max);
+/** 報酬はコイン・キャラガチャチケット・装備ガチャチケットだけ */
+export function cleanReward(r) {
+  const out = {};
+  if (r?.gold) out.gold = num(r.gold, 0, 1e9);
+  if (r?.cticket) out.cticket = num(r.cticket, 0, 1e5);
+  if (r?.eticket) out.eticket = num(r.eticket, 0, 1e5);
+  return out;
+}
 function sanitize(d) {
   d.gold = num(d.gold, 0, 1e12);
-  d.tickets = num(d.tickets, 0, 1e7);
+  d.ticketsChar = num(d.ticketsChar, 0, 1e7);
+  d.ticketsEquip = num(d.ticketsEquip, 0, 1e7);
+  delete d.tickets;
   d.maxStage = num(d.maxStage, 0, 9999);
   d.selectedStage = num(d.selectedStage, 1, 9999, 1);
   d.nextUid = num(d.nextUid, 1, 1e9, 1);
@@ -156,7 +180,7 @@ function sanitize(d) {
   d.presents = (Array.isArray(d.presents) ? d.presents : []).slice(0, 100).map((p) => ({
     id: safeId(p?.id, 40) || Math.random().toString(36).slice(2),
     title: safeText(p?.title, 40) || 'プレゼント',
-    reward: { ...(p?.reward?.gold ? { gold: num(p.reward.gold, 0, 1e9) } : {}), ...(p?.reward?.ticket ? { ticket: num(p.reward.ticket, 0, 1e5) } : {}) },
+    reward: cleanReward(p?.reward),
     from: ['login', 'gift', 'system'].includes(p?.from) ? p.from : 'system',
     at: num(p?.at, 0, 4e12),
   }));
@@ -348,7 +372,8 @@ export function summary(save) {
   return {
     stage: d.maxStage,
     gold: d.gold || 0,
-    tickets: d.tickets || 0,
+    ticketsChar: d.ticketsChar || 0,
+    ticketsEquip: d.ticketsEquip || 0,
     items: d.items.length,
     charLv,
     playTime: save.playTime || 0,

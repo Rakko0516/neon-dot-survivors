@@ -42,7 +42,12 @@ async function fetchDecoded(path) {
 /** ファイルの中身を取ってくる（失敗したら次回また取り直す） */
 function getRaw(kind, name) {
   const k = kind + ':' + name;
-  if (!raw.has(k)) raw.set(k, fetchDecoded(`./audio/${kind}/${name}.bin`).catch((e) => { raw.delete(k); throw e; }));
+  if (!raw.has(k)) {
+    raw.set(k, loadSources()
+      // ?v=中身の指紋：音を差し替えたら必ず新しいファイルを読む（オフライン用の保存もこの名前で）
+      .then((s) => fetchDecoded(`./audio/${kind}/${name}.bin?v=${s[kind]?.[name]?.v || '0'}`))
+      .catch((e) => { raw.delete(k); throw e; }));
+  }
   return raw.get(k);
 }
 

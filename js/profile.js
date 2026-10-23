@@ -54,8 +54,8 @@ export const RANK_MAX = 99;
 /** ランク lv に上がったときの報酬 */
 export function rankReward(lv) {
   const r = { gold: 300 * lv };
-  if (lv % 2 === 0) r.ticket = 1;
-  if (lv % 5 === 0) r.ticket = (r.ticket || 0) + 2;
+  if (lv % 2 === 0) r.eticket = 1;
+  if (lv % 5 === 0) r.cticket = 2;
   const icons = SPECIAL_ICONS.filter((i) => i.rank === lv);
   const frames = FRAMES.filter((f) => f.rank === lv);
   return { ...r, icons, frames };
@@ -70,7 +70,7 @@ export function gainRankExp(n) {
     d.rank.exp -= rankNeed(d.rank.lv);
     d.rank.lv++;
     const rw = rankReward(d.rank.lv);
-    grant({ gold: rw.gold, ticket: rw.ticket || 0 });
+    grant({ gold: rw.gold, cticket: rw.cticket || 0, eticket: rw.eticket || 0 });
     ups.push({ lv: d.rank.lv, ...rw });
   }
   commit();

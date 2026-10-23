@@ -1,9 +1,11 @@
 // Service Worker：オフライン対応・アップデート配信・プッシュ通知
 // VERSION を変えると全プレイヤーに「アップデートがあります」が表示されます（tools/bump-version.mjs が自動で変更）
-const VERSION = '0.5.0';
+const VERSION = '0.5.1';
 // 更新履歴を作り直してバージョン番号を戻したため、古いキャッシュと名前がかぶらないよう r2 を付ける
 const CACHE = 'nds-r2-' + VERSION;
 const RUNTIME = 'nds-runtime';
+// 音のファイル（バージョンをまたいで残す。中身の指紋 ?v= ごとに保存）
+const AUDIO = 'nds-audio';
 
 const ASSETS = [
   './',
@@ -42,14 +44,42 @@ self.addEventListener('install', (e) => {
 self.addEventListener('activate', (e) => {
   e.waitUntil((async () => {
     const keys = await caches.keys();
-    await Promise.all(keys.filter((k) => k.startsWith('nds-') && k !== CACHE && k !== RUNTIME).map((k) => caches.delete(k)));
+    await Promise.all(keys.filter((k) => k.startsWith('nds-') && k !== CACHE && k !== RUNTIME && k !== AUDIO).map((k) => caches.delete(k)));
+    // 以前の方式で保存した音（指紋なし）は消す
+    const rt = await caches.open(RUNTIME);
+    for (const r of await rt.keys()) if (new URL(r.url).pathname.includes('/audio/')) await rt.delete(r);
     await self.clients.claim();
   })());
 });
 
 self.addEventListener('message', (e) => {
   if (e.data && e.data.type === 'SKIP_WAITING') self.skipWaiting();
+  // オフラインでも全ステージの音が鳴るよう、まだ保存していない音を裏でダウンロード
+  if (e.data && e.data.type === 'WARM_AUDIO') e.waitUntil(warmAudio());
 });
+
+let warming = null;
+function warmAudio() {
+  if (warming) return warming;
+  warming = (async () => {
+    const res = await fetch('./audio/sources.json', { cache: 'no-store' });
+    if (!res.ok) return;
+    const src = await res.json();
+    const want = new Set();
+    for (const kind of ['bgm', 'se']) {
+      for (const [name, s] of Object.entries(src[kind] || {})) want.add(new URL(`./audio/${kind}/${name}.bin?v=${s.v || '0'}`, self.location).href);
+    }
+    const c = await caches.open(AUDIO);
+    // もう使わない古い音を消す
+    for (const r of await c.keys()) if (!want.has(r.url)) await c.delete(r);
+    // 足りない音を1つずつ取ってくる（通信を占有しないように順番に）
+    for (const url of want) {
+      if (await c.match(url)) continue;
+      try { const r = await fetch(url); if (r.ok) await c.put(url, r); } catch { return; }
+    }
+  })().catch(() => {}).finally(() => { warming = null; });
+  return warming;
+}
 
 self.addEventListener('fetch', (e) => {
   const req = e.request;
@@ -68,6 +98,25 @@ self.addEventListener('fetch', (e) => {
       return;
     }
     if (url.pathname.endsWith('/sw.js')) return;
+    // 音の対応表：最新を取りに行き、オフラインなら保存したもの
+    if (url.pathname.endsWith('/audio/sources.json')) {
+      e.respondWith(fetch(req, { cache: 'no-store' }).then((res) => {
+        if (res.ok) { const copy = res.clone(); caches.open(RUNTIME).then((c) => c.put('./audio/sources.json', copy)); }
+        return res;
+      }).catch(() => caches.open(RUNTIME).then((c) => c.match('./audio/sources.json'))));
+      return;
+    }
+    // 音のファイル：保存済みならそれを使う（指紋つきなので古い音が鳴ることはない）
+    if (url.pathname.includes('/audio/') && url.pathname.endsWith('.bin')) {
+      e.respondWith(caches.open(AUDIO).then(async (c) => {
+        const hit = await c.match(req);
+        if (hit) return hit;
+        const res = await fetch(req);
+        if (res.ok && url.searchParams.has('v')) c.put(req, res.clone());
+        return res;
+      }));
+      return;
+    }
     e.respondWith(
       caches.match(req, { ignoreSearch: req.mode === 'navigate' }).then((hit) => hit || fetch(req).then((res) => {
         if (res.ok && !url.pathname.endsWith('.html')) {

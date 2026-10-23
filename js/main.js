@@ -138,6 +138,8 @@ async function boot() {
   });
   setSyncHandlers({ onConflict: askConflict, onApplyRemote: (save) => { replaceSave(save, true); toast('クラウドのセーブを読み込みました'); } });
   setInterval(() => { if (document.visibilityState === 'visible') addPlayTime(15); }, 15000);
+  window.addEventListener('offline', () => toast('オフラインになりました。このまま遊べます（データはこの端末に保存されます）'));
+  window.addEventListener('online', () => toast('オンラインに戻りました'));
 
   initPWA(onUpdateReady);
   initCloud();
@@ -300,7 +302,8 @@ function countTo(el, to) {
 function updateWallet() {
   const d = data();
   countTo($('#pill-gold'), d.gold);
-  countTo($('#pill-ticket'), d.tickets);
+  countTo($('#pill-cticket'), d.ticketsChar);
+  countTo($('#pill-eticket'), d.ticketsEquip);
   $('#rank-num').textContent = d.rank.lv;
   $('#me-name').textContent = d.profile.name;
   $('#me-exp').style.width = Math.min(100, (d.rank.exp / PF.rankNeed(d.rank.lv)) * 100) + '%';
@@ -817,7 +820,9 @@ function addItem(baseId, rarity) {
 function gachaHTML() {
   const d = data();
   const g = D.GACHAS[gachaType];
-  const t = d.tickets;
+  const t = gachaType === 'char' ? d.ticketsChar : d.ticketsEquip;
+  const tName = gachaType === 'char' ? 'キャラガチャチケット' : '装備ガチャチケット';
+  const tCol = M.TICKET_COLOR[gachaType];
   let banner;
   if (gachaType === 'char') {
     const feat = Object.values(D.CHARACTERS).filter((c) => c.gacha && c.stars === 5);
@@ -843,7 +848,7 @@ function gachaHTML() {
   ${banner}
   <div class="panel">
     <div class="muted" style="text-align:center;margin-bottom:6px">${g.desc}</div>
-    <div class="gpay"><img class="px" data-icon="ticket" data-color="#ff7a9a" alt=""><span>チケットで引く</span><span class="spacer"></span><span class="own">所持 ${t}枚</span></div>
+    <div class="gpay"><img class="px" data-icon="ticket" data-color="${tCol}" alt=""><span>${tName}で引く</span><span class="spacer"></span><span class="own">所持 ${t}枚</span></div>
     <div class="btn-grid">
       <button class="btn teal" data-act="gacha" data-n="1" data-by="ticket" ${t < 1 ? 'disabled' : ''}>1回<small>チケット1枚</small></button>
       <button class="btn red" data-act="gacha" data-n="10" data-by="ticket" ${t < 10 ? 'disabled' : ''}>10連<small>チケット10枚</small></button>
@@ -909,7 +914,7 @@ function profileModal() {
   const d = data();
   const need = PF.rankNeed(d.rank.lv);
   const next = PF.rankReward(d.rank.lv + 1);
-  const nextTxt = [next.gold ? `コイン×${next.gold.toLocaleString()}` : '', next.ticket ? `チケット×${next.ticket}` : '', ...next.icons.map((i) => `アイコン「${i.name}」`), ...next.frames.map((f) => `フレーム「${f.name}」`)].filter(Boolean).join('、');
+  const nextTxt = [next.gold ? `コイン×${next.gold.toLocaleString()}` : '', next.cticket ? `キャラガチャチケット×${next.cticket}` : '', next.eticket ? `装備ガチャチケット×${next.eticket}` : '', ...next.icons.map((i) => `アイコン「${i.name}」`), ...next.frames.map((f) => `フレーム「${f.name}」`)].filter(Boolean).join('、');
   const grid = profTab === 'icon'
     ? PF.allIcons().map((ic) => {
       const ok = PF.isUnlocked(ic);
@@ -967,7 +972,8 @@ async function rankUpModal(ups) {
         <div class="ru-lv"><span>${u.lv - 1}</span><b>→</b><span class="ol">${u.lv}</span></div>
         <div class="ru-rewards">
           <div class="reward"><img class="px" data-icon="coin" data-color="#ffcf3a" alt="">×${u.gold.toLocaleString()}</div>
-          ${u.ticket ? `<div class="reward"><img class="px" data-icon="ticket" data-color="#ff7a9a" alt="">×${u.ticket}</div>` : ''}
+          ${u.cticket ? `<div class="reward"><img class="px" data-icon="ticket" data-color="${M.TICKET_COLOR.char}" alt="">×${u.cticket}</div>` : ''}
+          ${u.eticket ? `<div class="reward"><img class="px" data-icon="ticket" data-color="${M.TICKET_COLOR.equip}" alt="">×${u.eticket}</div>` : ''}
           ${u.icons.map((i) => `<div class="reward new">${avatarHTML(i.id, 'basic', 40)}<span>アイコン<br>${i.name}</span></div>`).join('')}
           ${u.frames.map((f) => `<div class="reward new">${avatarHTML(d.profile.icon, f.id, 40)}<span>フレーム<br>${f.name}</span></div>`).join('')}
         </div>
@@ -1675,7 +1681,7 @@ async function endBattle(res) {
     gold = Math.round(res.gold + res.kills * 2 + (res.room - 1) / D.ROOMS_PER_STAGE * rw.gold * 0.6);
   }
   d.gold += gold;
-  d.tickets += ticket;
+  d.ticketsChar += ticket;
   M.track('play');
   M.track('kill', res.kills);
   d.stats.runs++;
@@ -1704,7 +1710,7 @@ async function endBattle(res) {
       </div>
       <div class="rewards">
         <div class="reward"><img class="px" data-icon="coin" data-color="#ffcf3a" alt="">${gold.toLocaleString()}</div>
-        ${ticket ? `<div class="reward"><img class="px" data-icon="ticket" data-color="#ff7a9a" alt="">×${ticket}（初回クリア）</div>` : ''}
+        ${ticket ? `<div class="reward"><img class="px" data-icon="ticket" data-color="${M.TICKET_COLOR.char}" alt="">×${ticket}（初回クリア）</div>` : ''}
       </div>
       ${item ? `<div style="display:flex;gap:10px;align-items:center;justify-content:center;margin-top:10px"><div style="width:64px">${itemTile(item, { act: 'none', noOwner: true })}</div><div>${D.EQUIP[item.base].name}<br><span class="muted">を手に入れた！</span></div></div>` : ''}
       ${unlocked.length ? `<p style="text-align:center;color:#c4103c">${unlocked.join('、')} が仲間になった！</p>` : ''}`,

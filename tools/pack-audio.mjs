@@ -6,6 +6,7 @@
 //   元の音声ファイルは公開せず、変換したものだけを公開します（audio/raw/ は .gitignore 済み）。
 import { readFileSync, writeFileSync, readdirSync, existsSync, mkdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
+import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -49,8 +50,11 @@ for (const kind of ['bgm', 'se']) {
     MAGIC.copy(out, 0);
     for (let i = 0; i < src.length; i++) out[MAGIC.length + i] = src[i] ^ KEY[i % KEY.length];
     writeFileSync(join(outDir, `${name}.bin`), out);
+    // 中身の指紋（中身が変わったときだけ変わる）。ゲームはこれを付けて読み込むので、差し替えた音が古いキャッシュのまま鳴ることがない
+    s.v = createHash('sha256').update(out).digest('hex').slice(0, 10);
     ok++;
   }
 }
+writeFileSync(join(root, 'audio', 'sources.json'), JSON.stringify(sources, null, 2) + '\n');
 console.log(`変換: ${ok} 個`);
 if (missing.length) console.log('見つからない元ファイル:\n  ' + missing.join('\n  '));

@@ -1,6 +1,6 @@
 // 遊びの外側の仕組み：ガチャ・ミッション・ログインボーナス・プレゼントボックス
 // 毎日0時（端末の時刻）でデイリーとログインボーナスが更新、毎週月曜0時でウィークリーが更新されます。
-import { store, commit } from './save.js';
+import { store, commit, cleanReward } from './save.js';
 import { CHARACTERS, GACHAS, AWAKEN_MAX, EQUIP, rollRarity, randomEquipBase } from './data.js';
 
 const data = () => store.save.data;
@@ -25,14 +25,17 @@ export function untilReset(kind) {
 }
 
 // ===================== 報酬 =====================
-export const REWARD_NAMES = { gold: 'コイン', ticket: 'ガチャチケット' };
-export const REWARD_ICON = { gold: ['coin', '#ffcf3a'], ticket: ['ticket', '#ff7a9a'] };
+// cticket＝キャラガチャチケット（ピンク） / eticket＝装備ガチャチケット（青）
+export const REWARD_NAMES = { gold: 'コイン', cticket: 'キャラガチャチケット', eticket: '装備ガチャチケット' };
+export const TICKET_COLOR = { char: '#ff7a9a', equip: '#4aa8ff' };
+export const REWARD_ICON = { gold: ['coin', '#ffcf3a'], cticket: ['ticket', TICKET_COLOR.char], eticket: ['ticket', TICKET_COLOR.equip] };
 
-/** { gold: 500, ticket: 1 } を受け取る */
+/** { gold: 500, cticket: 1, eticket: 1 } を受け取る */
 export function grant(reward) {
   const d = data();
   if (reward.gold) d.gold += reward.gold;
-  if (reward.ticket) d.tickets += reward.ticket;
+  if (reward.cticket) d.ticketsChar += reward.cticket;
+  if (reward.eticket) d.ticketsEquip += reward.eticket;
 }
 export function rewardText(reward) {
   return Object.entries(reward).map(([k, v]) => `${REWARD_NAMES[k] || k} ×${v.toLocaleString()}`).join('、');
@@ -41,6 +44,8 @@ export function rewardText(reward) {
 // ===================== プレゼントボックス =====================
 export function addPresent(title, reward, from = 'system') {
   const d = data();
+  reward = cleanReward(reward);
+  if (!Object.keys(reward).length) return;
   d.presents.unshift({ id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), title, reward, from, at: Date.now() });
   if (d.presents.length > 100) d.presents.length = 100;
 }
@@ -89,12 +94,12 @@ export async function syncGifts() {
 // ===================== ログインボーナス（7日周期） =====================
 export const LOGIN_CYCLE = [
   { gold: 500 },
-  { ticket: 1 },
+  { eticket: 1 },
   { gold: 1000 },
-  { ticket: 1 },
+  { cticket: 1 },
   { gold: 2000 },
-  { ticket: 2 },
-  { ticket: 5 },
+  { eticket: 2 },
+  { cticket: 3, eticket: 2 },
 ];
 
 /** 今日まだ受け取っていなければ受け取ってプレゼントボックスへ。受け取った日の番号(0-6)を返す */
@@ -121,24 +126,24 @@ export const MISSIONS = {
     { id: 'd_kill', name: '敵を150体倒す', ev: 'kill', goal: 150, reward: { gold: 500 } },
     { id: 'd_gacha', name: 'ガチャを1回引く', ev: 'gacha', goal: 1, reward: { gold: 300 } },
     { id: 'd_up', name: '装備かキャラを1回強化する', ev: 'upgrade', goal: 1, reward: { gold: 300 } },
-    { id: 'd_all', name: 'デイリーミッションを5つ達成', ev: '_dailyAll', goal: 5, reward: { ticket: 1 } },
+    { id: 'd_all', name: 'デイリーミッションを5つ達成', ev: '_dailyAll', goal: 5, reward: { cticket: 1 } },
   ],
   weekly: [
-    { id: 'w_login', name: '5日ログインする', ev: 'login', goal: 5, reward: { ticket: 2 } },
-    { id: 'w_play', name: 'ステージを15回プレイする', ev: 'play', goal: 15, reward: { ticket: 2 } },
-    { id: 'w_boss', name: 'ボスを5体倒す', ev: 'boss', goal: 5, reward: { ticket: 2 } },
+    { id: 'w_login', name: '5日ログインする', ev: 'login', goal: 5, reward: { cticket: 2 } },
+    { id: 'w_play', name: 'ステージを15回プレイする', ev: 'play', goal: 15, reward: { eticket: 3 } },
+    { id: 'w_boss', name: 'ボスを5体倒す', ev: 'boss', goal: 5, reward: { cticket: 2 } },
     { id: 'w_kill', name: '敵を2000体倒す', ev: 'kill', goal: 2000, reward: { gold: 5000 } },
     { id: 'w_gacha', name: 'ガチャを10回引く', ev: 'gacha', goal: 10, reward: { gold: 3000 } },
     { id: 'w_up', name: '強化を10回する', ev: 'upgrade', goal: 10, reward: { gold: 3000 } },
   ],
   // 常時（一度だけ）：stat は累計の値
   perm: [
-    { id: 'p_google', name: 'Google連携をしよう', stat: 'google', goal: 1, reward: { ticket: 3, gold: 3000 } },
-    ...[1, 2, 3, 5, 8, 10, 15, 20, 25, 30].map((n) => ({ id: `p_stage${n}`, name: `STAGE ${n} をクリア`, stat: 'maxStage', goal: n, reward: n >= 10 ? { ticket: 3 } : n >= 3 ? { ticket: 1, gold: 1000 } : { gold: 1000 } })),
-    ...[300, 1000, 3000, 10000, 30000].map((n, i) => ({ id: `p_kill${n}`, name: `敵を累計 ${n.toLocaleString()} 体倒す`, stat: 'kills', goal: n, reward: i >= 2 ? { ticket: 2 } : { gold: 2000 } })),
-    ...[4, 6, 8, 10, 12].map((n) => ({ id: `p_chars${n}`, name: `キャラを ${n} 人そろえる`, stat: 'chars', goal: n, reward: { ticket: 2 } })),
-    ...[10, 50, 100, 300].map((n) => ({ id: `p_gacha${n}`, name: `ガチャを累計 ${n} 回引く`, stat: 'gachaTotal', goal: n, reward: { ticket: n >= 100 ? 5 : 2 } })),
-    ...[3, 10, 30].map((n) => ({ id: `p_login${n}`, name: `累計 ${n} 日ログイン`, stat: 'loginTotal', goal: n, reward: { ticket: n >= 30 ? 5 : 2 } })),
+    { id: 'p_google', name: 'Google連携をしよう', stat: 'google', goal: 1, reward: { cticket: 3, eticket: 3, gold: 3000 } },
+    ...[1, 2, 3, 5, 8, 10, 15, 20, 25, 30].map((n) => ({ id: `p_stage${n}`, name: `STAGE ${n} をクリア`, stat: 'maxStage', goal: n, reward: n >= 10 ? { cticket: 3, eticket: 3 } : n >= 3 ? { cticket: 1, eticket: 1, gold: 1000 } : { gold: 1000 } })),
+    ...[300, 1000, 3000, 10000, 30000].map((n, i) => ({ id: `p_kill${n}`, name: `敵を累計 ${n.toLocaleString()} 体倒す`, stat: 'kills', goal: n, reward: i >= 2 ? { eticket: 3 } : { gold: 2000 } })),
+    ...[4, 6, 8, 10, 12].map((n) => ({ id: `p_chars${n}`, name: `キャラを ${n} 人そろえる`, stat: 'chars', goal: n, reward: { cticket: 2 } })),
+    ...[10, 50, 100, 300].map((n) => ({ id: `p_gacha${n}`, name: `ガチャを累計 ${n} 回引く`, stat: 'gachaTotal', goal: n, reward: n >= 100 ? { cticket: 3, eticket: 3 } : { cticket: 1, eticket: 1 } })),
+    ...[3, 10, 30].map((n) => ({ id: `p_login${n}`, name: `累計 ${n} 日ログイン`, stat: 'loginTotal', goal: n, reward: n >= 30 ? { cticket: 3, eticket: 3 } : { cticket: 1, eticket: 1 } })),
   ],
 };
 
@@ -231,8 +236,9 @@ export function payGacha(type, count, by) {
   const d = data();
   const g = GACHAS[type];
   if (by === 'ticket') {
-    if (d.tickets < count) return false;
-    d.tickets -= count;
+    const key = type === 'char' ? 'ticketsChar' : 'ticketsEquip';
+    if (d[key] < count) return false;
+    d[key] -= count;
   } else {
     const cost = count === 10 ? g.coin10 : g.coin1 * count;
     if (d.gold < cost) return false;

@@ -8,7 +8,8 @@
       "title": "ホーム（提供曲）",
       "by": "入手先確認中",
       "url": "",
-      "scene": "ホーム"
+      "scene": "ホーム",
+      "v": "4452b7e372"
     },
     "menu": {
       "file": "menu.mp3",
@@ -17,7 +18,8 @@
       "title": "Character（提供曲）",
       "by": "入手先確認中",
       "url": "",
-      "scene": "装備・キャラ・設定"
+      "scene": "装備・キャラ・設定",
+      "v": "4235f98c56"
     },
     "gacha": {
       "file": "gacha.mp3",
@@ -26,7 +28,8 @@
       "title": "gacha（提供曲）",
       "by": "入手先確認中",
       "url": "",
-      "scene": "ガチャ"
+      "scene": "ガチャ",
+      "v": "c89a044fab"
     },
     "battle_grass": {
       "file": "battle_grass.mp3",
@@ -35,7 +38,8 @@
       "title": "8bit12 ウッドサーモンマン",
       "by": "魔王魂",
       "url": "https://maou.audio/bgm_8bit12/",
-      "scene": "草原ステージ"
+      "scene": "草原ステージ",
+      "v": "3f1ef91440"
     },
     "battle_desert": {
       "file": "battle_desert.mp3",
@@ -44,7 +48,8 @@
       "title": "8bit08 サンサンママン",
       "by": "魔王魂",
       "url": "https://maou.audio/bgm_8bit08/",
-      "scene": "砂漠ステージ"
+      "scene": "砂漠ステージ",
+      "v": "9c9ac6a819"
     },
     "battle_snow": {
       "file": "battle_snow.mp3",
@@ -53,7 +58,8 @@
       "title": "8bit11 ウォーターイカマン",
       "by": "魔王魂",
       "url": "https://maou.audio/bgm_8bit11/",
-      "scene": "雪国ステージ"
+      "scene": "雪国ステージ",
+      "v": "506075df3a"
     },
     "battle_cyber": {
       "file": "battle_cyber.mp3",
@@ -62,7 +68,8 @@
       "title": "cybercity（提供曲）",
       "by": "入手先確認中",
       "url": "",
-      "scene": "サイバーシティステージ"
+      "scene": "サイバーシティステージ",
+      "v": "4c0f17ac85"
     },
     "battle_volcano": {
       "file": "battle_volcano.mp3",
@@ -71,7 +78,8 @@
       "title": "8bit10 ファイアーマグロマン",
       "by": "魔王魂",
       "url": "https://maou.audio/bgm_8bit10/",
-      "scene": "火山ステージ"
+      "scene": "火山ステージ",
+      "v": "e10cd04a5b"
     },
     "battle_castle": {
       "file": "battle_castle.mp3",
@@ -80,7 +88,8 @@
       "title": "魔王城（提供曲）",
       "by": "入手先確認中",
       "url": "",
-      "scene": "魔王城ステージ"
+      "scene": "魔王城ステージ",
+      "v": "44c43ca0dc"
     },
     "boss": {
       "file": "boss.mp3",
@@ -89,7 +98,8 @@
       "title": "8bit18 しゅくめいのたたかい",
       "by": "魔王魂",
       "url": "https://maou.audio/bgm_8bit18/",
-      "scene": "ボス部屋"
+      "scene": "ボス部屋",
+      "v": "b9eaf461df"
     },
     "clear": {
       "file": "clear.mp3",
@@ -98,7 +108,8 @@
       "title": "ジングル01",
       "by": "魔王魂",
       "url": "https://maou.audio/game_jingle01/",
-      "scene": "ステージクリア"
+      "scene": "ステージクリア",
+      "v": "6442b4985e"
     },
     "gameover": {
       "file": "gameover.mp3",
@@ -107,7 +118,8 @@
       "title": "8bit20 ぜんめつ",
       "by": "魔王魂",
       "url": "https://maou.audio/bgm_8bit20/",
-      "scene": "ゲームオーバー"
+      "scene": "ゲームオーバー",
+      "v": "d474466843"
     }
   },
   "se": {
@@ -115,187 +127,218 @@
       "file": "click.mp3",
       "orig": "ボタン選択.ogg",
       "use": "ボタンを押したとき（全ボタン共通）",
-      "by": "効果音ラボ"
+      "by": "効果音ラボ",
+      "v": "5b7ab5cca3"
     },
     "reel": {
       "file": "reel.mp3",
       "orig": "ボタン選択.ogg",
       "use": "スロット回転",
-      "by": "効果音ラボ"
+      "by": "効果音ラボ",
+      "v": "5b7ab5cca3"
     },
     "gem": {
       "file": "gem.mp3",
       "orig": "ボタン選択.ogg",
       "use": "経験値を拾う",
-      "by": "効果音ラボ"
+      "by": "効果音ラボ",
+      "v": "5b7ab5cca3"
     },
     "equip": {
       "file": "equip.mp3",
       "orig": "シャキーン3.mp3",
       "use": "装備を付ける",
-      "by": "効果音ラボ"
+      "by": "効果音ラボ",
+      "v": "234f344253"
     },
     "reelStop": {
       "file": "reelStop.mp3",
       "orig": "パワーアップ.mp3",
       "use": "スロットが止まる",
-      "by": "効果音ラボ"
+      "by": "効果音ラボ",
+      "v": "c8a4fd1dc6"
     },
     "levelup": {
       "file": "levelup.mp3",
       "orig": "レベルアップ.mp3",
       "use": "レベルアップ",
-      "by": "効果音ラボ"
+      "by": "効果音ラボ",
+      "v": "556a0aa958"
     },
     "gate": {
       "file": "gate.mp3",
       "orig": "スピードアップ.mp3",
       "use": "ゲートが開く",
-      "by": "効果音ラボ"
+      "by": "効果音ラボ",
+      "v": "4e6a698a93"
     },
     "shoot": {
       "file": "shoot.mp3",
       "orig": "ショット.mp3",
       "use": "プラズマ弾",
-      "by": "効果音ラボ"
+      "by": "効果音ラボ",
+      "v": "dc4c0ba1c5"
     },
     "shoot2": {
       "file": "shoot2.mp3",
       "orig": "氷魔法1.mp3",
       "use": "ハート弾・お札・毛糸玉",
-      "by": "効果音ラボ"
+      "by": "効果音ラボ",
+      "v": "da6dacd32f"
     },
     "ice": {
       "file": "ice.mp3",
       "orig": "氷魔法2.mp3",
       "use": "アイスシャード",
-      "by": "効果音ラボ"
+      "by": "効果音ラボ",
+      "v": "41181c2cd5"
     },
     "arrow": {
       "file": "arrow.mp3",
       "orig": "弓矢を放つ.mp3",
       "use": "弓矢",
-      "by": "効果音ラボ"
+      "by": "効果音ラボ",
+      "v": "fd78f4c9a0"
     },
     "hit": {
       "file": "hit.mp3",
       "orig": "弓矢が刺さる.mp3",
       "use": "攻撃が当たる",
-      "by": "効果音ラボ"
+      "by": "効果音ラボ",
+      "v": "2bf9e6b206"
     },
     "kill": {
       "file": "kill.mp3",
       "orig": "軽いパンチ1.mp3",
       "use": "敵を倒す",
-      "by": "効果音ラボ"
+      "by": "効果音ラボ",
+      "v": "92e9d60575"
     },
     "hurt": {
       "file": "hurt.mp3",
       "orig": "重いパンチ2.mp3",
       "use": "ダメージを受ける",
-      "by": "効果音ラボ"
+      "by": "効果音ラボ",
+      "v": "0e9399afe7"
     },
     "slash": {
       "file": "slash.mp3",
       "orig": "剣で斬る2.mp3",
       "use": "斬撃",
-      "by": "効果音ラボ"
+      "by": "効果音ラボ",
+      "v": "9079ad234c"
     },
     "zap": {
       "file": "zap.mp3",
       "orig": "雷魔法2.mp3",
       "use": "雷",
-      "by": "効果音ラボ"
+      "by": "効果音ラボ",
+      "v": "9fd5f212cf"
     },
     "boom": {
       "file": "boom.mp3",
       "orig": "爆発3.mp3",
       "use": "爆発",
-      "by": "効果音ラボ"
+      "by": "効果音ラボ",
+      "v": "cc15dcffae"
     },
     "missile": {
       "file": "missile.mp3",
       "orig": "ビームガン.mp3",
       "use": "ホーミング弾",
-      "by": "効果音ラボ"
+      "by": "効果音ラボ",
+      "v": "d421724792"
     },
     "fire": {
       "file": "fire.mp3",
       "orig": "火炎魔法2.mp3",
       "use": "狐火",
-      "by": "効果音ラボ"
+      "by": "効果音ラボ",
+      "v": "7630e1506d"
     },
     "shootBoss": {
       "file": "shootBoss.mp3",
       "orig": "ビーム砲1.mp3",
       "use": "ボスの弾",
-      "by": "効果音ラボ"
+      "by": "効果音ラボ",
+      "v": "818b56189b"
     },
     "spike": {
       "file": "spike.mp3",
       "orig": "ナイフで突き刺す1.mp3",
       "use": "トゲを踏む",
-      "by": "効果音ラボ"
+      "by": "効果音ラボ",
+      "v": "5c0cc5d69f"
     },
     "heal": {
       "file": "heal.mp3",
       "orig": "ステータス治療1.mp3",
       "use": "回復・光の柱",
-      "by": "効果音ラボ"
+      "by": "効果音ラボ",
+      "v": "f611952fb5"
     },
     "coin": {
       "file": "coin.mp3",
       "orig": "アイテムを入手2.mp3",
       "use": "コイン・報酬を受け取る",
-      "by": "効果音ラボ"
+      "by": "効果音ラボ",
+      "v": "2a205ad351"
     },
     "boss": {
       "file": "se_boss.mp3",
       "orig": "警報が鳴る.mp3",
       "use": "ボス登場",
-      "by": "効果音ラボ"
+      "by": "効果音ラボ",
+      "v": "4ad2475211"
     },
     "gacha": {
       "file": "se_gacha.mp3",
       "orig": "ドラムロール.mp3",
       "use": "ガチャ開始",
-      "by": "効果音ラボ"
+      "by": "効果音ラボ",
+      "v": "b474572c8d"
     },
     "super": {
       "file": "super.mp3",
       "orig": "ビーム砲チャージ.mp3",
       "use": "スーパーモード",
-      "by": "効果音ラボ"
+      "by": "効果音ラボ",
+      "v": "25d7687828"
     },
     "rare": {
       "file": "rare.mp3",
       "orig": "レベルアップ.mp3",
       "use": "レア獲得・SR以上",
-      "by": "効果音ラボ"
+      "by": "効果音ラボ",
+      "v": "556a0aa958"
     },
     "unlock": {
       "file": "unlock.mp3",
       "orig": "アイテムを入手2.mp3",
       "use": "キャラ獲得",
-      "by": "効果音ラボ"
+      "by": "効果音ラボ",
+      "v": "2a205ad351"
     },
     "error": {
       "file": "error.mp3",
       "orig": "トランペットのグリスダウン.mp3",
       "use": "コイン不足など",
-      "by": "効果音ラボ"
+      "by": "効果音ラボ",
+      "v": "b8b6d1e0a9"
     },
     "panel": {
       "file": "panel.mp3",
       "orig": "パネル表示.ogg",
       "use": "大きな画面が出たとき（お知らせ・ログボ・ランクアップ・結果）",
-      "by": "効果音ラボ"
+      "by": "効果音ラボ",
+      "v": "040c25a36a"
     },
     "panel2": {
       "file": "panel2.mp3",
       "orig": "パネル表示2.ogg",
       "use": "画面を開いたとき（プレゼント・ミッション・確認など）",
-      "by": "効果音ラボ"
+      "by": "効果音ラボ",
+      "v": "4a27cb3bb6"
     }
   }
 }

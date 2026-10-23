@@ -39,6 +39,8 @@ export async function initPWA(handler) {
   try {
     const reg = await navigator.serviceWorker.register('./sw.js');
     pwa.reg = reg;
+    // 起動が落ち着いてから、オフライン用に全部の音を裏で保存してもらう
+    navigator.serviceWorker.ready.then((r) => setTimeout(() => r.active && r.active.postMessage({ type: 'WARM_AUDIO' }), 8000)).catch(() => {});
     if (reg.waiting && navigator.serviceWorker.controller) notifyWaiting(reg.waiting);
     reg.addEventListener('updatefound', () => {
       const nw = reg.installing;
