@@ -349,6 +349,31 @@ img.px, canvas { image-rendering: pixelated; image-rendering: crisp-edges; }
 .load-text { font-size: 20px; margin-top: 4px; letter-spacing: 1px; }
 .load-tip { font-size: 12px; color: var(--muted); font-weight: 500; margin-top: 18px; padding: 0 30px; text-align: center; line-height: 1.6; max-width: 360px; }
 
+/* ===== タイトル画面 ===== */
+#title { position: fixed; inset: 0; z-index: 85; overflow: hidden; background: #241a4a; cursor: pointer; container-type: size;
+  -webkit-tap-highlight-color: transparent; outline: none; touch-action: manipulation; }
+#title.hidden { display: none; }
+.title-blur { position: absolute; inset: -8%; background: url(../img/title-blur.jpg) center / cover no-repeat; filter: saturate(1.2) brightness(.75); }
+/* 絵の縦横比のまま、画面に合わせて拡大（左右は少しだけはみ出してよい） */
+.title-stage { position: absolute; left: 50%; top: 50%; aspect-ratio: 940 / 1672;
+  width: min(100%, 56.2vh); transform: translate(-50%, -50%);
+  width: min(1.1 * min(100cqw, 56.22cqh), max(100cqw, 56.22cqh)); }
+.title-img { display: block; width: 100%; height: 100%; image-rendering: auto; animation: titleIn .7s cubic-bezier(.2, .9, .3, 1.2) both; user-select: none; -webkit-user-drag: none; pointer-events: none; }
+@keyframes titleIn { from { opacity: 0; transform: scale(1.06); } to { opacity: 1; transform: none; } }
+/* 絵の中の「TAP TO START」に重ねて光らせる */
+.title-btn { position: absolute; left: 20.6%; top: 87.75%; width: 57.6%; height: 5.25%; pointer-events: none; overflow: hidden;
+  clip-path: polygon(3% 0, 97% 0, 100% 50%, 97% 100%, 3% 100%, 0 50%); animation: titleBtn 1.3s ease-in-out .7s infinite; }
+@keyframes titleBtn { 0%, 100% { background: #fff0; } 50% { background: #ffffff38; } }
+.title-shine { position: absolute; top: -20%; bottom: -20%; left: -30%; width: 18%; background: linear-gradient(90deg, #fff0, #ffffffb0, #fff0); transform: skewX(-20deg); animation: titleShine 2.6s ease-in-out 1s infinite; }
+@keyframes titleShine { 0% { left: -30%; } 45%, 100% { left: 130%; } }
+#title.go .title-btn { animation: none; background: #fff8; }
+.title-ver { position: absolute; right: calc(10px + var(--safe-r, 0px)); bottom: calc(6px + var(--safe-b)); font-size: 11px; color: #fff; opacity: .8; }
+.title-flash { position: absolute; inset: 0; background: #fff; opacity: 0; pointer-events: none; }
+#title.go .title-flash { animation: titleFlash .55s ease-out forwards; }
+@keyframes titleFlash { 0% { opacity: 0; } 25% { opacity: .85; } 100% { opacity: 0; } }
+#title.out { animation: titleOut .45s ease-in forwards; pointer-events: none; }
+@keyframes titleOut { to { opacity: 0; transform: scale(1.04); } }
+
 /* ===== トースト ===== */
 #toast { position: fixed; left: 50%; bottom: calc(100px + var(--safe-b)); transform: translateX(-50%); z-index: 90; display: flex; flex-direction: column; gap: 6px; align-items: center; pointer-events: none; }
 #toast div { background: var(--cream); color: var(--ink); border: 3px solid var(--ink); border-radius: 10px; padding: 7px 14px; font-size: 14px; animation: toast 2.6s forwards; max-width: 88vw; text-align: center; box-shadow: 0 3px 0 var(--ink); }

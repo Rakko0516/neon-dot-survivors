@@ -10,11 +10,17 @@ const MAGIC = 'NDSA';
 let ctx = null, master = null, bgmGain = null, seGain = null;
 const vol = { bgm: 0.7, se: 0.8 };
 let sources = null;
-const seBuf = new Map();      // name -> AudioBuffer | null（null=読み込み失敗）
-const seLoading = new Map();
+let unlocked = false;
+const raw = new Map();        // 'se:name' / 'bgm:name' -> Promise<Uint8Array>（ダウンロード済みの中身）
+const seBuf = new Map();      // name -> AudioBuffer
+const seBusy = new Set();
+const seTries = {};
+const seWant = {};            // 読み込み中に鳴らそうとした時刻（読み込めたらすぐ鳴らす）
 const lastPlay = {};
-const bgmBuf = new Map();     // name -> { buffer, loop } | null（最近使った数曲だけ残す）
-let bgmName = null, bgmCur = null, wantBgm = null;
+const bgmBuf = new Map();     // name -> { buffer, loop }（最近使った数曲だけ残す）
+const bgmBusy = new Map();    // name -> Promise
+const bgmTries = {};
+let bgmName = null, bgmCur = null, wantBgm = null, wantFb = null;
 
 async function loadSources() {
   if (sources) return sources;
@@ -32,16 +38,54 @@ async function fetchDecoded(path) {
   for (let i = 0; i < out.length; i++) out[i] = buf[i + 4] ^ KEY[i % KEY.length];
   return out;
 }
+/** ファイルの中身を取ってくる（失敗したら次回また取り直す） */
+function getRaw(kind, name) {
+  const k = kind + ':' + name;
+  if (!raw.has(k)) raw.set(k, fetchDecoded(`./audio/${kind}/${name}.bin`).catch((e) => { raw.delete(k); throw e; }));
+  return raw.get(k);
+}
 
-/** 起動時に呼ぶ：音の読み込みだけ先に済ませておく（スマホは操作するまで鳴らせないので、鳴らすのは initAudio 後） */
+// ===== 音データの変換（iPhoneは同時にたくさん変換すると失敗することがあるので、1つずつ順番に） =====
+const queue = [];
+let decoding = false;
+function decode(bytes, urgent) {
+  return new Promise((resolve, reject) => {
+    const job = { bytes, resolve, reject };
+    if (urgent) queue.unshift(job); else queue.push(job);
+    pump();
+  });
+}
+async function pump() {
+  if (decoding || !ctx) return;
+  const job = queue.shift();
+  if (!job) return;
+  decoding = true;
+  try {
+    // 変換に渡したデータは使えなくなるので、コピーを渡す（失敗しても取り直せるように）
+    const ab = job.bytes.slice().buffer;
+    job.resolve(await new Promise((res, rej) => {
+      try { const p = ctx.decodeAudioData(ab, res, rej); if (p && p.catch) p.catch(rej); } catch (e) { rej(e); }
+    }));
+  } catch (e) { job.reject(e); }
+  decoding = false;
+  pump();
+}
+
 // iPhone（iOS 17〜）：音の種類を「環境音」にする。
 // 他のアプリで再生中の音楽を止めずに一緒に鳴る（ゲームの音はマナーモードのときは鳴らなくなる）
 function setAmbient() {
   try { if (navigator.audioSession && navigator.audioSession.type !== 'ambient') navigator.audioSession.type = 'ambient'; } catch {}
 }
 
+/** 起動時に呼ぶ：ファイルのダウンロードだけ先に済ませる（音を鳴らす準備は最初のタップで行う） */
 export function preloadAudio() {
-  if (ctx) return;
+  loadSources().then((s) => {
+    for (const name of Object.keys(s.se || {})) getRaw('se', name).catch(() => {});
+    if (s.bgm?.home) getRaw('bgm', 'home').catch(() => {});
+  });
+}
+
+function createCtx() {
   setAmbient();
   try {
     ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -49,28 +93,44 @@ export function preloadAudio() {
     bgmGain = ctx.createGain(); bgmGain.connect(master);
     seGain = ctx.createGain(); seGain.connect(master);
     applyVolume();
-    loadSources().then((s) => { for (const name of Object.keys(s.se || {})) loadSe(name); });
-  } catch { ctx = null; }
+    ctx.onstatechange = () => { if (ctx.state === 'running') ensureBgm(); };
+  } catch { ctx = null; return; }
+  // 流したいBGMを先に、効果音はその後ろで順番に準備
+  if (wantBgm) getBgm(wantBgm).catch(() => {});
+  loadSources().then((s) => { for (const name of Object.keys(s.se || {})) loadSe(name); });
 }
 
-/** 最初のタップで呼ぶ（スマホは操作しないと音を出せない） */
+/** タップのたびに呼ぶ（スマホは画面を触らないと音を出せない。止まっていたら再開する） */
 export function initAudio() {
-  if (!ctx) preloadAudio();
+  if (!ctx) createCtx();
   if (!ctx) return;
   unlocked = true;
-  setAmbient();
-  if (ctx.state !== 'running') ctx.resume().then(() => { if (wantBgm && (!bgmCur || bgmCur.name !== wantBgm)) playBgm(wantBgm); }).catch(() => {});
-  // まだ鳴っていないBGMがあれば、音が使えるようになった時点で流す
-  if (wantBgm && (!bgmCur || bgmCur.name !== wantBgm)) playBgm(wantBgm);
+  if (ctx.state !== 'running') {
+    setAmbient();
+    ctx.resume().then(ensureBgm).catch(() => {});
+    // iPhone：タップ中に無音を1回鳴らすと確実に音が出せるようになる
+    try {
+      const s = ctx.createBufferSource();
+      s.buffer = ctx.createBuffer(1, 1, 22050);
+      s.connect(ctx.destination); s.start(0);
+    } catch {}
+  }
+  ensureBgm();
+}
+
+/** 流れているべきBGMが鳴っていなければ流す */
+function ensureBgm() {
+  if (!wantBgm || !ctx || ctx.state !== 'running') return;
+  if (bgmCur && bgmCur.name === wantBgm && !bgmCur.ended) return;
+  playBgm(wantBgm, wantFb);
 }
 
 // 画面を閉じたり別アプリに切り替えたら音を止め、戻ったら再開（電池の節約と、裏で鳴り続けないように）
 document.addEventListener('visibilitychange', () => {
   if (!ctx) return;
   if (document.visibilityState === 'hidden') ctx.suspend().catch(() => {});
-  else if (unlocked) { setAmbient(); ctx.resume().catch(() => {}); }
+  else if (unlocked) { setAmbient(); ctx.resume().then(ensureBgm).catch(() => {}); }
 });
-let unlocked = false;
 
 // 人の耳に合わせて音量バーの値を2乗する
 const curve = (v) => v * v;
@@ -87,16 +147,18 @@ export function setAudio(opt) {
   applyVolume();
 }
 
-async function loadSe(name) {
-  if (seBuf.has(name) || seLoading.has(name) || !ctx) return;
-  const p = (async () => {
-    try {
-      const bytes = await fetchDecoded(`./audio/se/${name}.bin`);
-      seBuf.set(name, await ctx.decodeAudioData(bytes.buffer));
-    } catch { seBuf.set(name, null); }
-    seLoading.delete(name);
-  })();
-  seLoading.set(name, p);
+function loadSe(name, urgent) {
+  if (!ctx || seBuf.has(name) || seBusy.has(name) || (seTries[name] || 0) >= 3) return;
+  seBusy.add(name);
+  getRaw('se', name)
+    .then((bytes) => decode(bytes, urgent))
+    .then((buf) => {
+      seBuf.set(name, buf);
+      // 読み込み待ちの間に押された音は、すぐなら鳴らす
+      if (seWant[name] && performance.now() - seWant[name] < 1000) { delete seWant[name]; sfx(name); }
+    })
+    .catch(() => { seTries[name] = (seTries[name] || 0) + 1; })
+    .finally(() => seBusy.delete(name));
 }
 
 // 同じ音が短時間に重なりすぎないための間隔（ミリ秒）
@@ -105,11 +167,12 @@ const GAP = { hit: 70, kill: 60, gem: 45, shoot: 80, shoot2: 110, reel: 60, slas
 const SE_VOL = { gem: 0.35, hit: 0.35, kill: 0.5, shoot: 0.45, reel: 0.45, shoot2: 0.5, fire: 0.35, coin: 0.55, slash: 0.7, ice: 0.6, arrow: 0.6, missile: 0.6, click: 0.8 };
 
 export function sfx(name) {
-  if (!ctx || vol.se === 0 || ctx.state !== 'running') return;
+  if (!ctx || vol.se === 0) return;
+  if (ctx.state !== 'running') { if (unlocked) ctx.resume().catch(() => {}); return; }
   const now = performance.now();
   if (lastPlay[name] && now - lastPlay[name] < (GAP[name] ?? 60)) return;
   const buf = seBuf.get(name);
-  if (!buf) { if (!seBuf.has(name)) loadSe(name); return; }
+  if (!buf) { seWant[name] = now; loadSe(name, true); return; }
   lastPlay[name] = now;
   if (DEBUG) (window.__sfxLog ||= []).push(name);
   const src = ctx.createBufferSource();
@@ -131,23 +194,30 @@ function mimeOf(b) {
 
 /** 動作確認用 */
 export function audioState() {
-  return { ctx: ctx?.state, bgm: bgmName, playing: !!(bgmCur && !bgmCur.ended), seLoaded: [...seBuf].filter(([, v]) => v).map(([k]) => k), vol: { ...vol } };
+  return { ctx: ctx?.state, bgm: bgmName, playing: !!(bgmCur && !bgmCur.ended), seLoaded: [...seBuf.keys()], bgmLoaded: [...bgmBuf.keys()], vol: { ...vol } };
 }
 
 async function getBgm(name) {
   if (bgmBuf.has(name)) { const v = bgmBuf.get(name); bgmBuf.delete(name); bgmBuf.set(name, v); return v; }
+  if (bgmBusy.has(name)) return bgmBusy.get(name);
   const s = (await loadSources()).bgm?.[name];
-  if (!s) return null;
-  let item = null;
-  try {
-    const bytes = await fetchDecoded(`./audio/bgm/${name}.bin`);
-    const buffer = await ctx.decodeAudioData(bytes.buffer);
-    item = { buffer, loop: !!s.loop };
-  } catch { item = null; }
-  bgmBuf.set(name, item);
-  // メモリ節約：使った順に新しい4曲だけ残す
-  while (bgmBuf.size > 4) bgmBuf.delete(bgmBuf.keys().next().value);
-  return item;
+  if (!s || !ctx || (bgmTries[name] || 0) >= 3) return null;
+  const p = (async () => {
+    try {
+      const buffer = await decode(await getRaw('bgm', name), true);
+      const item = { buffer, loop: !!s.loop };
+      bgmBuf.set(name, item);
+      raw.delete('bgm:' + name); // 変換後は元データ不要（メモリ節約）
+      // メモリ節約：使った順に新しい3曲だけ残す
+      while (bgmBuf.size > 3) bgmBuf.delete(bgmBuf.keys().next().value);
+      return item;
+    } catch {
+      bgmTries[name] = (bgmTries[name] || 0) + 1; // 失敗しても、次に呼ばれたときにやり直す
+      return null;
+    } finally { bgmBusy.delete(name); }
+  })();
+  bgmBusy.set(name, p);
+  return p;
 }
 
 function fadeTo(gainNode, to, sec) {
@@ -163,8 +233,8 @@ function fadeTo(gainNode, to, sec) {
  * @param {string} [fallback] そのBGMが無いときに代わりに流すもの
  */
 export async function playBgm(name, fallback) {
-  wantBgm = name;
-  if (!ctx) return;
+  wantBgm = name; wantFb = fallback || null;
+  if (!ctx) { loadSources().then((src) => { if (src.bgm?.[name]) getRaw('bgm', name).catch(() => {}); }); return; }
   if (bgmCur && bgmCur.name === name && !bgmCur.ended) return;
   let item = await getBgm(name);
   let playName = name;
@@ -195,7 +265,7 @@ export async function playBgm(name, fallback) {
 }
 
 export function stopBgm() {
-  wantBgm = null;
+  wantBgm = null; wantFb = null;
   if (bgmCur && ctx) {
     const cur = bgmCur;
     fadeTo(cur.gain, 0, 0.3);

@@ -116,7 +116,7 @@ const TIPS = [
 // ===================== 起動 =====================
 async function boot() {
   applyTheme();
-  showLoading('Wait...');
+  const tapped = waitTitle();
   load();
   const d = data();
   setVolume({ bgm: d.settings.bgmVol, se: d.settings.seVol });
@@ -132,10 +132,34 @@ async function boot() {
 
   initPWA(onUpdateReady);
   initCloud();
-  await Promise.all([fetchChangelog(), new Promise((r) => setTimeout(r, 900))]);
-  hideLoading();
+  await Promise.all([fetchChangelog().catch(() => {}), tapped]);
   render();
   await afterBoot();
+}
+
+// ===================== タイトル画面 =====================
+let titleOpen = true;
+/** TAP TO START が押されるまで待つ（このタップで音も使えるようになる） */
+function waitTitle() {
+  const el = $('#title');
+  $('#title-ver').textContent = 'v' + APP_VERSION;
+  return new Promise((resolve) => {
+    let done = false;
+    const go = (e) => {
+      if (done) return;
+      if (e.type === 'keydown' && !['Enter', ' ', 'Space'].includes(e.key)) return;
+      done = true;
+      e.preventDefault();
+      initAudio();
+      sfx('unlock');
+      el.classList.add('go');
+      setTimeout(() => { el.classList.add('out'); titleOpen = false; resolve(); }, 380);
+      setTimeout(() => { el.classList.add('hidden'); }, 850);
+    };
+    el.addEventListener('click', go);
+    el.addEventListener('keydown', go);
+    el.focus({ preventScroll: true });
+  });
 }
 
 /** URLの引っ越し：旧URLでは案内を出し、新URLでは持ってきたセーブを読み込む */
@@ -190,6 +214,7 @@ async function afterBoot() {
   await M.syncGifts();
   render();
   if (idx !== null) await loginModal(idx);
+  if (pendingUpdate) await showUpdatePopup();
   showNewsIfUnread();
   // 0時をまたいで開きっぱなしでも受け取れるように
   const recheck = async () => {
@@ -1040,9 +1065,10 @@ function settingsHTML() {
 function bindGlobal() {
   // 最初のタッチで音を有効化（iPhoneは操作しないと音が出ない）
   // iPhoneは「指を離したとき」が音を出してよい合図なので、touchend でも音の準備をする
-  const unlock = () => { initAudio(); if (!inBattle) playBgm(menuBgm(), 'home'); };
+  const unlock = () => initAudio();
   document.addEventListener('pointerdown', unlock, { passive: true });
   document.addEventListener('touchend', unlock, { passive: true });
+  document.addEventListener('click', unlock, { passive: true, capture: true });
   // 音量バー
   document.addEventListener('input', (e) => {
     const r = e.target.closest('input[data-vol]');
@@ -1328,7 +1354,7 @@ function showNewsIfUnread() {
 }
 function onUpdateReady(info) {
   pendingUpdate = info;
-  if (!inBattle) { render(); showUpdatePopup(); }
+  if (!inBattle && !titleOpen) { render(); showUpdatePopup(); }
 }
 async function showUpdatePopup() {
   if (!pendingUpdate) return;
