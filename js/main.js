@@ -17,6 +17,8 @@ import { Game } from './game.js';
 import * as M from './meta.js';
 import * as PF from './profile.js';
 import { playGacha } from './gachafx.js';
+import * as EN from './enemies.js';
+import { diagramURL, enemyURL } from './helpart.js';
 import { MOVED_TO, MOVE_FROM } from './config.js';
 import { packForMove, unpackMove } from './save.js';
 
@@ -423,6 +425,7 @@ function homeHTML() {
     ${homeIcon('missions', 'scroll', '#e8d8a8', 'ミッション', M.claimableCount())}
     ${homeIcon('login-bonus', 'calendar', '#7ac8ff', 'ログボ', 0)}
     ${homeIcon('news', 'book', '#ffd23a', 'お知らせ', hasUnreadNews() ? '!' : 0)}
+    ${homeIcon('enemy-book', 'skull', '#e8e0d0', 'てき図鑑', 0)}
   </div>
   ${tickerHTML()}
   <div class="home-top">
@@ -507,11 +510,11 @@ function drawStagePreview() {
   const rk = rockTile(B, 9);
   for (const [x, y] of [[9, 1], [10, 1], [9, 2], [3, 5]]) g.drawImage(rk, x * T, y * T - 4);
   // 敵とキャラ
-  const en = B.enemies;
+  const en = B.mobs.map((id) => EN.MOBS[id]);
   const place = [[4, 3.4, 0], [11, 4.5, 1], [7.6, 1.6, 2], [10.4, 6.6, 0]];
   for (const [x, y, k] of place) {
-    const [t, p] = en[k % en.length];
-    const s = enemySprite(t, p);
+    const m = en[k % en.length];
+    const s = enemySprite(m.sprite, m.pal);
     g.drawImage(s, Math.round(x * T - s.width / 2), Math.round(y * T - s.height / 2));
   }
   const cs = charSprite(D.CHARACTERS[d.selectedChar], 'idle');
@@ -1300,6 +1303,7 @@ async function onAction(act, el) {
     }
     case 'gacha': doGacha(+el.dataset.n, el.dataset.by); break;
     case 'news': showChangelog(); break;
+    case 'enemy-book': sfx('click'); enemyBook(); break;
     case 'install': installApp(); break;
     case 'login':
       try { await signIn(); } catch (e) { toast('ログインできませんでした：' + (e.code || e.message)); }
@@ -1526,6 +1530,7 @@ const hud = {
       e.roomFill.style.width = v.progress * 100 + '%';
       e.roomFill.parentElement.classList.toggle('open', v.gateOpen);
     });
+    this.set('bossName', v.bossName || '', (x) => { e.boss.querySelector('span').textContent = x || 'BOSS'; });
     this.set('boss', v.boss === null ? -1 : Math.ceil(v.boss * 100), (x) => {
       e.boss.classList.toggle('hidden', x < 0);
       if (x >= 0) e.boss.querySelector('.fill').style.width = x + '%';
@@ -1558,12 +1563,21 @@ async function startBattle() {
   game = new Game($('#game'), {
     stage: info, char: D.CHARACTERS[cid], stats: D.charStats(d, cid),
     hud, onLevelUp: showLevelUp, onEnd: endBattle,
+    // 初めて出会った敵の説明（モブは行動パターンごと、ボスは1体ごとに1回だけ）
+    needHelp: (kind, key) => !seen()[kind === 'boss' ? 'hb' : 'p'].includes(key),
+    onSeen: (kind, id) => { const list = seen()[kind === 'boss' ? 'b' : 'm']; if (!list.includes(id)) { list.push(id); commit(); } },
+    onHelp: (h, done) => {
+      const s = seen();
+      if (h.kind === 'boss') s.hb.push(h.id); else s.p.push(h.pattern);
+      commit();
+      enemyHelpModal(h).then(done);
+    },
   });
   hydrate($('#battle'));
   await new Promise((r) => setTimeout(r, 700));
   hideLoading();
   game.start();
-  playBgm(bgmForBiome(info.biome.id), 'battle_grass');
+  playBgm(bgmForBiome(info.biome.id), info.biome.bgm || 'battle_grass');
   hud.banner(`ROOM 1 / ${D.ROOMS_PER_STAGE}`);
 }
 
@@ -1648,16 +1662,110 @@ async function openPause() {
   if (!game || game.paused || game.ended) return;
   game.pause();
   game.keys.clear();
-  const v = await modal({
-    title: 'ポーズ',
-    dismiss: false,
-    body: `<p style="text-align:center;margin:0">ROOM ${game.room + 1}/${D.ROOMS_PER_STAGE} ／ 経過 ${fmtTime(game.t)} ／ 撃破 ${game.kills}</p>
-      <div class="pause-vol">${volHTML()}</div>`,
-    buttons: [{ label: 'ゲーム終了', value: 'quit', cls: 'dark' }, { label: '再開', value: 'resume', cls: 'teal' }],
-  });
+  let v;
+  for (;;) {
+    v = await pauseModal();
+    if (v !== 'help') break;
+    await enemyBook({ biome: game.stage.biome.id });
+    if (!game) return;
+  }
   if (!game) return;
   if (v === 'quit' && await confirmBox('ゲーム終了', '途中で終了すると報酬が少なくなります。', '終了する', 'red')) { game.finish(false); return; }
   game.resume();
+}
+function pauseModal() {
+  return modal({
+    title: 'ポーズ',
+    dismiss: false,
+    body: `<p style="text-align:center;margin:0">ROOM ${game.room + 1}/${D.ROOMS_PER_STAGE} ／ 経過 ${fmtTime(game.t)} ／ 撃破 ${game.kills}</p>
+      <div class="pause-vol">${volHTML()}</div>
+      <button class="btn block gold pause-help" data-act-help>この場所の敵のヘルプ</button>`,
+    buttons: [{ label: 'ゲーム終了', value: 'quit', cls: 'dark' }, { label: '再開', value: 'resume', cls: 'teal' }],
+    onMount: (ov, close) => ov.querySelector('[data-act-help]').addEventListener('click', () => close('help')),
+  });
+}
+
+// ===================== 敵のヘルプ・てき図鑑 =====================
+const seen = () => data().seen;
+function weakHTML(el) {
+  const E = EN.ELEMENTS[el];
+  if (!E) return '';
+  return `<div class="eh-weak"><b>弱点</b><span class="elchip" style="--c:${E.color}">${E.name}</span><span class="eh-wl">${EN.weaponsOf(el).join('・')}</span><small>弱点の武器で攻撃するとダメージ${EN.WEAK_MUL}倍（オレンジの数字）</small></div>`;
+}
+function mobHelpHTML(id) {
+  const M = EN.MOBS[id];
+  const P = EN.PATTERNS[M.pattern];
+  const same = Object.entries(EN.MOBS).filter(([k, x]) => x.pattern === M.pattern && k !== id && seen().m.includes(k));
+  return `<div class="eh">
+    <div class="eh-head"><img class="eh-img" src="${enemyURL(M)}" alt=""><div><div class="eh-name">${M.name}</div><span class="eh-type">${P.name}</span><div class="eh-flavor">${M.flavor || ''}</div></div></div>
+    <img class="eh-diagram" src="${diagramURL(M.pattern, M)}" alt="攻撃のしかたの図">
+    <div class="eh-sec"><b>攻撃パターン</b><p>${P.attack}</p></div>
+    <div class="eh-sec"><b>よけ方・倒し方</b><p>${P.dodge}</p></div>
+    ${weakHTML(M.weak)}
+    ${same.length ? `<div class="eh-same"><b>同じタイプの敵</b><div>${same.map(([, x]) => `<span><img src="${enemyURL(x)}" alt="">${x.name}</span>`).join('')}</div></div>` : ''}
+  </div>`;
+}
+function bossHelpHTML(id) {
+  const B = EN.BOSSES[id];
+  const minion = B.minion ? EN.MOBS[B.minion] : null;
+  const atks = [...new Set(B.attacks)];
+  return `<div class="eh">
+    <div class="eh-head boss"><img class="eh-img" src="${enemyURL(B, true)}" alt=""><div><div class="eh-name">${B.name}</div><span class="eh-type boss">BOSS</span></div></div>
+    <div class="eh-sec"><b>攻略のコツ</b><p>${B.tips}</p></div>
+    ${weakHTML(B.weak)}
+    <div class="eh-sec"><b>使ってくる技</b></div>
+    <div class="eh-atks">${atks.map((k) => {
+      const A = EN.BOSS_ATTACKS[k];
+      return `<div class="eh-atk"><img src="${diagramURL(k, { ...B, minion }, true)}" alt=""><div><b>${A.name}</b><p>${A.desc}</p><p class="dodge">よけ方：${A.dodge}</p></div></div>`;
+    }).join('')}</div>
+    <p class="muted" style="margin-bottom:0">体力が半分を切ると怒って、技を出すのが速くなります。</p>
+  </div>`;
+}
+function enemyHelpModal(h, opt = {}) {
+  const isBoss = h.kind === 'boss';
+  return modal({
+    cls: 'ehelp',
+    title: opt.title || (isBoss ? 'ボス出現！' : '新しい敵が現れた！'),
+    sound: 'panel',
+    dismiss: !!opt.dismiss,
+    body: isBoss ? bossHelpHTML(h.id) : mobHelpHTML(h.id),
+    buttons: [{ label: opt.ok || (inBattle ? 'たたかう！' : 'OK'), value: true, cls: 'red' }],
+  });
+}
+/** てき図鑑（ホーム・一時停止から）。biome を渡すとそのステージを先頭に、全部見られる状態で出す */
+async function enemyBook(opt = {}) {
+  const s = seen();
+  const order = D.BIOMES.map((b, i) => ({ b, i }));
+  if (opt.biome) order.sort((x, y) => (y.b.id === opt.biome) - (x.b.id === opt.biome));
+  const known = (kind, id, b) => b.id === opt.biome || (kind === 'boss' ? s.b : s.m).includes(id);
+  const tile = (kind, id, def, b) => {
+    const k = known(kind, id, b);
+    return `<button class="eb-tile ${kind === 'boss' ? 'boss' : ''} ${k ? '' : 'unk'}" data-eb="${kind}:${id}:${b.id}">
+      <img src="${enemyURL(def, kind === 'boss', !k)}" alt=""><span>${k ? def.name : '？？？'}</span></button>`;
+  };
+  let total = 0, got = 0;
+  const html = order.map(({ b, i }) => {
+    const mobs = [...b.mobs, b.elite];
+    total += mobs.length + 1;
+    got += mobs.filter((id) => s.m.includes(id)).length + (s.b.includes(b.boss) ? 1 : 0);
+    return `<div class="eb-sec"><div class="eb-h">STAGE ${i + 1}　${b.name}${b.id === opt.biome ? '<span class="eb-now">いまここ</span>' : ''}</div>
+      <div class="eb-grid">${mobs.map((id) => tile('mob', id, EN.MOBS[id], b)).join('')}${tile('boss', b.boss, EN.BOSSES[b.boss], b)}</div></div>`;
+  }).join('');
+  const v = await modal({
+    cls: 'ebook',
+    title: 'てき図鑑',
+    sound: 'panel2',
+    body: `<p class="muted" style="margin-top:0">敵をタップすると、攻撃パターン・よけ方・弱点が見られます。（出会った敵 ${got} / ${total}）</p>${html}`,
+    buttons: [{ label: '閉じる', value: null }],
+    onMount: (ov, close) => ov.querySelectorAll('[data-eb]').forEach((el) => el.addEventListener('click', () => close(el.dataset.eb))),
+  });
+  if (!v) return;
+  const [kind, id, bid] = v.split(':');
+  const b = D.BIOMES.find((x) => x.id === bid);
+  sfx('click');
+  if (!b || !known(kind, id, b)) toast('まだ出会っていない敵です');
+  else await enemyHelpModal({ kind, id }, { title: kind === 'boss' ? 'ボスの情報' : '敵の情報', ok: 'もどる', dismiss: true });
+  return enemyBook(opt);
 }
 
 async function endBattle(res) {

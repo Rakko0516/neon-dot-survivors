@@ -417,6 +417,66 @@ export function charSprite(def, frame = 'idle') {
 
 // ===================== 敵 =====================
 const ENEMY_ROWS = {
+  crab: [
+    '.AA..........AA.',
+    'AAAA........AAAA',
+    'AA.A........A.AA',
+    '.AAA..w..w..AAA.',
+    '...A..p..p..A...',
+    '...AAAAAAAAAA...',
+    '..AAAwAAAAAAAA..',
+    '.AAAwAAAAAAAAAA.',
+    '.AAAAAAmmAAAAAA.',
+    '..BBBBBBBBBBBB..',
+    '.B.B.B....B.B.B.',
+  ],
+  eye: [
+    '....AAAAAA....',
+    '..AAAAAAAAAA..',
+    '.AAwAAAAAAAAA.',
+    '.AwAAACCCCAAA.',
+    'AAAAACCCCCCAAA',
+    'AAAACCCeeCCCAA',
+    'AAAACCeeeeCCAA',
+    'AAAACCeeweCCAA',
+    'AAAACCCeeCCCAA',
+    'AAAAACCCCCCAAA',
+    '.AAAAACCCCAAA.',
+    '.AAAAAAAAAAAA.',
+    '..AAAAAAAAAA..',
+    '....AAAAAA....',
+  ],
+  skull: [
+    '...AAAAAAAA...',
+    '..AAAAAAAAAA..',
+    '.AAwAAAAAAAAA.',
+    '.AwAAAAAAAAAA.',
+    'AAAAAAAAAAAAAA',
+    'AAApppAApppAAA',
+    'AAApepAApepAAA',
+    'AAApppAApppAAA',
+    'AAAAAAppAAAAAA',
+    '.AAAAAAAAAAAA.',
+    '..AAAAAAAAAA..',
+    '..ApApApApAp..',
+    '...AAAAAAAA...',
+  ],
+  wisp: [
+    '.....A......',
+    '....AA......',
+    '....AAA..A..',
+    '...AAAA.AA..',
+    '..AAAAAAAA..',
+    '..AACCCCAA..',
+    '.AACCCCCCAA.',
+    '.ACCwCCwCCA.',
+    '.ACCpCCpCCA.',
+    '.ACCCCCCCCA.',
+    '.AACCmmCCAA.',
+    '..AACCCCAA..',
+    '...AAAAAA...',
+    '....AAAA....',
+  ],
   slime: [
     '......AAAA......',
     '....AAAAAAAA....',
@@ -741,7 +801,7 @@ export function floorTile(biome, seed, alt = false) {
       if (r() < 0.35) {
         let x = Math.floor(r() * 16), y = Math.floor(r() * 16);
         for (let i = 0; i < 9; i++) {
-          g.fillStyle = i % 3 === 0 ? '#ffd23a' : '#ff6a1a';
+          g.fillStyle = i % 3 === 0 ? (biome.crack ? biome.crack[0] : '#ffd23a') : (biome.crack ? biome.crack[1] : '#ff6a1a');
           g.fillRect(x, y, 1, 1);
           x += Math.floor(r() * 3) - 1; y += r() < 0.6 ? 1 : 0;
         }
@@ -824,7 +884,54 @@ export function spikeTile(biome) {
 // ===================== 外周の飾り =====================
 export function wallDeco(biome, seed) {
   const r = rng(seed);
-  switch (biome.style) {
+  const P = biome.decoPal || {};
+  switch (biome.deco || biome.style) {
+    case 'palm': return sprite([
+      '...AAA..AAA...',
+      '.AAAAAAAAAAAA.',
+      'AAA..AAAA..AAA',
+      'A...AAAAAA...A',
+      '...AA.BB.AA...',
+      '..A...BB...A..',
+      '......BB......',
+      '......CB......',
+      '......BB......',
+      '.....BC.......',
+      '.....BB.......',
+      '.....BB.......',
+      '.....CB.......',
+      '....BBBB......',
+    ], { A: P.A || '#3fae5a', B: P.B || '#a0703a', C: P.C || '#7a5028' }, { volume: true });
+    case 'crystal': return sprite([
+      '.....A......',
+      '....AwA.....',
+      '....AwA..A..',
+      '.A..AwA.AwA.',
+      'AwA.AAA.AwA.',
+      'AwAAAAAAAAA.',
+      'AAAAAAAAAAA.',
+      '.BBBBBBBBB..',
+    ], { A: r() < 0.5 ? (P.A || '#7ae0f0') : (P.A2 || '#c47aff'), B: P.B || '#4a4458', w: '#ffffff' }, { volume: true });
+    case 'tomb': return sprite([
+      '...AAAAA....',
+      '..AAAAAAA...',
+      '.AAAAwAAAA..',
+      '.AAAwwwAAA..',
+      '.AAAAwAAAA..',
+      '.AAAAwAAAA..',
+      '.AAAAAAAAA..',
+      '.AAAAAAAAA..',
+      'BBBBBBBBBBB.',
+    ], { A: P.A || '#9a9aa4', B: P.B || '#5a4a3a', w: '#5a5a64' }, { volume: true });
+    case 'cloud': return sprite([
+      '.....AAAA.......',
+      '...AAAAAAAA.....',
+      '..AAwwAAAAAAAA..',
+      '.AAwAAAAAAAAAAA.',
+      'AAAAAAAAAAAAAAAA',
+      'AAAAAAAAAAAAAAAA',
+      '.BBBBBBBBBBBBBB.',
+    ], { A: P.A || '#ffffff', B: P.B || '#c8dcf6', w: '#ffffff' }, { volume: true });
     case 'desert': {
       // サボテン
       const rows = [
@@ -864,7 +971,7 @@ export function wallDeco(biome, seed) {
         '.......BB.......',
         '......BBBB......',
       ];
-      const leaf = r() < 0.5 ? '#3f9a3f' : '#4aaa48';
+      const leaf = biome.leaf ? biome.leaf[r() < 0.5 ? 0 : 1] : r() < 0.5 ? '#3f9a3f' : '#4aaa48';
       return sprite(rows, { A: leaf, B: '#7a4a2a' }, { volume: true });
     }
     case 'snow': {

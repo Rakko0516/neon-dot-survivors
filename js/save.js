@@ -48,6 +48,8 @@ export function defaultData() {
     profile: { name: 'プレイヤー', icon: 'char:neo', frame: 'basic' },
     rank: { lv: 1, exp: 0 },
     seenNews: '',
+    // 出会った敵（m=モブ / b=ボス）と、説明を見たもの（p=行動パターン / hb=ボス）
+    seen: { m: [], b: [], p: [], hb: [] },
   };
 }
 
@@ -186,6 +188,8 @@ function sanitize(d) {
   }));
   d.receivedGifts = (Array.isArray(d.receivedGifts) ? d.receivedGifts : []).map((x) => safeId(x, 60)).slice(-500);
   d.seenNews = safeText(d.seenNews, 80);
+  const ids = (a) => (Array.isArray(a) ? a : []).map((x) => safeId(x, 30)).filter(Boolean).slice(0, 300);
+  d.seen = { m: ids(d.seen?.m), b: ids(d.seen?.b), p: ids(d.seen?.p), hb: ids(d.seen?.hb) };
   d.settings = { bgmVol: num(d.settings?.bgmVol, 0, 100, 60), seVol: num(d.settings?.seVol, 0, 100, 80), notify: !!d.settings?.notify };
   for (const k of Object.keys(d.stats)) d.stats[k] = num(d.stats[k], 0, 1e12);
   return d;

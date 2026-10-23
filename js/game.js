@@ -4,6 +4,7 @@ import { StageMap, TILE, CORRIDOR, GATE_COLS } from './stage.js';
 import { SKILLS, WEAPON_MAX, MAX_ACTIVES, MAX_PASSIVES, ROOMS_PER_STAGE, expNeed } from './data.js';
 import { T } from './art.js';
 import { sfx, playBgm } from './audio.js';
+import { MOBS, BOSSES, WEAPON_EL, WEAK_MUL } from './enemies.js';
 
 const TAU = Math.PI * 2;
 const rand = (a, b) => a + Math.random() * (b - a);
@@ -16,6 +17,10 @@ const ENEMY_BASE = {
   ghost: { hp: 11, spd: 30, dmg: 7, r: 6, fly: true, exp: 2 },
   drone: { hp: 8, spd: 37, dmg: 6, r: 6, fly: true, exp: 1 },
   golem: { hp: 10, spd: 17, dmg: 12, r: 10, fly: false, exp: 30 },
+  crab: { hp: 12, spd: 26, dmg: 7, r: 6, fly: false, exp: 1 },
+  eye: { hp: 9, spd: 26, dmg: 6, r: 6, fly: true, exp: 1 },
+  skull: { hp: 11, spd: 27, dmg: 7, r: 6, fly: false, exp: 1 },
+  wisp: { hp: 7, spd: 30, dmg: 6, r: 5, fly: true, exp: 1 },
 };
 
 // ===== 3x5 ドット数字 =====
@@ -103,6 +108,9 @@ export class Game {
     this.orbitAngle = 0;
     this.spawnAcc = 0;
     this.eliteDone = false;
+    this.helpQueue = [];
+    this.helpAsked = new Set();
+    this.curSrc = null; // いまダメージを与えている武器（弱点の判定用）
     this.recalc();
     this.camY = this.player.y - this.vh * 0.6;
   }
@@ -224,6 +232,12 @@ export class Game {
       if (P.hp <= 0 && !this.ended) this.finish(false);
       // クリアが決まった後はスキル選択を出さない
       if (this.pendingLv > 0 && !this.ended) this.triggerLevelUp();
+      // 初めて出会った敵の説明（スキル選択の後）
+      if (!this.paused && this.helpQueue.length && !this.ended && this.opt.onHelp) {
+        const h = this.helpQueue.shift();
+        this.pause();
+        this.opt.onHelp(h, () => this.resume());
+      }
     }
     this.updateHud();
   }
@@ -260,7 +274,7 @@ export class Game {
     // エリートは3部屋目の開始時
     if (k === 2 && !this.eliteDone && this.roomT > 2) {
       this.eliteDone = true;
-      this.queueSpawn('golem');
+      this.queueSpawn('elite');
       this.banner('エリート出現！');
     }
     const rate = 1.3 + k * 0.35 + this.roomT / 18;
@@ -279,47 +293,67 @@ export class Game {
 
   queueSpawn(forceType) {
     const pos = this.map.randomFloor(this.room, this.player, 64);
-    const list = this.biome.enemies;
-    let pick;
-    if (forceType) pick = forceType === 'golem' ? ['golem', this.biome.golem] : null;
+    let id;
+    if (forceType === 'elite') id = this.biome.elite;
     else {
+      const list = this.biome.mobs;
       const roll = Math.random();
       const idx = this.room === 0 ? (roll < 0.75 ? 0 : 1) : roll < 0.45 ? 0 : roll < 0.75 ? 1 : 2;
-      pick = list[Math.min(idx, list.length - 1)];
+      id = list[Math.min(idx, list.length - 1)];
     }
-    this.spawns.push({ x: pos.x, y: pos.y, type: pick[0], pal: pick[1], t: 0.7, elite: forceType === 'golem' });
+    this.spawns.push({ x: pos.x, y: pos.y, id, t: 0.7, elite: forceType === 'elite' });
     this.roomSpawned++;
   }
 
   addEnemy(s) {
-    const B = ENEMY_BASE[s.type];
+    const def = MOBS[s.id] || MOBS.g_slime;
+    const B = ENEMY_BASE[def.sprite];
     const growth = 1 + this.room * 0.12 + this.roomT / 90;
     const e = {
-      x: s.x, y: s.y, type: s.type, pal: s.pal,
-      hp: B.hp * this.stage.hpMul * growth, maxHp: 0,
-      spd: B.spd * rand(0.9, 1.1), dmg: B.dmg * this.stage.dmgMul, r: B.r, fly: B.fly, exp: B.exp,
+      x: s.x, y: s.y, id: s.id, type: def.sprite, pal: def.pal, pattern: def.pattern, weak: def.weak,
+      hp: B.hp * def.hp * this.stage.hpMul * growth, maxHp: 0,
+      spd: B.spd * def.spd * rand(0.9, 1.1), dmg: B.dmg * this.stage.dmgMul, r: B.r, fly: B.fly || def.pattern === 'phase', exp: B.exp,
       size: 1, flash: 0, hits: {}, kvx: 0, kvy: 0, slowT: 0, bob: Math.random() * 6,
+      st: 0, pt: rand(1.2, 2.8), side2: Math.random() < 0.5 ? -1 : 1, ph: Math.random() * 6,
     };
     if (s.elite) { e.hp *= 3.2; e.elite = true; }
+    if (s.mini) { e.mini = true; e.size = 0.62; e.hp *= 0.3; e.spd *= 1.35; e.r = Math.max(3, Math.round(e.r * 0.6)); }
     e.maxHp = e.hp;
     this.enemies.push(e);
+    this.noticeEnemy(e);
     return e;
+  }
+
+  /** 初めて見る敵なら説明を出す（モブは行動パターンごと、ボスは1体ごと） */
+  noticeEnemy(e) {
+    const o = this.opt;
+    if (o.onSeen) o.onSeen(e.boss ? 'boss' : 'mob', e.id);
+    const key = e.boss ? 'boss:' + e.id : 'pattern:' + e.pattern;
+    if (this.helpAsked.has(key)) return;
+    this.helpAsked.add(key);
+    if (o.needHelp && o.needHelp(e.boss ? 'boss' : 'pattern', e.boss ? e.id : e.pattern)) {
+      this.helpQueue.push(e.boss ? { kind: 'boss', id: e.id } : { kind: 'mob', id: e.id, pattern: e.pattern });
+    }
   }
 
   spawnBoss() {
     const M = this.map;
     const top = M.roomTop(this.room);
+    const id = this.biome.boss;
+    const def = BOSSES[id];
     const b = {
-      x: M.w / 2, y: (top + 5) * T, type: 'golem', pal: this.biome.golem,
-      hp: 0, maxHp: 0, spd: 18, dmg: 14 * this.stage.dmgMul, r: 16, fly: false, exp: 0,
-      size: 2, boss: true, flash: 0, hits: {}, kvx: 0, kvy: 0, shootT: 2.5, slowT: 0, bob: 0,
+      x: M.w / 2, y: (top + 5) * T, id, type: def.sprite, pal: def.pal, weak: def.weak,
+      hp: 0, maxHp: 0, spd: def.spd, dmg: 14 * this.stage.dmgMul, r: Math.max(14, Math.round(6.5 * def.size)), fly: !!def.fly, exp: 0,
+      size: def.size, boss: true, flash: 0, hits: {}, kvx: 0, kvy: 0, slowT: 0, bob: 0, z: 0,
+      attacks: def.attacks, ai: { i: 0, t: 2.2, act: null, enraged: false }, def,
     };
-    b.hp = b.maxHp = 520 * this.stage.hpMul;
+    b.hp = b.maxHp = 520 * this.stage.hpMul * def.hp;
     this.enemies.push(b);
     this.boss = b;
     this.puff(b.x, b.y, 30);
     this.shake = 0.4;
     sfx('boss');
+    this.noticeEnemy(b);
   }
 
   puff(x, y, n = 8) {
@@ -361,6 +395,12 @@ export class Game {
       let dx = P.x - e.x, dy = P.y - e.y;
       const d = Math.hypot(dx, dy) || 1;
       dx /= d; dy /= d;
+      // 行動パターンごとの動き（tx,ty＝進む向き / mul＝速さの倍率）
+      const mv = e.boss ? this.updateBoss(e, dt, dx, dy, d) : this.updatePattern(e, dt, dx, dy, d);
+      if (e.dead) continue;
+      let tx = mv.tx, ty = mv.ty;
+      const tl = Math.hypot(tx, ty) || 1;
+      tx /= tl; ty /= tl;
       let sx = 0, sy = 0, c = 0;
       this.query(e.x, e.y, 12, tmp);
       for (const o of tmp) {
@@ -371,34 +411,258 @@ export class Game {
         if (od < rr * rr && od > 0.001) { const f = (rr - Math.sqrt(od)) / rr; sx += ox * f; sy += oy * f; c++; }
       }
       if (e.slowT > 0) e.slowT -= dt;
-      const sp = e.spd * slowAll * (e.slowT > 0 ? 0.55 : 1);
-      const mvx = (dx * sp + sx * 5 + e.kvx) * dt, mvy = (dy * sp + sy * 5 + e.kvy) * dt;
+      const sp = e.spd * mv.mul * slowAll * (e.slowT > 0 ? 0.55 : 1);
+      const mvx = (tx * sp + sx * 5 + e.kvx) * dt, mvy = (ty * sp + sy * 5 + e.kvy) * dt;
       const hw = Math.min(6, e.r * 0.7), hh = Math.min(4, e.r * 0.5);
-      const res = M.move(e, mvx, mvy, hw, hh, e.fly);
-      // 岩に引っかかったら横に回り込む
-      if (res.blockedX && !res.blockedY) M.move(e, 0, Math.sign(dy || 1) * sp * dt, hw, hh, e.fly);
-      if (res.blockedY && !res.blockedX) {
-        if (!e.side) e.side = Math.random() < 0.5 ? -1 : 1;
-        M.move(e, e.side * sp * dt, 0, hw, hh, e.fly);
-      } else e.side = 0;
+      const res = M.move(e, mvx, mvy, hw, hh, e.fly || e.z > 4);
+      // 岩に引っかかったら横に回り込む（突進中は止まる）
+      if (e.st === 2 && (res.blockedX || res.blockedY)) e.pt = Math.min(e.pt, 0.05);
+      else {
+        if (res.blockedX && !res.blockedY) M.move(e, 0, Math.sign(ty || 1) * sp * dt, hw, hh, e.fly);
+        if (res.blockedY && !res.blockedX) {
+          if (!e.side) e.side = Math.random() < 0.5 ? -1 : 1;
+          M.move(e, e.side * sp * dt, 0, hw, hh, e.fly);
+        } else e.side = 0;
+      }
       e.kvx *= 0.85; e.kvy *= 0.85;
       if (e.flash > 0) e.flash -= dt;
       e.bob += dt * 8;
+      // 体当たり（消えている間・ジャンプ中は当たらない）
+      if (d < e.r + 5 && !e.hidden && !(e.z > 4)) this.hurtPlayer(e.dmg);
+    }
+  }
 
-      if (e.boss) {
-        e.shootT -= dt;
-        if (e.shootT <= 0) {
-          e.shootT = 2.4;
-          const n = 12, off = rand(0, TAU);
-          for (let i = 0; i < n; i++) {
-            const a = off + (i / n) * TAU;
-            this.ebullets.push({ x: e.x, y: e.y, vx: Math.cos(a) * 52, vy: Math.sin(a) * 52, life: 5, dmg: 9 * this.stage.dmgMul });
+  /** モブの行動パターン */
+  updatePattern(e, dt, dx, dy, d) {
+    let tx = dx, ty = dy, mul = 1;
+    e.tele = false;
+    switch (e.pattern) {
+      case 'dash': {
+        // 止まって構える →「！」→ まっすぐ突進 → 少し休む
+        e.pt -= dt;
+        if (e.st === 1) { mul = 0; e.tele = true; if (e.pt <= 0) { e.st = 2; e.pt = 0.5; } }
+        else if (e.st === 2) { tx = e.ax; ty = e.ay; mul = 4.2; if (e.pt <= 0) { e.st = 3; e.pt = 0.7; } }
+        else if (e.st === 3) { mul = 0; if (e.pt <= 0) { e.st = 0; e.pt = rand(2, 3.2); } }
+        else if (e.pt <= 0 && d < 140) {
+          e.st = 1; e.pt = 0.65; e.ax = dx; e.ay = dy;
+          this.fx.push({ kind: 'warnLine', x: e.x, y: e.y, ax: dx, ay: dy, len: 90, life: 0.65, max: 0.65 });
+        } else if (e.pt <= 0) e.pt = 0.4;
+        break;
+      }
+      case 'shooter': {
+        // 距離をとって弾を撃つ
+        if (d < 70) { tx = -dx; ty = -dy; mul = 0.9; }
+        else if (d < 110) { tx = -dy * e.side2; ty = dx * e.side2; mul = 0.55; }
+        e.pt -= dt;
+        e.tele = e.pt < 0.35 && d < 180;
+        if (e.pt <= 0) {
+          if (d < 180) {
+            const sp = 72;
+            this.ebullets.push({ x: e.x, y: e.y - 6, vx: dx * sp, vy: dy * sp, life: 3.2, dmg: e.dmg * 0.8, color: e.pal.C || e.pal.e });
+            e.pt = rand(2.3, 3.1);
+          } else e.pt = 0.5;
+        }
+        break;
+      }
+      case 'swoop': {
+        // ジグザグに飛ぶ
+        const w = Math.sin(this.t * 4.5 + e.ph) * 0.95;
+        tx = dx - dy * w; ty = dy + dx * w;
+        mul = 1.05;
+        break;
+      }
+      case 'phase': {
+        // 3秒見える → 1.4秒消える
+        e.pt -= dt;
+        if (e.pt <= 0) { e.hidden = !e.hidden; e.pt = e.hidden ? 1.4 : rand(2.6, 3.4); }
+        e.fading = !e.hidden && e.pt < 0.4;
+        mul = e.hidden ? 1.25 : 1;
+        break;
+      }
+      case 'bomber': {
+        // 近づいたら止まって点滅 → 爆発
+        if (e.st === 1) {
+          mul = 0; e.tele = true;
+          e.pt -= dt;
+          if (e.pt <= 0) {
+            const R = 32;
+            this.fx.push({ kind: 'boom', x: e.x, y: e.y, R, life: 0.3, max: 0.3, color: e.pal.A });
+            if (Math.hypot(this.player.x - e.x, this.player.y - e.y) < R + 4) this.hurtPlayer(e.dmg * 2);
+            sfx('boom');
+            this.shake = 0.2;
+            e.exploded = true;
+            this.kill(e);
           }
+        } else if (d < 26) {
+          e.st = 1; e.pt = 0.9;
+          this.fx.push({ kind: 'warn', x: e.x, y: e.y, R: 32, life: 0.9, max: 0.9 });
+        }
+        break;
+      }
+      case 'tank': {
+        // 近づくと地面をたたく（赤い円 → 衝撃波）
+        e.pt -= dt;
+        if (e.st === 1) {
+          mul = 0; e.tele = true;
+          if (e.pt <= 0) {
+            const R = 46;
+            this.fx.push({ kind: 'boom', x: e.x, y: e.y, R, life: 0.35, max: 0.35, color: '#c8b8a0' });
+            if (Math.hypot(this.player.x - e.x, this.player.y - e.y) < R + 4) this.hurtPlayer(e.dmg * 1.2);
+            sfx('boom');
+            this.shake = 0.25;
+            e.st = 2; e.pt = 0.9;
+          }
+        } else if (e.st === 2) { mul = 0; if (e.pt <= 0) { e.st = 0; e.pt = rand(3.5, 5); } }
+        else if (e.pt <= 0 && d < 64) {
+          e.st = 1; e.pt = 0.9;
+          this.fx.push({ kind: 'warn', x: e.x, y: e.y, R: 46, life: 0.9, max: 0.9 });
+        } else if (e.pt <= 0) e.pt = 0.5;
+        break;
+      }
+      default: break; // chase / split：まっすぐ近づく
+    }
+    return { tx, ty, mul };
+  }
+
+  // ===================== ボス =====================
+  updateBoss(e, dt, dx, dy, d) {
+    const A = e.ai;
+    const enr = e.hp < e.maxHp * 0.5;
+    if (enr && !A.enraged) { A.enraged = true; this.banner(`${e.def.name}が怒った！`); e.spd *= 1.15; }
+    e.tele = false;
+    if (!A.act) {
+      A.t -= dt * (enr ? 1.45 : 1);
+      if (A.t <= 0) this.bossStart(e, e.attacks[A.i++ % e.attacks.length], dx, dy);
+      return { tx: dx, ty: dy, mul: d < 46 ? 0.25 : 1 };
+    }
+    const act = A.act;
+    act.t += dt;
+    let tx = dx, ty = dy, mul = 0;
+    const P = this.player;
+    const shoot = (a, sp, k = 1) => this.ebullets.push({ x: e.x, y: e.y - 8, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 5, dmg: 9 * this.stage.dmgMul * k, boss: true });
+    const aim = Math.atan2(P.y - (e.y - 8), P.x - e.x);
+    let done = false;
+    switch (act.kind) {
+      case 'ring': {
+        e.tele = act.t < 0.5;
+        if (act.t >= 0.5 && !act.fired) {
+          act.fired = true;
+          const n = enr ? 16 : 12, off = rand(0, TAU);
+          for (let i = 0; i < n; i++) shoot(off + (i / n) * TAU, 54);
           sfx('shootBoss');
         }
+        done = act.t > 1;
+        break;
       }
-      if (d < e.r + 5) this.hurtPlayer(e.dmg);
+      case 'fan': {
+        e.tele = act.t < 0.5;
+        if (act.t >= 0.5 && !act.fired) {
+          act.fired = true;
+          const n = enr ? 7 : 5, spread = 1.0;
+          for (let i = 0; i < n; i++) shoot(aim - spread / 2 + (spread * i) / (n - 1), 78);
+          sfx('shootBoss');
+        }
+        done = act.t > 0.9;
+        break;
+      }
+      case 'burst': {
+        mul = 0.3;
+        const k = Math.floor((act.t - 0.3) / 0.24);
+        if (act.t > 0.3 && k >= (act.n || 0) && (act.n || 0) < 5) { act.n = (act.n || 0) + 1; shoot(aim, 88); if (enr) { shoot(aim - 0.18, 88); shoot(aim + 0.18, 88); } sfx('shoot2'); }
+        done = act.t > 1.7;
+        break;
+      }
+      case 'spiral': {
+        act.acc = (act.acc || 0) + dt;
+        const arms = enr ? 3 : 2;
+        while (act.acc > 0.085) {
+          act.acc -= 0.085;
+          act.ang = (act.ang ?? rand(0, TAU)) + 0.33;
+          for (let i = 0; i < arms; i++) shoot(act.ang + (i / arms) * TAU, 52, 0.85);
+        }
+        if (Math.floor(act.t * 4) !== act.snd) { act.snd = Math.floor(act.t * 4); sfx('shoot2'); }
+        done = act.t > 2.4;
+        break;
+      }
+      case 'charge': {
+        if (act.t < 0.8) { e.tele = true; }
+        else if (act.t < 1.35) { tx = act.ax; ty = act.ay; mul = 9; e.st = 2; if (!act.snd) { act.snd = true; sfx('slash'); } }
+        else { e.st = 0; }
+        done = act.t > 2.0;
+        break;
+      }
+      case 'slam': {
+        // 跳ぶ → 狙った場所へ移動 → 着地で衝撃と弾
+        const up = 0.3, fall = 1.2;
+        if (act.t < up) e.z = (act.t / up) * 60;
+        else if (act.t < fall) {
+          e.z = 60;
+          const k = Math.min(1, dt * 4);
+          e.x += (act.x - e.x) * k; e.y += (act.y - e.y) * k;
+        } else if (!act.landed) {
+          act.landed = true; e.z = 0;
+          e.x = act.x; e.y = act.y;
+          const R = 38;
+          this.fx.push({ kind: 'boom', x: e.x, y: e.y, R, life: 0.35, max: 0.35, color: e.pal.A });
+          if (Math.hypot(P.x - e.x, P.y - e.y) < R + 4) this.hurtPlayer(e.dmg * 1.5);
+          const n = enr ? 12 : 8;
+          for (let i = 0; i < n; i++) shoot((i / n) * TAU, 50);
+          this.shake = 0.5;
+          sfx('boom');
+        }
+        done = act.t > 1.9;
+        break;
+      }
+      case 'rain': {
+        mul = 0.5;
+        done = act.t > 1.5;
+        break;
+      }
+      case 'summon': {
+        e.tele = act.t < 0.5;
+        if (act.t >= 0.5 && !act.fired) {
+          act.fired = true;
+          const n = enr ? 4 : 3;
+          for (let i = 0; i < n && this.enemies.length + this.spawns.length < 45; i++) {
+            const a = (i / n) * TAU;
+            const x = e.x + Math.cos(a) * 30, y = e.y + Math.sin(a) * 22;
+            const id = e.def.minion || this.biome.mobs[Math.floor(Math.random() * this.biome.mobs.length)];
+            if (!this.map.solidAt(x, y)) this.spawns.push({ x, y, id, t: 0.5 });
+          }
+          sfx('gate');
+        }
+        done = act.t > 1;
+        break;
+      }
+      default: done = true;
     }
+    if (done) { A.act = null; e.z = 0; e.st = 0; A.t = rand(1.5, 2.3); }
+    return { tx, ty, mul };
+  }
+
+  /** ボスの技を始める（予告を出す） */
+  bossStart(e, kind, dx, dy) {
+    const P = this.player;
+    const act = { kind, t: 0 };
+    if (kind === 'charge') {
+      act.ax = dx; act.ay = dy;
+      this.fx.push({ kind: 'warnLine', x: e.x, y: e.y, ax: dx, ay: dy, len: 240, w: e.r * 1.4, life: 0.8, max: 0.8 });
+    }
+    if (kind === 'slam') {
+      act.x = P.x; act.y = P.y;
+      // 歩けない場所には降りない
+      if (this.map.solidAt(act.x, act.y)) { act.x = e.x; act.y = e.y; }
+      this.fx.push({ kind: 'warn', x: act.x, y: act.y, R: 38, life: 1.2, max: 1.2 });
+      sfx('super');
+    }
+    if (kind === 'rain') {
+      const n = e.ai.enraged ? 7 : 5;
+      for (let i = 0; i < n; i++) {
+        const x = i === 0 ? P.x : P.x + rand(-80, 80), y = i === 0 ? P.y : P.y + rand(-70, 70);
+        this.fx.push({ kind: 'warn', x, y, R: 17, life: 1.1 + i * 0.06, max: 1.1 + i * 0.06, hit: { dmg: e.dmg * 0.9, color: e.def.rain || '#ffb03a' } });
+      }
+    }
+    e.ai.act = act;
   }
 
   hurtPlayer(dmg, hazard = false) {
@@ -415,9 +679,11 @@ export class Game {
   }
 
   damage(e, base, opt = {}) {
-    if (e.dead) return;
+    if (e.dead || e.hidden) return; // 姿を消している間は当たらない
     const crit = Math.random() < this.rs.crit;
-    const dmg = Math.max(1, Math.round(base * (crit ? 2 : 1) * rand(0.9, 1.1)));
+    // 弱点の属性なら大ダメージ
+    const weak = !!(this.curSrc && e.weak && WEAPON_EL[this.curSrc] === e.weak);
+    const dmg = Math.max(1, Math.round(base * (crit ? 2 : 1) * (weak ? WEAK_MUL : 1) * rand(0.9, 1.1)));
     e.hp -= dmg;
     e.flash = 0.08;
     if (opt.slow) e.slowT = 1.5;
@@ -425,7 +691,7 @@ export class Game {
       const kb = e.elite ? 15 : 55;
       e.kvx += opt.kx * kb; e.kvy += opt.ky * kb;
     }
-    if (this.nums.length < 70) this.nums.push({ x: e.x + rand(-3, 3), y: e.y - 10, v: dmg, life: 0.6, color: crit ? '#ffd23a' : '#ffffff' });
+    if (this.nums.length < 70) this.nums.push({ x: e.x + rand(-3, 3), y: e.y - 10, v: dmg, life: 0.6, color: weak ? '#ff9a3c' : crit ? '#ffd23a' : '#ffffff' });
     if (e.hp <= 0) this.kill(e);
     else sfx('hit');
   }
@@ -448,7 +714,9 @@ export class Game {
       this.clearing = true;
       this.clearT = 0;
       for (const o of this.enemies) if (!o.dead) { o.dead = true; this.puff(o.x, o.y); }
+      this.spawns = [];
       this.ebullets = [];
+      this.fx = this.fx.filter((f) => f.kind !== 'warn' && f.kind !== 'warnLine');
       this.banner('STAGE CLEAR!');
       return;
     }
@@ -460,6 +728,10 @@ export class Game {
       return;
     }
     this.dropGem(e.x, e.y, e.exp);
+    // 分裂型：小さな2体に分かれる
+    if (e.pattern === 'split' && !e.mini && !this.clearing) {
+      for (const k of [-1, 1]) this.addEnemy({ x: e.x + k * 7, y: e.y, id: e.id, mini: true });
+    }
     const r = Math.random();
     if (r < 0.14) this.pickups.push({ kind: 'coin', x: e.x, y: e.y, v: 5 + this.stage.n * 2 });
     else if (r < 0.15) this.pickups.push({ kind: 'heart', x: e.x, y: e.y });
@@ -494,6 +766,7 @@ export class Game {
     this.orbitAngle += dt * 3.2;
     for (const w of this.actives) {
       const lv = w.lv;
+      this.curSrc = w.id;
       if (w.id === 'foxfire') {
         const n = 2 + Math.floor(lv / 2) + rs.multi;
         const R = 30 * rs.area;
@@ -529,8 +802,13 @@ export class Game {
       }
       w.t -= dt;
       if (w.t > 0) continue;
+      // 撃った弾や置いた爆弾に「どの武器か」を付けておく（弱点の判定用）
+      const nb = this.bullets.length, nf = this.fx.length;
       this.fire(w);
+      for (let i = nb; i < this.bullets.length; i++) this.bullets[i].src ||= w.id;
+      for (let i = nf; i < this.fx.length; i++) this.fx[i].src ||= w.id;
     }
+    this.curSrc = null;
   }
 
   fire(w) {
@@ -795,6 +1073,7 @@ export class Game {
       b.y += b.vy * dt;
       b.life -= dt;
       if (b.life <= 0) { b.dead = true; continue; }
+      this.curSrc = b.src || null;
       for (const e of this.query(b.x, b.y, 14, tmp)) {
         if (e.dead) continue;
         if (b.hit) {
@@ -810,6 +1089,7 @@ export class Game {
         if (b.pierce-- <= 0) { b.dead = true; break; }
       }
     }
+    this.curSrc = null;
     this.bullets = this.bullets.filter((b) => !b.dead);
     this.enemies = this.enemies.filter((e) => !e.dead);
   }
@@ -936,13 +1216,22 @@ export class Game {
     for (const f of this.fx) {
       f.life -= dt;
       if (f.kind === 'spark' || f.kind === 'dust') { f.x += f.vx * dt; f.y += f.vy * dt; f.vx *= 0.9; f.vy *= 0.9; }
+      this.curSrc = f.src || null;
       if (f.kind === 'bomb' && f.life <= 0 && !f.done) { f.done = true; this.explode(f.x, f.y, f.R, f.dmg); }
       if (f.kind === 'holy' && f.life <= 0.15 && !f.done) {
         f.done = true;
         for (const e of this.query(f.x, f.y, f.R + 8)) if (!e.dead && Math.hypot(e.x - f.x, e.y - f.y) < f.R + e.r) this.damage(e, f.dmg);
         sfx('heal');
       }
+      // 落下攻撃：赤い円が消えた瞬間に落ちてくる
+      if (f.kind === 'warn' && f.hit && f.life <= 0 && !f.done) {
+        f.done = true;
+        this.fx.push({ kind: 'boom', x: f.x, y: f.y, R: f.R + 2, life: 0.3, max: 0.3, color: f.hit.color });
+        if (Math.hypot(this.player.x - f.x, this.player.y - f.y) < f.R + 3) this.hurtPlayer(f.hit.dmg);
+        sfx('boom');
+      }
     }
+    this.curSrc = null;
     this.fx = this.fx.filter((f) => f.life > 0);
     for (const n of this.nums) { n.life -= dt; n.y -= dt * 20; }
     this.nums = this.nums.filter((n) => n.life > 0);
@@ -972,6 +1261,7 @@ export class Game {
       progress: isBoss ? (this.boss ? 1 - Math.max(0, this.boss.hp) / this.boss.maxHp : 0) : Math.min(1, this.roomKills / q),
       gateOpen: !this.roomActive && !isBoss,
       boss: this.boss && !this.boss.dead ? this.boss.hp / this.boss.maxHp : null,
+      bossName: this.boss ? this.boss.def.name : '',
       superT: this.superT,
     });
   }
@@ -1069,23 +1359,63 @@ export class Game {
       g.drawImage(s, Math.round(p.x - s.width / 2), Math.round(p.y - s.height / 2 + Math.sin(this.t * 5) * 1.5));
     }
 
+    // 攻撃の予告（赤い円・赤い線）は足元に描く
+    for (const f of this.fx) {
+      if (f.kind === 'warn') {
+        const k = 1 - f.life / f.max;
+        const blink = Math.floor(this.t * (k > 0.6 ? 16 : 8)) % 2;
+        g.globalAlpha = 0.18 + k * 0.22;
+        g.fillStyle = '#ff2a4a';
+        g.beginPath(); g.ellipse(f.x, f.y, f.R, f.R * 0.62, 0, 0, TAU); g.fill();
+        g.globalAlpha = blink ? 0.95 : 0.6;
+        g.strokeStyle = '#ff4f6d'; g.lineWidth = 1;
+        g.beginPath(); g.ellipse(f.x, f.y, f.R, f.R * 0.62, 0, 0, TAU); g.stroke();
+        // だんだん縮む内側の円＝あとどれくらいで来るか
+        g.beginPath(); g.ellipse(f.x, f.y, f.R * (1 - k), f.R * 0.62 * (1 - k), 0, 0, TAU); g.stroke();
+        g.globalAlpha = 1;
+      } else if (f.kind === 'warnLine') {
+        const k = 1 - f.life / f.max;
+        const w = f.w || 8;
+        g.save();
+        g.translate(f.x, f.y); g.rotate(Math.atan2(f.ay, f.ax));
+        g.globalAlpha = 0.16 + k * 0.25;
+        g.fillStyle = '#ff2a4a'; g.fillRect(0, -w / 2, f.len, w);
+        g.globalAlpha = Math.floor(this.t * 12) % 2 ? 0.9 : 0.5;
+        g.fillStyle = '#ff4f6d'; g.fillRect(0, -w / 2, f.len, 1); g.fillRect(0, w / 2 - 1, f.len, 1);
+        g.restore();
+        g.globalAlpha = 1;
+      }
+    }
+
     // キャラと敵（y順）
     const list = this.enemies.filter((e) => vis(e.y));
     list.push(P);
     list.sort((a, b) => a.y - b.y);
     for (const e of list) {
       if (e === P) { this.drawPlayer(g); continue; }
-      const s = enemySprite(e.type, e.pal, { flash: e.flash > 0, crown: e.boss });
+      // 攻撃の構え中は赤く点滅
+      const teleBlink = e.tele && Math.floor(this.t * 14) % 2;
+      const s = enemySprite(e.type, e.pal, { flash: e.flash > 0 || teleBlink, crown: e.boss });
       const w = Math.round(s.width * e.size), h = Math.round(s.height * e.size);
-      const hop = e.fly ? Math.round(Math.sin(e.bob) * 2) - 6 : -Math.abs(Math.round(Math.sin(e.bob) * 1.5));
+      const hop = (e.fly ? Math.round(Math.sin(e.bob) * 2) - 6 : -Math.abs(Math.round(Math.sin(e.bob) * 1.5))) - Math.round(e.z || 0);
       g.fillStyle = 'rgba(30,10,30,0.3)';
       g.beginPath(); g.ellipse(Math.round(e.x), Math.round(e.y + 2), w * 0.36, 2.5 * e.size, 0, 0, TAU); g.fill();
       const flip = P.x < e.x ? -1 : 1;
+      // すり抜け型：消えている間は薄く、消える直前はちらつく
+      if (e.hidden) g.globalAlpha = 0.22;
+      else if (e.fading) g.globalAlpha = Math.floor(this.t * 16) % 2 ? 0.5 : 1;
       g.save();
       g.translate(Math.round(e.x), Math.round(e.y - h + 3 + hop));
-      if (flip < 0 && (e.type === 'bat' || e.type === 'drone') === false) { g.scale(-1, 1); g.drawImage(s, -Math.round(w / 2), 0, w, h); }
+      if (flip < 0 && !['bat', 'drone', 'eye', 'wisp', 'skull'].includes(e.type)) { g.scale(-1, 1); g.drawImage(s, -Math.round(w / 2), 0, w, h); }
       else g.drawImage(s, -Math.round(w / 2), 0, w, h);
       g.restore();
+      g.globalAlpha = 1;
+      // 「！」マーク（攻撃の合図）
+      if (e.tele) {
+        const tx = Math.round(e.x), ty = Math.round(e.y - h + hop - 4);
+        g.fillStyle = '#1e1226'; g.fillRect(tx - 2, ty - 9, 5, 11);
+        g.fillStyle = '#ffd23a'; g.fillRect(tx - 1, ty - 8, 3, 6); g.fillRect(tx - 1, ty - 1, 3, 2);
+      }
       if (e.slowT > 0) { g.fillStyle = 'rgba(160,230,255,0.5)'; g.fillRect(Math.round(e.x - w / 2), Math.round(e.y - h + 3 + hop), w, h); }
       // HPバー（参考画面のように足元に）
       if (e.hp < e.maxHp || e.elite) {
@@ -1153,7 +1483,7 @@ export class Game {
     for (const b of this.ebullets) {
       const x = Math.round(b.x), y = Math.round(b.y);
       g.fillStyle = '#7a1030'; g.fillRect(x - 3, y - 3, 6, 6);
-      g.fillStyle = '#ff4f6d'; g.fillRect(x - 2, y - 2, 4, 4);
+      g.fillStyle = b.color || '#ff4f6d'; g.fillRect(x - 2, y - 2, 4, 4);
       g.fillStyle = '#ffd0d8'; g.fillRect(x - 1, y - 1, 2, 2);
     }
 

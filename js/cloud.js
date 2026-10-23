@@ -1,7 +1,7 @@
 // クラウドセーブ（Firebase Auth + Firestore）とプッシュ通知トークン登録
 // config.js に FIREBASE_CONFIG が無い場合は何もしない（オフラインでも遊べる）
 import { FIREBASE_CONFIG, FIREBASE_SDK, VAPID_KEY, APPCHECK_SITE_KEY } from './config.js';
-import { store, validate, summary } from './save.js';
+import { store, validate, summary, onChange } from './save.js';
 
 const SYNC_KEY = 'nds_sync'; // { uid, lastSyncedAt }
 const AUTO_INTERVAL = 10 * 60 * 1000; // 自動バックアップ間隔（10分）
@@ -61,8 +61,11 @@ export async function initCloud() {
       if (user) await syncOnLogin();
     });
     setInterval(() => autoBackup(), AUTO_INTERVAL);
+    // 装備・ガチャ・設定などを変えたら、少し後に必ずバックアップ（まとめて1回にする）
+    onChange(() => scheduleBackup());
+    // アプリを閉じる・別アプリに切り替えるときは、直前にバックアップしていても変更があれば必ず送る
     document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'hidden') autoBackup();
+      if (document.visibilityState === 'hidden') autoBackup(true);
     });
     window.addEventListener('online', () => autoBackup());
   } catch (e) {
@@ -141,9 +144,19 @@ export async function upload(force = false) {
   }
 }
 
+let backupTimer = null;
+let loginSyncing = false; // ログイン直後の「どちらのデータを使うか」の判断中は送らない
+/** 変更から少し待ってバックアップ（連続で変えても1回にまとめる。前回から45秒は空ける） */
+function scheduleBackup(delay = 20000) {
+  if (!cloud.user) return;
+  clearTimeout(backupTimer);
+  const wait = Math.max(delay, cloud.lastSync + MIN_GAP - Date.now());
+  backupTimer = setTimeout(() => { backupTimer = null; autoBackup(true); }, wait);
+}
+
 /** 前回同期以降に変更があればアップロード */
 export async function autoBackup(force = false) {
-  if (!cloud.user || !navigator.onLine) return;
+  if (!cloud.user || !navigator.onLine || loginSyncing) return;
   const meta = getMeta();
   if (meta.uid === cloud.user.uid && meta.lastSyncedAt === store.save.updatedAt) return;
   await upload(force);
@@ -151,6 +164,10 @@ export async function autoBackup(force = false) {
 
 /** ログイン直後：端末とクラウドどちらを使うか判断 */
 async function syncOnLogin() {
+  loginSyncing = true;
+  try { await syncOnLoginInner(); } finally { loginSyncing = false; }
+}
+async function syncOnLoginInner() {
   cloud.status = 'syncing';
   emit();
   try {

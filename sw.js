@@ -1,6 +1,6 @@
 // Service Worker：オフライン対応・アップデート配信・プッシュ通知
 // VERSION を変えると全プレイヤーに「アップデートがあります」が表示されます（tools/bump-version.mjs が自動で変更）
-const VERSION = '0.5.1';
+const VERSION = '0.5.2';
 // 更新履歴を作り直してバージョン番号を戻したため、古いキャッシュと名前がかぶらないよう r2 を付ける
 const CACHE = 'nds-r2-' + VERSION;
 const RUNTIME = 'nds-runtime';
@@ -10,31 +10,33 @@ const AUDIO = 'nds-audio';
 const ASSETS = [
   './',
   './index.html',
-  './css/style.css',
-  './js/main.js',
-  './js/game.js',
-  './js/data.js',
-  './js/art.js',
-  './js/stage.js',
-  './js/audio.js',
-  './js/save.js',
-  './js/cloud.js',
-  './js/pwa.js',
-  './js/ui.js',
-  './js/meta.js',
-  './js/profile.js',
-  './js/gachafx.js',
-  './js/config.js',
-  './js/version.js',
   './manifest.webmanifest',
   './changelog.json',
+  './css/style.css',
+  './js/art.js',
+  './js/audio.js',
+  './js/cloud.js',
+  './js/config.js',
+  './js/data.js',
+  './js/enemies.js',
+  './js/gachafx.js',
+  './js/game.js',
+  './js/helpart.js',
+  './js/main.js',
+  './js/meta.js',
+  './js/profile.js',
+  './js/pwa.js',
+  './js/save.js',
+  './js/stage.js',
+  './js/ui.js',
+  './js/version.js',
+  './icons/apple-touch-icon.png',
+  './icons/badge-96.png',
   './icons/icon-192.png',
   './icons/icon-512.png',
   './icons/maskable-512.png',
-  './icons/apple-touch-icon.png',
-  './icons/badge-96.png',
-  './img/title.webp',
   './img/title-blur.jpg',
+  './img/title.webp',
 ];
 
 self.addEventListener('install', (e) => {

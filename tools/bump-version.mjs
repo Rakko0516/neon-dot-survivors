@@ -6,7 +6,7 @@
 //   - js/version.js と sw.js の VERSION を書き換え（→ プレイヤーに更新ポップアップが出る）
 //   - changelog.json の先頭に項目を追加
 //   - sw.js の ASSETS に載っているファイルが全部あるかチェック
-import { readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, readdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -29,6 +29,17 @@ writeFileSync(p('js/version.js'), v);
 
 let sw = readFileSync(p('sw.js'), 'utf8');
 sw = sw.replace(/const VERSION = '[^']+'/, `const VERSION = '${version}'`);
+// オフライン用に保存するファイルの一覧を、フォルダの中身から自動で作り直す
+// （js・css・画像・アイコンを増やしても、ここで自動的にオフライン対応になる。音は audio/sources.json から自動）
+const list = (dir, re) => (existsSync(p(dir)) ? readdirSync(p(dir)).filter((f) => re.test(f)).sort().map((f) => `./${dir}/${f}`) : []);
+const assetList = [
+  './', './index.html', './manifest.webmanifest', './changelog.json',
+  ...list('css', /\.css$/),
+  ...list('js', /\.js$/).filter((f) => !f.endsWith('/editor.js')),
+  ...list('icons', /\.(png|svg|webp)$/),
+  ...list('img', /\.(png|jpg|jpeg|webp|svg|gif)$/),
+];
+sw = sw.replace(/const ASSETS = \[[\s\S]*?\];/, `const ASSETS = [\n${assetList.map((a) => `  '${a}',`).join('\n')}\n];`);
 writeFileSync(p('sw.js'), sw);
 
 const log = JSON.parse(readFileSync(p('changelog.json'), 'utf8'));

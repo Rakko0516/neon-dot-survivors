@@ -212,55 +212,94 @@ export function power(st) {
 
 // ===== ステージ（バイオーム） =====
 // floor/floorAlt: [地面, 濃い粒, 明るい粒]  pool: 水たまりの種類
+// mobs: 出てくるモブ（enemies.js の MOBS）  elite: 3部屋目のエリート  boss: ボス（BOSSES）
+// bgm: 戦闘BGM（audio/sources.json の battle_<id>）が無いときに代わりに流す曲
+// deco / decoPal / leaf / crack: 見た目の追加設定（無ければ style のもの）
+// 並び順＝ステージ番号の順（STAGE 1 が草原、STAGE 12 が魔王城。13からは★付きで2周目）
 export const BIOMES = [
   {
     id: 'grass', name: '草原', style: 'grass',
     floor: ['#7cc35a', '#6ab04c', '#8fd46a'], floorAlt: ['#94cf62', '#82bf55', '#a8de78'],
     rock: '#9a9aa4', spike: '#d8dce8', side: '#4f9a3f', patch: '#5aa84a',
     pool: { kind: 'water', color: '#4ab4ec', rim: '#2a78b8', effect: 'slow' },
-    enemies: [['slime', { A: '#6ad85a' }], ['mushroom', { A: '#ff5a4a', C: '#ffe9c8' }], ['bat', { A: '#8a5a3a', e: '#ffe14d' }]],
-    golem: { A: '#7a9a5a', B: '#4a6a3a', C: '#9ad86a', e: '#ffe14d' },
-    music: 'home',
+    mobs: ['g_slime', 'g_mush', 'g_bat'], elite: 'g_golem', boss: 'kingslime',
+  },
+  {
+    id: 'forest', name: '森', style: 'grass', leaf: ['#2a6a2a', '#357a30'], bgm: 'battle_grass',
+    floor: ['#4a8a3a', '#3e7a32', '#5a9a48'], floorAlt: ['#56963f', '#4a8638', '#66a852'],
+    rock: '#7a7a6a', spike: '#c8c8b8', side: '#2e5a24', patch: '#3a6a2e',
+    pool: { kind: 'water', color: '#5a8a3a', rim: '#3a5a24', effect: 'slow' },
+    mobs: ['f_slime', 'f_mush', 'f_bee'], elite: 'f_golem', boss: 'bigmush',
   },
   {
     id: 'desert', name: '砂漠', style: 'desert',
     floor: ['#efa36a', '#e8955a', '#f6b47c'], floorAlt: ['#ee8a5a', '#e47a4c', '#f49a6a'],
     rock: '#9a8a80', spike: '#e0dce0', side: '#e0703a', patch: '#e66a48',
     pool: { kind: 'oasis', color: '#4ee0c0', rim: '#2aa08a', effect: 'slow' },
-    enemies: [['slime', { A: '#b07aff' }], ['mushroom', { A: '#3fae5a', C: '#ffd8a0' }], ['bat', { A: '#c86a3a', e: '#ffffff' }]],
-    golem: { A: '#d8a868', B: '#a87a48', C: '#4ee0c0', e: '#4ee0c0' },
+    mobs: ['d_slime', 'd_mush', 'd_bat'], elite: 'd_golem', boss: 'pharaoh',
+  },
+  {
+    id: 'beach', name: '海辺', style: 'desert', deco: 'palm', bgm: 'battle_desert',
+    floor: ['#f4dca0', '#e8cc8a', '#fff0c0'], floorAlt: ['#f0d494', '#e4c480', '#fae6b0'],
+    rock: '#a09a90', spike: '#e8e4e0', side: '#3aa8e0', patch: '#4ab8ec',
+    pool: { kind: 'water', color: '#4ab4ec', rim: '#2a78b8', effect: 'slow' },
+    mobs: ['b_crab', 'b_jelly', 'b_slime'], elite: 'b_golem', boss: 'kingcrab',
   },
   {
     id: 'snow', name: '雪国', style: 'snow',
     floor: ['#e6f0fa', '#d4e2f2', '#ffffff'], floorAlt: ['#d2e4f6', '#c0d6ee', '#e6f0fa'],
     rock: '#8aa0c0', spike: '#c8e8ff', side: '#c0d6ee', patch: '#c8dcf0',
     pool: { kind: 'ice', color: '#9fd8f6', rim: '#5a9ad0', effect: 'slow' },
-    enemies: [['slime', { A: '#8ad8ff' }], ['ghost', { A: '#f4faff' }], ['bat', { A: '#5a7ac8', e: '#9fe6ff' }]],
-    golem: { A: '#a8d0f0', B: '#6a9ac8', C: '#e8f8ff', e: '#3fd6ff' },
+    mobs: ['s_slime', 's_ghost', 's_bat'], elite: 's_golem', boss: 'blizzard',
+  },
+  {
+    id: 'cave', name: '水晶の洞窟', style: 'volcano', deco: 'crystal', crack: ['#7ae0f0', '#c47aff'], bgm: 'battle_volcano',
+    floor: ['#3a3448', '#2e2a3c', '#4a4458'], floorAlt: ['#403a50', '#342e44', '#504a60'],
+    rock: '#5a5470', spike: '#c8c0e0', side: '#1e1a28', patch: '#2a2438',
+    pool: { kind: 'water', color: '#3a7ac8', rim: '#1e4a8a', effect: 'slow' },
+    mobs: ['u_eye', 'u_bat', 'u_rock'], elite: 'u_golem', boss: 'crystalking',
   },
   {
     id: 'cyber', name: 'サイバーシティ', style: 'cyber',
     floor: ['#2e3350', '#3a405e', '#36f2ff'], floorAlt: ['#342c4e', '#40365c', '#ff5fd0'],
     rock: '#5a6080', spike: '#c8ccd8', side: '#1a1c2e', patch: '#2a2a48',
     pool: { kind: 'acid', color: '#7dff5a', rim: '#3aa02a', effect: 'hurt' },
-    enemies: [['drone', { A: '#a9b3cc', e: '#36f2ff' }], ['ghost', { A: '#ff5fd0' }], ['slime', { A: '#4dff8a' }]],
-    golem: { A: '#8a92b0', B: '#4a5070', C: '#36f2ff', e: '#ff3b5c' },
+    mobs: ['c_drone', 'c_ghost', 'c_slime'], elite: 'c_golem', boss: 'motherdrone',
   },
   {
     id: 'volcano', name: '火山', style: 'volcano',
     floor: ['#4e3430', '#3e2624', '#5e403a'], floorAlt: ['#5a3a30', '#4a2c26', '#6a483e'],
     rock: '#5a4a4a', spike: '#c8b8b0', side: '#2a1a18', patch: '#3a2420',
     pool: { kind: 'lava', color: '#ff6a1a', rim: '#c8300a', effect: 'hurt' },
-    enemies: [['slime', { A: '#ff7a3a' }], ['bat', { A: '#c4303a', e: '#ffd23a' }], ['mushroom', { A: '#3a2a2a', C: '#ffb06a' }]],
-    golem: { A: '#5a4040', B: '#3a2828', C: '#ff7a2a', e: '#ffd23a' },
+    mobs: ['v_slime', 'v_bat', 'v_wisp'], elite: 'v_golem', boss: 'magmagolem',
+  },
+  {
+    id: 'grave', name: '墓地', style: 'grass', deco: 'tomb', leaf: ['#3a4a30', '#46563a'], bgm: 'battle_castle',
+    floor: ['#5a6a4a', '#4e5e40', '#6a7a58'], floorAlt: ['#56664a', '#4a5a3e', '#667656'],
+    rock: '#7a7a80', spike: '#c8c8d0', side: '#2a3020', patch: '#3a4430',
+    pool: { kind: 'poison', color: '#7a5ab8', rim: '#4a2a7a', effect: 'hurt' },
+    mobs: ['h_skull', 'h_wisp', 'h_ghost'], elite: 'h_golem', boss: 'skullking',
+  },
+  {
+    id: 'sky', name: '天空', style: 'snow', deco: 'cloud', bgm: 'battle_snow',
+    floor: ['#e8f2ff', '#d4e4fa', '#ffffff'], floorAlt: ['#dceaff', '#c8dcf6', '#f0f6ff'],
+    rock: '#b8c4e0', spike: '#ffe98a', side: '#7ab8ff', patch: '#8ac4ff',
+    pool: { kind: 'poison', color: '#8a8ab8', rim: '#5a5a8a', effect: 'hurt' },
+    mobs: ['y_slime', 'y_eye', 'y_bat'], elite: 'y_golem', boss: 'stormbat',
+  },
+  {
+    id: 'space', name: '宇宙ステーション', style: 'cyber', bgm: 'battle_cyber',
+    floor: ['#1e1a38', '#2a2448', '#c47aff'], floorAlt: ['#241e40', '#302852', '#7dff5a'],
+    rock: '#4a4870', spike: '#c8c8e0', side: '#0a0818', patch: '#141028',
+    pool: { kind: 'acid', color: '#c47aff', rim: '#6a2aa0', effect: 'hurt' },
+    mobs: ['z_ufo', 'z_eye', 'z_slime'], elite: 'z_golem', boss: 'galaxyeye',
   },
   {
     id: 'castle', name: '魔王城', style: 'castle',
     floor: ['#4a4262', '#564e72', '#7a5ad8'], floorAlt: ['#423a58', '#4e4668', '#c4103c'],
     rock: '#6a6080', spike: '#c8c0d8', side: '#2a2438', patch: '#3a3250',
     pool: { kind: 'poison', color: '#a05ae8', rim: '#5a2aa0', effect: 'hurt' },
-    enemies: [['ghost', { A: '#c8b8ff' }], ['bat', { A: '#5a3a8a', e: '#ff3b5c' }], ['mushroom', { A: '#8a3ac8', C: '#e8d8ff' }]],
-    golem: { A: '#4a4060', B: '#2a2438', C: '#c4103c', e: '#ff3b5c' },
+    mobs: ['k_ghost', 'k_bat', 'k_skull'], elite: 'k_golem', boss: 'darklord',
   },
 ];
 
