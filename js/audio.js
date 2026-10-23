@@ -1,146 +1,198 @@
-// 効果音とBGM（WebAudioでその場で合成するので音声ファイル不要）
-let ctx = null;
-let master = null;
-const settings = { se: true, bgm: true };
-const lastPlay = {};
+// BGM・効果音の再生（音源は audio/sources.json の対応表どおり、変換済み .bin を読み込む）
+// - 効果音：WebAudio のバッファで再生（同時にたくさん鳴らせる）
+// - BGM：audio要素 + WebAudio の音量ノード（iPhoneでも音量バーが効くように）
+// - 音源ファイルがまだ無いものは鳴らないだけで、エラーにはならない
 
+const KEY = new TextEncoder().encode('NDS-audio-pack-2026');
+const MAGIC = 'NDSA';
+
+let ctx = null, master = null, bgmGain = null, seGain = null;
+const vol = { bgm: 0.7, se: 0.8 };
+let sources = null;
+const seBuf = new Map();      // name -> AudioBuffer | null（null=読み込み失敗）
+const seLoading = new Map();
+const lastPlay = {};
+const bgmEls = new Map();     // name -> { el, node }
+let bgmName = null, bgmCur = null, wantBgm = null;
+
+async function loadSources() {
+  if (sources) return sources;
+  try { sources = await (await fetch('./audio/sources.json')).json(); } catch { sources = { bgm: {}, se: {} }; }
+  return sources;
+}
+
+async function fetchDecoded(path) {
+  const res = await fetch(path);
+  if (!res.ok) throw new Error('not found');
+  const buf = new Uint8Array(await res.arrayBuffer());
+  const head = String.fromCharCode(...buf.slice(0, 4));
+  if (head !== MAGIC) throw new Error('bad file');
+  const out = new Uint8Array(buf.length - 4);
+  for (let i = 0; i < out.length; i++) out[i] = buf[i + 4] ^ KEY[i % KEY.length];
+  return out;
+}
+
+/** 最初のタップで呼ぶ（スマホは操作しないと音を出せない） */
 export function initAudio() {
   if (ctx) { if (ctx.state === 'suspended') ctx.resume(); return; }
   try {
     ctx = new (window.AudioContext || window.webkitAudioContext)();
-    master = ctx.createGain();
-    master.gain.value = 0.5;
-    master.connect(ctx.destination);
+    master = ctx.createGain(); master.connect(ctx.destination);
+    bgmGain = ctx.createGain(); bgmGain.connect(master);
+    seGain = ctx.createGain(); seGain.connect(master);
+    applyVolume();
+    loadSources().then((s) => { for (const name of Object.keys(s.se || {})) loadSe(name); });
+    if (wantBgm) playBgm(wantBgm);
   } catch { ctx = null; }
 }
 
+// 人の耳に合わせて音量バーの値を2乗する
+const curve = (v) => v * v;
+function applyVolume() {
+  if (!ctx) return;
+  bgmGain.gain.setTargetAtTime(curve(vol.bgm) * 0.8, ctx.currentTime, 0.05);
+  seGain.gain.setTargetAtTime(curve(vol.se), ctx.currentTime, 0.02);
+}
+
+/** 音量を設定（0〜100） */
 export function setAudio(opt) {
-  Object.assign(settings, opt);
-  if (!settings.bgm) stopBgm();
+  if (opt.bgmVol !== undefined) vol.bgm = Math.max(0, Math.min(100, opt.bgmVol)) / 100;
+  if (opt.seVol !== undefined) vol.se = Math.max(0, Math.min(100, opt.seVol)) / 100;
+  applyVolume();
+  if (vol.bgm === 0 && bgmCur) bgmCur.el.pause();
+  else if (vol.bgm > 0 && bgmCur && bgmCur.el.paused && bgmCur.loop) bgmCur.el.play().catch(() => {});
 }
 
-function tone(freq, dur, type = 'square', vol = 0.15, slide = 0, delay = 0) {
-  if (!ctx) return;
-  const t = ctx.currentTime + delay;
-  const o = ctx.createOscillator();
-  const g = ctx.createGain();
-  o.type = type;
-  o.frequency.setValueAtTime(freq, t);
-  if (slide) o.frequency.exponentialRampToValueAtTime(Math.max(30, freq + slide), t + dur);
-  g.gain.setValueAtTime(vol, t);
-  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-  o.connect(g).connect(master);
-  o.start(t);
-  o.stop(t + dur + 0.02);
+async function loadSe(name) {
+  if (seBuf.has(name) || seLoading.has(name) || !ctx) return;
+  const p = (async () => {
+    try {
+      const bytes = await fetchDecoded(`./audio/se/${name}.bin`);
+      seBuf.set(name, await ctx.decodeAudioData(bytes.buffer));
+    } catch { seBuf.set(name, null); }
+    seLoading.delete(name);
+  })();
+  seLoading.set(name, p);
 }
 
-function noise(dur, vol = 0.2) {
-  if (!ctx) return;
-  const len = Math.floor(ctx.sampleRate * dur);
-  const buf = ctx.createBuffer(1, len, ctx.sampleRate);
-  const d = buf.getChannelData(0);
-  for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / len);
-  const s = ctx.createBufferSource();
-  const g = ctx.createGain();
-  g.gain.value = vol;
-  s.buffer = buf;
-  s.connect(g).connect(master);
-  s.start();
-}
-
-const SFX = {
-  shoot: [60, () => tone(880, 0.05, 'square', 0.04, -400)],
-  shoot2: [80, () => tone(1200, 0.06, 'triangle', 0.06, 300)],
-  slash: [80, () => { noise(0.08, 0.1); tone(300, 0.08, 'sawtooth', 0.05, 400); }],
-  missile: [100, () => tone(200, 0.15, 'sawtooth', 0.04, 300)],
-  zap: [100, () => { tone(1500, 0.08, 'square', 0.05, -1200); noise(0.05, 0.06); }],
-  boom: [70, () => { noise(0.2, 0.18); tone(120, 0.2, 'square', 0.08, -80); }],
-  hit: [40, () => tone(220, 0.03, 'square', 0.03)],
-  kill: [45, () => tone(520, 0.05, 'square', 0.04, -300)],
-  gem: [35, () => tone(1320, 0.04, 'triangle', 0.04, 200)],
-  coin: [60, () => { tone(988, 0.06, 'square', 0.06); tone(1318, 0.12, 'square', 0.06, 0, 0.06); }],
-  heal: [100, () => [523, 659, 784].forEach((f, i) => tone(f, 0.1, 'triangle', 0.08, 0, i * 0.06))],
-  magnet: [100, () => tone(300, 0.3, 'sine', 0.1, 900)],
-  hurt: [120, () => { tone(160, 0.15, 'sawtooth', 0.12, -60); }],
-  levelup: [200, () => [523, 659, 784, 1046].forEach((f, i) => tone(f, 0.12, 'square', 0.07, 0, i * 0.07))],
-  boss: [500, () => [110, 104, 98].forEach((f, i) => tone(f, 0.35, 'sawtooth', 0.12, 0, i * 0.3))],
-  shootBoss: [200, () => tone(180, 0.2, 'square', 0.06, -100)],
-  clear: [500, () => [523, 659, 784, 1046, 1318].forEach((f, i) => tone(f, 0.18, 'square', 0.08, 0, i * 0.1))],
-  over: [500, () => [392, 330, 262, 196].forEach((f, i) => tone(f, 0.25, 'triangle', 0.1, 0, i * 0.18))],
-  click: [40, () => tone(660, 0.04, 'square', 0.05)],
-  reel: [50, () => tone(900 + Math.random() * 300, 0.025, 'square', 0.035)],
-  reelStop: [60, () => { tone(520, 0.06, 'square', 0.07); tone(1040, 0.1, 'triangle', 0.06, 0, 0.04); }],
-  gate: [400, () => { [392, 523, 659].forEach((f, i) => tone(f, 0.15, 'triangle', 0.08, 0, i * 0.08)); noise(0.15, 0.05); }],
-  gacha: [300, () => [392, 523, 659, 784, 1046].forEach((f, i) => tone(f, 0.1, 'triangle', 0.08, 0, i * 0.05))],
-  rare: [300, () => [784, 988, 1175, 1568].forEach((f, i) => tone(f, 0.2, 'square', 0.08, 0, i * 0.08))],
-};
+// 同じ音が短時間に重なりすぎないための間隔（ミリ秒）
+const GAP = { hit: 45, kill: 50, gem: 40, shoot: 70, shoot2: 90, reel: 60, slash: 80, boom: 80, zap: 100, coin: 60, click: 40, hurt: 150 };
+const SE_VOL = { gem: 0.5, hit: 0.45, kill: 0.6, shoot: 0.5, reel: 0.6, shoot2: 0.55 };
 
 export function sfx(name) {
-  if (!ctx || !settings.se) return;
-  const d = SFX[name];
-  if (!d) return;
+  if (!ctx || vol.se === 0) return;
   const now = performance.now();
-  if (lastPlay[name] && now - lastPlay[name] < d[0]) return;
+  if (lastPlay[name] && now - lastPlay[name] < (GAP[name] ?? 60)) return;
+  const buf = seBuf.get(name);
+  if (!buf) { if (!seBuf.has(name)) loadSe(name); return; }
   lastPlay[name] = now;
-  d[1]();
+  const src = ctx.createBufferSource();
+  src.buffer = buf;
+  let out = seGain;
+  if (SE_VOL[name]) { const g = ctx.createGain(); g.gain.value = SE_VOL[name]; g.connect(seGain); out = g; }
+  src.connect(out);
+  src.start();
 }
 
-// ===== BGM: シンプルなチップチューン =====
-let bgmTimer = null;
-let step = 0;
-let nextTime = 0;
-const TEMPO = 132;
-const PATTERNS = {
-  battle: {
-    chords: [[57, 60, 64], [53, 57, 60], [55, 59, 62], [52, 55, 59]],
-    bass: [45, 41, 43, 40],
-  },
-  home: {
-    chords: [[60, 64, 67], [57, 60, 64], [53, 57, 60], [55, 59, 62]],
-    bass: [48, 45, 41, 43],
-  },
-};
-let current = 'home';
-const mtof = (m) => 440 * Math.pow(2, (m - 69) / 12);
+// 中身から形式を判定（mp3 / ogg / m4a / wav）
+function mimeOf(b) {
+  const s4 = String.fromCharCode(b[0], b[1], b[2], b[3]);
+  if (s4 === 'OggS') return 'audio/ogg';
+  if (s4 === 'RIFF') return 'audio/wav';
+  if (String.fromCharCode(b[4], b[5], b[6], b[7]) === 'ftyp') return 'audio/mp4';
+  return 'audio/mpeg';
+}
 
-export function playBgm(name) {
-  current = name;
-  if (!ctx || !settings.bgm) return;
-  if (bgmTimer) return;
-  step = 0;
-  nextTime = ctx.currentTime + 0.1;
-  bgmTimer = setInterval(schedule, 50);
+/** 動作確認用 */
+export function audioState() {
+  return { ctx: ctx?.state, bgm: bgmName, playing: !!(bgmCur && !bgmCur.el.paused), seLoaded: [...seBuf].filter(([, v]) => v).map(([k]) => k), vol: { ...vol } };
 }
-export function stopBgm() {
-  if (bgmTimer) clearInterval(bgmTimer);
-  bgmTimer = null;
-}
-function schedule() {
-  if (!ctx) return;
-  const spb = 60 / TEMPO / 2; // 8分音符
-  while (nextTime < ctx.currentTime + 0.2) {
-    const p = PATTERNS[current];
-    const bar = Math.floor(step / 8) % 4;
-    const chord = p.chords[bar];
-    const s = step % 8;
-    const dt = nextTime - ctx.currentTime;
-    if (s % 2 === 0) tone(mtof(p.bass[bar]), spb * 1.6, 'triangle', 0.09, 0, dt);
-    const arp = chord[s % 3] + (s >= 4 ? 12 : 0);
-    tone(mtof(arp + 12), spb * 0.8, 'square', current === 'battle' ? 0.025 : 0.018, 0, dt);
-    if (current === 'battle' && s % 4 === 2) {
-      // ハイハット風
-      const len = 0.03;
-      const buf = ctx.createBuffer(1, Math.floor(ctx.sampleRate * len), ctx.sampleRate);
-      const d = buf.getChannelData(0);
-      for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / d.length);
-      const src = ctx.createBufferSource();
-      const g = ctx.createGain();
-      g.gain.value = 0.04;
-      src.buffer = buf;
-      src.connect(g).connect(master);
-      src.start(ctx.currentTime + dt);
-    }
-    nextTime += spb;
-    step++;
+
+async function getBgm(name) {
+  if (bgmEls.has(name)) return bgmEls.get(name);
+  const s = (await loadSources()).bgm?.[name];
+  if (!s) return null;
+  try {
+    const bytes = await fetchDecoded(`./audio/bgm/${name}.bin`);
+    const url = URL.createObjectURL(new Blob([bytes], { type: mimeOf(bytes) }));
+    const el = new Audio();
+    el.src = url;
+    el.loop = !!s.loop;
+    el.preload = 'auto';
+    el.setAttribute('playsinline', '');
+    const node = ctx.createMediaElementSource(el);
+    const g = ctx.createGain();
+    node.connect(g).connect(bgmGain);
+    const item = { el, gain: g, loop: !!s.loop };
+    bgmEls.set(name, item);
+    return item;
+  } catch {
+    bgmEls.set(name, null);
+    return null;
   }
+}
+
+function fade(item, to, sec) {
+  const g = item.gain.gain;
+  g.cancelScheduledValues(ctx.currentTime);
+  g.setValueAtTime(g.value, ctx.currentTime);
+  g.linearRampToValueAtTime(to, ctx.currentTime + sec);
+}
+
+/**
+ * 場面のBGMに切り替える
+ * @param {string} name sources.json の bgm のキー（例 home, battle_grass, boss）
+ * @param {string} [fallback] そのBGMが無いときに代わりに流すもの
+ */
+export async function playBgm(name, fallback) {
+  wantBgm = name;
+  if (!ctx) return;
+  if (bgmName === name && bgmCur && (!bgmCur.el.paused || !bgmCur.loop)) return;
+  let item = await getBgm(name);
+  if (!item && fallback) { item = await getBgm(fallback); }
+  if (wantBgm !== name) return; // 読み込み中に別の場面へ移った
+  const prev = bgmCur;
+  if (prev && prev !== item) {
+    fade(prev, 0, 0.4);
+    setTimeout(() => { if (bgmCur !== prev) prev.el.pause(); }, 450);
+  }
+  bgmName = name;
+  bgmCur = item;
+  if (!item) return;
+  if (prev !== item) item.el.currentTime = 0;
+  item.gain.gain.value = 0;
+  fade(item, 1, 0.5);
+  if (vol.bgm > 0) item.el.play().catch(() => {});
+}
+
+export function stopBgm() {
+  wantBgm = null;
+  if (bgmCur && ctx) {
+    const cur = bgmCur;
+    fade(cur, 0, 0.3);
+    setTimeout(() => cur.el.pause(), 350);
+  }
+  bgmCur = null;
+  bgmName = null;
+}
+
+// ===== 画面側から使う補助 =====
+/** 音量（0〜100）を設定 */
+export function setVolume({ bgm, se } = {}) {
+  setAudio({ bgmVol: bgm, seVol: se });
+}
+/** バイオームごとの戦闘BGM名 */
+export const bgmForBiome = (id) => 'battle_' + id;
+/** 試聴メニュー用の曲名 */
+export const TRACK_NAMES = {
+  home: 'ホーム', menu: '装備・キャラ・設定', gacha: '装備の祭壇',
+  battle_grass: '草原ステージ', battle_desert: '砂漠ステージ', battle_snow: '雪国ステージ',
+  battle_cyber: 'サイバーシティ', battle_volcano: '火山ステージ', battle_castle: '魔王城',
+  boss: 'ボス戦', clear: 'ステージクリア', gameover: 'ゲームオーバー',
+};
+
+/** クレジット表示用 */
+export async function audioCredits() {
+  const s = await loadSources();
+  return s;
 }

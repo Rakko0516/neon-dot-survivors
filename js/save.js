@@ -38,7 +38,7 @@ export function defaultData() {
       { uid: 4, base: 'r_ruby', rarity: 'R', level: 1 },
     ],
     nextUid: 5,
-    settings: { bgm: true, se: true, notify: false },
+    settings: { bgmVol: 60, seVol: 80, notify: false },
     stats: { runs: 0, kills: 0, clears: 0 },
     lastLoginDay: '',
     seenNews: '',
@@ -85,6 +85,9 @@ function migrate(save) {
   for (const c of Object.values(d.chars)) c.equip = { ...emptyEquip(), ...c.equip };
   d.items = d.items.filter((i) => EQUIP[i.base]);
   d.settings = { ...def.settings, ...d.settings };
+  // 旧形式（オン/オフ）→ 音量
+  if (typeof d.settings.bgm === 'boolean') { if (!d.settings.bgm) d.settings.bgmVol = 0; delete d.settings.bgm; }
+  if (typeof d.settings.se === 'boolean') { if (!d.settings.se) d.settings.seVol = 0; delete d.settings.se; }
   d.stats = { ...def.stats, ...d.stats };
   return save;
 }

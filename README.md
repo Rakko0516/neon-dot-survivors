@@ -87,3 +87,14 @@ git add -A && git commit -m "v0.2.0" && git push
 - **新装備**：`EQUIP` に追加（type は weapon/head/body/arms/feet/neck/ring）
 - **新ステージ**：`BIOMES` に追加（床の色・岩の色・水場の種類・出てくる敵の色）
 - **部屋の形**：`js/stage.js` の `LAYOUTS` に9列×20行の文字列を追加（. 床 / R 岩 / ^ トゲ / ~ 水場）
+
+## 音（BGM・効果音）
+
+- 音源の対応表：`audio/sources.json`（どの場面でどの曲・効果音を使うか、入手先URL）
+- 追加・差し替えの手順：
+  1. 元ファイル（mp3 / ogg / m4a / wav）を `audio/raw/` に置く（ダウンロードしたファイル名のままでOK）
+  2. `node tools/pack-audio.mjs` を実行 → `audio/bgm/*.bin`・`audio/se/*.bin` が作られる
+  3. `.bin` だけをコミットする（`audio/raw/` は `.gitignore` 済みで公開されない）
+- OpenTracks（旧DOVA-SYNDROME）の規約「音源ファイルをそのまま取り出せる状態での利用は禁止」に合わせて、公開するのは変換済みファイルだけにしている
+- 音源が無い場面は無音になるだけでエラーにはならない
+- クレジット（設定画面に表示）：音楽：魔王魂（表記必須）／OpenTracks（任意）／効果音：効果音ラボ（任意）

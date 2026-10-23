@@ -4,7 +4,7 @@ import { FIREBASE_CONFIG, FIREBASE_SDK, VAPID_KEY } from './config.js';
 import { store, validate, summary } from './save.js';
 
 const SYNC_KEY = 'nds_sync'; // { uid, lastSyncedAt }
-const AUTO_INTERVAL = 3 * 60 * 1000; // 自動バックアップ間隔
+const AUTO_INTERVAL = 10 * 60 * 1000; // 自動バックアップ間隔（10分）
 const MIN_GAP = 45 * 1000; // 連続アップロード防止
 
 export const cloud = {

@@ -11,7 +11,7 @@ import {
 } from './cloud.js';
 import { pwa, initPWA, applyUpdate, fetchChangelog, isStandalone, isIOS } from './pwa.js';
 import { APP_VERSION } from './version.js';
-import { initAudio, sfx, setAudio, playBgm, stopBgm } from './audio.js';
+import { initAudio, sfx, setVolume, playBgm, stopBgm, bgmForBiome, TRACK_NAMES } from './audio.js';
 import { modal, toast, confirmBox, esc, closeAllModals } from './ui.js';
 import { Game } from './game.js';
 
@@ -43,7 +43,7 @@ async function boot() {
   showLoading('Wait...');
   load();
   const d = data();
-  setAudio({ bgm: d.settings.bgm, se: d.settings.se });
+  setVolume({ bgm: d.settings.bgmVol, se: d.settings.seVol });
   dailyBonus();
   hydrate(document);
   render();
@@ -125,6 +125,13 @@ function updateCloudDot() {
   if (cloud.user) el.classList.add(cloud.status === 'syncing' ? 'syncing' : cloud.status === 'error' ? 'error' : 'ok');
 }
 
+// 場面ごとのBGM（メニュー画面）
+function menuBgm() {
+  if (tab === 'gacha') return 'gacha';
+  if (tab === 'party' || tab === 'settings') return 'menu';
+  return 'home';
+}
+
 // ===================== タブ描画 =====================
 const TABS = { home: homeHTML, party: partyHTML, gacha: gachaHTML, settings: settingsHTML };
 
@@ -135,6 +142,7 @@ function render() {
   el.dataset.cur = tab + partyTab;
   hydrate(el);
   if (tab === 'home') drawStagePreview();
+  if (!inBattle && !$('#loading:not(.hidden)')) playBgm(menuBgm(), 'home');
   el.scrollTop = keep;
   document.querySelectorAll('.tabbar button').forEach((b) => b.classList.toggle('active', b.dataset.tab === tab));
   $('#settings-badge').classList.toggle('hidden', !pendingUpdate);
@@ -168,32 +176,73 @@ function itemTile(it, opt = {}) {
 }
 
 // ----- ホーム -----
+/** 先のステージも見えるように、クリア済み+6（最低30）まで表示 */
+const stageViewMax = () => Math.max(30, data().maxStage + 6);
+const isLocked = (n) => n > data().maxStage + 1;
+
 function homeHTML() {
   const d = data();
   const cid = d.selectedChar;
   const pw = D.power(D.charStats(d, cid));
-  const info = D.stageInfo(d.selectedStage);
+  const n = d.selectedStage;
+  const info = D.stageInfo(n);
+  const locked = isLocked(n);
+  const cleared = n <= d.maxStage;
   const rooms = Array.from({ length: D.ROOMS_PER_STAGE }, (_, i) => `<i class="${i === D.ROOMS_PER_STAGE - 1 ? 'boss' : ''}"></i>`).join('<span class="arrow">›</span>');
   return `
   <div class="home-top">
     ${!isStandalone() ? '<button class="chip" data-act="install">ホーム画面に追加</button>' : ''}
+    <button class="chip" data-act="stage-list">ステージ一覧</button>
     <button class="chip" data-act="news">お知らせ${hasUnreadNews() ? '<span class="badge"></span>' : ''}</button>
   </div>
   <div class="panel stage-card">
-    <div class="stage-ribbon"><span class="no ol">${info.name}</span><span class="nm ol">${info.sub}</span></div>
+    <div class="stage-ribbon ${locked ? 'locked' : ''}">${locked ? '<img class="px" data-icon="lock" data-color="#ffd23a" alt="">' : ''}<span class="no ol">${info.name}</span><span class="nm ol">${info.sub}</span></div>
     <div class="stage-view">
-      <button class="stage-arrow l" data-act="stage-prev" ${d.selectedStage <= 1 ? 'disabled' : ''}>◀</button>
+      <button class="stage-arrow l" data-act="stage-prev" ${n <= 1 ? 'disabled' : ''}>◀</button>
       <canvas id="stage-preview"></canvas>
-      <button class="stage-arrow r" data-act="stage-next" ${d.selectedStage > d.maxStage ? 'disabled' : ''}>▶</button>
+      ${locked ? `<div class="stage-lock"><img class="px" data-icon="lock" data-color="#ffd23a" alt=""><span class="ol">STAGE ${n - 1} をクリアで解放</span></div>` : ''}
+      <button class="stage-arrow r" data-act="stage-next" ${n >= stageViewMax() ? 'disabled' : ''}>▶</button>
     </div>
     <div class="rooms"><span class="muted">部屋</span>${rooms}<span class="muted">BOSS</span></div>
     <div class="stage-meta">
       <span>推奨戦闘力 <span class="${pw >= info.recommended ? 'ok' : 'warn'}">${info.recommended.toLocaleString()}</span></span>
       <span>${D.CHARACTERS[cid].name} 戦闘力 ${pw.toLocaleString()}</span>
     </div>
-    ${d.selectedStage <= d.maxStage ? '<div class="muted" style="text-align:center;color:#7aff8a">クリア済み</div>' : ''}
+    ${cleared ? '<div class="muted" style="text-align:center;color:#7aff8a">クリア済み</div>' : ''}
   </div>
-  <button class="btn red btn-start" data-act="start">出撃</button>`;
+  ${locked
+    ? `<button class="btn btn-start locked" disabled><img class="px" data-icon="lock" data-color="#8a7a60" alt=""> ロック中</button>`
+    : '<button class="btn red btn-start" data-act="start">出撃</button>'}`;
+}
+
+function stageListModal() {
+  const d = data();
+  const max = stageViewMax();
+  const cells = [];
+  for (let n = 1; n <= max; n++) {
+    const info = D.stageInfo(n);
+    const st = n <= d.maxStage ? 'clear' : isLocked(n) ? 'lock' : 'open';
+    cells.push(`<button class="stile ${st} ${n === d.selectedStage ? 'sel' : ''}" data-n="${n}" style="--bc:${info.biome.floor[0]};--bd:${info.biome.side}">
+      <span class="sn ol">${n}</span><span class="sb">${info.biome.name}</span>
+      ${st === 'lock' ? '<img class="px lk" data-icon="lock" data-color="#ffd23a" alt="">' : st === 'clear' ? '<span class="ck ol">✓</span>' : ''}
+    </button>`);
+  }
+  modal({
+    title: 'ステージ一覧',
+    body: `<p class="muted" style="margin-top:0">ステージをクリアすると次が解放されます。ロック中のステージも中身を見られます。</p><div class="stage-grid">${cells.join('')}</div>`,
+    buttons: [{ label: '閉じる', value: null }],
+    onMount: (ov, close) => {
+      hydrate(ov);
+      ov.querySelectorAll('.stile').forEach((b) => b.addEventListener('click', () => {
+        d.selectedStage = +b.dataset.n;
+        sfx('click');
+        close();
+        commit();
+      }));
+      const sel = ov.querySelector('.stile.sel');
+      if (sel) sel.scrollIntoView({ block: 'center' });
+    },
+  });
 }
 
 /** ステージの見本（実際のタイルで描く） */
@@ -234,6 +283,7 @@ function drawStagePreview() {
   const cs = charSprite(D.CHARACTERS[d.selectedChar], 'idle');
   g.fillStyle = 'rgba(30,10,30,0.35)'; g.beginPath(); g.ellipse(7.5 * T, 6.9 * T, 7, 2.5, 0, 0, Math.PI * 2); g.fill();
   g.drawImage(cs, Math.round(7.5 * T - cs.width / 2), Math.round(6.9 * T - cs.height + 2));
+  if (isLocked(d.selectedStage)) { g.fillStyle = 'rgba(20,10,20,0.55)'; g.fillRect(0, 0, cv.width, cv.height); }
 }
 
 // ----- 装備・キャラ -----
@@ -395,7 +445,7 @@ function equipItem(uid, slotId) {
     slot = (cands.find((s) => d.chars[cid].equip[s.id] == null) || cands[0]).id;
   }
   d.chars[cid].equip[slot] = uid;
-  sfx('coin');
+  sfx('equip');
   commit();
 }
 
@@ -515,7 +565,7 @@ function settingsHTML() {
         <button class="btn small teal" data-act="backup-now">今すぐバックアップ</button>
         <button class="btn small" data-act="cloud-restore">クラウドから復元</button>
       </div>
-      <p class="muted">自動バックアップ：3分ごと・アプリを閉じた時・ステージ終了時</p>
+      <p class="muted">自動バックアップ：10分ごと（ほかにアプリを閉じた時・ステージ終了時にも保存）</p>
       <button class="btn small dark" data-act="logout">ログアウト</button>`;
   }
   const s = summary(store.save);
@@ -538,8 +588,10 @@ function settingsHTML() {
   <div class="panel">
     <h3>通知・サウンド</h3>
     <div class="set-row"><div class="lbl">更新のお知らせ通知<small>${notifyNote}</small></div><button class="toggle ${d.settings.notify ? 'on' : ''}" data-act="toggle-notify" aria-label="通知"></button></div>
-    <div class="set-row"><div class="lbl">BGM</div><button class="toggle ${d.settings.bgm ? 'on' : ''}" data-act="toggle-bgm" aria-label="BGM"></button></div>
-    <div class="set-row"><div class="lbl">効果音</div><button class="toggle ${d.settings.se ? 'on' : ''}" data-act="toggle-se" aria-label="効果音"></button></div>
+    <div class="vol-row"><span class="vl">BGM</span><input type="range" min="0" max="100" step="5" value="${d.settings.bgmVol}" data-vol="bgm" aria-label="BGMの音量"><span class="vv" id="vv-bgm">${d.settings.bgmVol}</span></div>
+    <div class="vol-row"><span class="vl">効果音</span><input type="range" min="0" max="100" step="5" value="${d.settings.seVol}" data-vol="se" aria-label="効果音の音量"><span class="vv" id="vv-se">${d.settings.seVol}</span></div>
+    <div class="set-row"><div class="lbl">BGMを試聴<small>バーを0にすると消音になります</small></div>
+      <select class="sel" data-act="bgm-test">${Object.entries(TRACK_NAMES).map(([k, v]) => `<option value="${k}">${v}</option>`).join('')}</select></div>
   </div>
   <div class="panel">
     <h3>アプリ</h3>
@@ -548,15 +600,36 @@ function settingsHTML() {
     <div class="set-row"><div class="lbl">更新履歴</div><button class="btn small" data-act="news">見る</button></div>
     ${!isStandalone() ? '<div class="set-row"><div class="lbl">ホーム画面に追加<small>アプリのように全画面で遊べます</small></div><button class="btn small" data-act="install">追加</button></div>' : ''}
   </div>
+  <div class="panel">
+    <h3>クレジット</h3>
+    <div class="muted" style="line-height:1.9">音楽：魔王魂<br>音楽：OpenTracks（Hupple／もっぴーさうんど／Maniira）<br>効果音：効果音ラボ</div>
+  </div>
   <div class="panel"><h3>データ</h3><button class="btn small dark" data-act="reset">セーブデータを削除して最初から</button></div>
   <p class="muted" style="text-align:center">v${APP_VERSION}</p>`;
 }
 
 // ===================== 操作 =====================
 function bindGlobal() {
+  // 最初のタッチで音を有効化（iPhoneは操作しないと音が出ない）
+  document.addEventListener('pointerdown', () => { initAudio(); if (!inBattle) playBgm(menuBgm(), 'home'); }, { passive: true });
+  // 音量バー
+  document.addEventListener('input', (e) => {
+    const r = e.target.closest('input[data-vol]');
+    if (!r) return;
+    const v = +r.value, k = r.dataset.vol;
+    setVolume({ [k]: v });
+    const lbl = document.getElementById('vv-' + k);
+    if (lbl) lbl.textContent = v;
+    if (k === 'se') sfx('coin');
+  });
+  document.addEventListener('change', (e) => {
+    const r = e.target.closest('input[data-vol]');
+    if (r) { data().settings[r.dataset.vol === 'bgm' ? 'bgmVol' : 'seVol'] = +r.value; commit(); return; }
+    const sel = e.target.closest('select[data-act="bgm-test"]');
+    if (sel) { initAudio(); playBgm(sel.value); toast(`試聴中：${TRACK_NAMES[sel.value]}`); }
+  });
   document.addEventListener('click', (e) => {
     initAudio();
-    if (!inBattle) playBgm('home');
     const t = e.target.closest('[data-tab]');
     if (t && !inBattle) {
       sfx('click');
@@ -617,9 +690,10 @@ function bindGlobal() {
 async function onAction(act, el) {
   const d = data();
   switch (act) {
-    case 'start': sfx('click'); startBattle(); break;
+    case 'start': if (!isLocked(d.selectedStage)) { sfx('click'); startBattle(); } break;
     case 'stage-prev': d.selectedStage = Math.max(1, d.selectedStage - 1); sfx('click'); commit(); break;
-    case 'stage-next': d.selectedStage = Math.min(d.maxStage + 1, d.selectedStage + 1); sfx('click'); commit(); break;
+    case 'stage-next': d.selectedStage = Math.min(stageViewMax(), d.selectedStage + 1); sfx('click'); commit(); break;
+    case 'stage-list': stageListModal(); break;
     case 'party-tab': partyTab = el.dataset.t; sfx('click'); render(); break;
     case 'inv-filter': invFilter = el.dataset.f; sfx('click'); render(); break;
     case 'view-char': viewChar = el.dataset.id; sfx('click'); render(); break;
@@ -642,7 +716,7 @@ async function onAction(act, el) {
       if (d.crystal >= c.unlock.crystal && await confirmBox('キャラ解放', `クリスタル ${c.unlock.crystal} を使って ${c.name} を仲間にしますか？`, '解放する', 'red')) {
         d.crystal -= c.unlock.crystal;
         d.chars[el.dataset.id].unlocked = true;
-        sfx('rare'); commit();
+        sfx('unlock'); commit();
         toast(`${c.name} が仲間になった！`);
       }
       break;
@@ -700,8 +774,6 @@ async function onAction(act, el) {
     case 'undo-prev':
       if (await confirmBox('1つ前に戻す', '直前の読み込み・復元・削除の前の状態に戻します。', '戻す') && restorePrev()) toast('元に戻しました');
       break;
-    case 'toggle-bgm': d.settings.bgm = !d.settings.bgm; setAudio({ bgm: d.settings.bgm }); commit(); if (d.settings.bgm) playBgm('home'); break;
-    case 'toggle-se': d.settings.se = !d.settings.se; setAudio({ se: d.settings.se }); commit(); break;
     case 'toggle-notify':
       if (d.settings.notify) { await disablePush().catch(() => {}); d.settings.notify = false; commit(); toast('通知をオフにしました'); }
       else {
@@ -910,7 +982,7 @@ async function startBattle() {
   await new Promise((r) => setTimeout(r, 700));
   hideLoading();
   game.start();
-  playBgm('battle');
+  playBgm(bgmForBiome(info.biome.id), 'battle_grass');
   hud.banner(`ROOM 1 / ${D.ROOMS_PER_STAGE}`);
 }
 
@@ -1027,6 +1099,7 @@ async function endBattle(res) {
   if (first) d.selectedStage = n + 1;
   commit();
   autoBackup(true);
+  playBgm(res.cleared ? 'clear' : 'gameover');
   const v = await modal({
     dismiss: false,
     body: `<div class="result-title ol ${res.cleared ? 'win' : 'lose'}">${res.cleared ? 'STAGE CLEAR!' : 'GAME OVER'}</div>
@@ -1062,12 +1135,10 @@ function leaveBattle() {
   $('#menu').classList.remove('hidden');
   $('#joy').classList.add('hidden');
   $('#levelup').classList.add('hidden');
-  stopBgm();
-  playBgm('home');
-  render();
+  render(); // メニューのBGMに切り替わる
 }
 
 // 動作確認用（ブラウザのコンソールから __nds.game で戦闘中の状態を見られる）
-window.__nds = { get game() { return game; }, store };
+window.__nds = { get game() { return game; }, store, audio: () => import('./audio.js').then((m) => m.audioState()) };
 
 boot();

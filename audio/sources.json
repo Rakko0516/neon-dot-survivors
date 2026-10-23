@@ -1,0 +1,243 @@
+{
+  "_説明": "音源の一覧。audio/raw/ に元ファイル（ダウンロードしたまま）を置いて node tools/pack-audio.mjs を実行すると、audio/bgm/*.bin と audio/se/*.bin に変換されます。audio/raw/ はGitHubに上げません。",
+  "bgm": {
+    "home": {
+      "file": "maou_loop_bgm_8bit01.mp3",
+      "loop": true,
+      "title": "8bit01 たびだちのむら",
+      "by": "魔王魂",
+      "url": "https://maou.audio/bgm_8bit01/",
+      "scene": "ホーム"
+    },
+    "menu": {
+      "file": "*ふわふわドリーム*",
+      "loop": true,
+      "title": "ふわふわドリーム - 8bit",
+      "by": "Hupple（OpenTracks）",
+      "url": "https://opentracks.com/bgm/detail/12887",
+      "scene": "装備・キャラ・設定"
+    },
+    "gacha": {
+      "file": "maou_loop_bgm_8bit29.mp3",
+      "loop": true,
+      "title": "8bit29 子猫のもんたのクッキー屋さん",
+      "by": "魔王魂",
+      "url": "https://maou.audio/bgm_8bit29/",
+      "scene": "装備の祭壇（抽選）"
+    },
+    "battle_grass": {
+      "file": "maou_loop_bgm_8bit12.mp3",
+      "loop": true,
+      "title": "8bit12 ウッドサーモンマン",
+      "by": "魔王魂",
+      "url": "https://maou.audio/bgm_8bit12/",
+      "scene": "草原ステージ"
+    },
+    "battle_desert": {
+      "file": "maou_loop_bgm_8bit08.mp3",
+      "loop": true,
+      "title": "8bit08 サンサンママン",
+      "by": "魔王魂",
+      "url": "https://maou.audio/bgm_8bit08/",
+      "scene": "砂漠ステージ"
+    },
+    "battle_snow": {
+      "file": "maou_loop_bgm_8bit11.mp3",
+      "loop": true,
+      "title": "8bit11 ウォーターイカマン",
+      "by": "魔王魂",
+      "url": "https://maou.audio/bgm_8bit11/",
+      "scene": "雪国ステージ"
+    },
+    "battle_cyber": {
+      "file": "*8-bit Aggressive1*",
+      "loop": true,
+      "title": "8-bit Aggressive1",
+      "by": "もっぴーさうんど（OpenTracks）",
+      "url": "https://opentracks.com/bgm/detail/1978",
+      "scene": "サイバーシティステージ"
+    },
+    "battle_volcano": {
+      "file": "maou_loop_bgm_8bit10.mp3",
+      "loop": true,
+      "title": "8bit10 ファイアーマグロマン",
+      "by": "魔王魂",
+      "url": "https://maou.audio/bgm_8bit10/",
+      "scene": "火山ステージ"
+    },
+    "battle_castle": {
+      "file": "*Battle*",
+      "loop": true,
+      "title": "8bit Music ~ Battle ~",
+      "by": "Maniira（OpenTracks）",
+      "url": "https://opentracks.com/bgm/detail/16999",
+      "scene": "魔王城ステージ"
+    },
+    "boss": {
+      "file": "maou_loop_bgm_8bit18.mp3",
+      "loop": true,
+      "title": "8bit18 しゅくめいのたたかい",
+      "by": "魔王魂",
+      "url": "https://maou.audio/bgm_8bit18/",
+      "scene": "ボス部屋"
+    },
+    "clear": {
+      "file": "maou_game_jingle01.mp3",
+      "loop": false,
+      "title": "ジングル01",
+      "by": "魔王魂",
+      "url": "https://maou.audio/game_jingle01/",
+      "scene": "ステージクリア"
+    },
+    "gameover": {
+      "file": "maou_bgm_8bit20.mp3",
+      "loop": false,
+      "title": "8bit20 ぜんめつ",
+      "by": "魔王魂",
+      "url": "https://maou.audio/bgm_8bit20/",
+      "scene": "ゲームオーバー"
+    }
+  },
+  "se": {
+    "click": {
+      "file": "decision22.mp3",
+      "title": "決定ボタン「ピコッ」",
+      "page": "https://soundeffect-lab.info/sound/button/"
+    },
+    "equip": {
+      "file": "decision19.mp3",
+      "title": "装備変更「ジャキッ」",
+      "page": "https://soundeffect-lab.info/sound/button/"
+    },
+    "reel": {
+      "file": "cursor1.mp3",
+      "title": "カーソル移動（スロット回転）",
+      "page": "https://soundeffect-lab.info/sound/button/"
+    },
+    "reelStop": {
+      "file": "decision10.mp3",
+      "title": "スキル取得演出（スロット停止）",
+      "page": "https://soundeffect-lab.info/sound/button/"
+    },
+    "gate": {
+      "file": "decision18.mp3",
+      "title": "RPGのゲームスタート音（ゲート開放）",
+      "page": "https://soundeffect-lab.info/sound/button/"
+    },
+    "gem": {
+      "file": "cursor11.mp3",
+      "title": "ピロッ（経験値回収）",
+      "page": "https://soundeffect-lab.info/sound/button/"
+    },
+    "shoot": {
+      "file": "shot1.mp3",
+      "title": "ショット",
+      "page": "https://soundeffect-lab.info/sound/battle/battle2.html"
+    },
+    "shootBoss": {
+      "file": "beamgun2.mp3",
+      "title": "ビーム砲2（ボスの弾）",
+      "page": "https://soundeffect-lab.info/sound/battle/battle2.html"
+    },
+    "hit": {
+      "file": "shot-struck1.mp3",
+      "title": "ショット命中",
+      "page": "https://soundeffect-lab.info/sound/battle/battle2.html"
+    },
+    "missile": {
+      "file": "missile1.mp3",
+      "title": "ミサイル",
+      "page": "https://soundeffect-lab.info/sound/battle/battle2.html"
+    },
+    "boom": {
+      "file": "bomb1.mp3",
+      "title": "爆発1",
+      "page": "https://soundeffect-lab.info/sound/battle/battle2.html"
+    },
+    "magnet": {
+      "file": "power-up1.mp3",
+      "title": "パワーアップカプセル取得",
+      "page": "https://soundeffect-lab.info/sound/battle/battle2.html"
+    },
+    "slash": {
+      "file": "sword-slash1.mp3",
+      "title": "剣で斬る1",
+      "page": "https://soundeffect-lab.info/sound/battle/"
+    },
+    "kill": {
+      "file": "punch-middle2.mp3",
+      "title": "小パンチ（敵を倒す）",
+      "page": "https://soundeffect-lab.info/sound/battle/"
+    },
+    "hurt": {
+      "file": "punch-high2.mp3",
+      "title": "大パンチ（ダメージを受ける）",
+      "page": "https://soundeffect-lab.info/sound/battle/"
+    },
+    "zap": {
+      "file": "magic-electron1.mp3",
+      "title": "雷魔法1",
+      "page": "https://soundeffect-lab.info/sound/battle/"
+    },
+    "shoot2": {
+      "file": "decision45.mp3",
+      "title": "キュピッ（ハート弾）",
+      "page": "https://soundeffect-lab.info/sound/button/"
+    },
+    "heal": {
+      "file": "magic-cure1.mp3",
+      "title": "回復魔法1",
+      "page": "https://soundeffect-lab.info/sound/battle/"
+    },
+    "levelup": {
+      "file": "levelup1.mp3",
+      "title": "レベルアップ",
+      "page": "https://soundeffect-lab.info/sound/anime/"
+    },
+    "coin": {
+      "file": "item-get1.mp3",
+      "title": "アイテムを入手1（お金）",
+      "page": "https://soundeffect-lab.info/sound/anime/"
+    },
+    "boss": {
+      "file": "emergency-alert1.mp3",
+      "title": "警報（ボス登場）",
+      "page": "https://soundeffect-lab.info/sound/anime/"
+    },
+    "gacha": {
+      "file": "drum-roll1.mp3",
+      "title": "ドラムロール（抽選）",
+      "page": "https://soundeffect-lab.info/sound/anime/"
+    },
+    "rare": {
+      "file": "shine4.mp3",
+      "title": "きらきら輝く4（レア獲得）",
+      "page": "https://soundeffect-lab.info/sound/anime/"
+    },
+    "spike": {
+      "file": "knife-stab-2.mp3",
+      "title": "グサッ1（トゲを踏む）",
+      "page": "https://soundeffect-lab.info/sound/battle/"
+    },
+    "ice": {
+      "file": "magic-ice2.mp3",
+      "title": "氷魔法2（アイスシャード）",
+      "page": "https://soundeffect-lab.info/sound/battle/"
+    },
+    "arrow": {
+      "file": "arrow-release1.mp3",
+      "title": "弓矢を放つ",
+      "page": "https://soundeffect-lab.info/sound/battle/"
+    },
+    "super": {
+      "file": "super-arts-motion1.mp3",
+      "title": "超必殺技発動（スーパーモード）",
+      "page": "https://soundeffect-lab.info/sound/battle/"
+    },
+    "unlock": {
+      "file": "trumpet1.mp3",
+      "title": "ラッパのファンファーレ（キャラ解放）",
+      "page": "https://soundeffect-lab.info/sound/anime/"
+    }
+  }
+}

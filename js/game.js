@@ -3,7 +3,7 @@ import { charSprite, enemySprite, icon, PICKUP, light } from './art.js';
 import { StageMap, TILE, CORRIDOR, GATE_COLS } from './stage.js';
 import { SKILLS, WEAPON_MAX, MAX_ACTIVES, MAX_PASSIVES, ROOMS_PER_STAGE, expNeed } from './data.js';
 import { T } from './art.js';
-import { sfx } from './audio.js';
+import { sfx, playBgm } from './audio.js';
 
 const TAU = Math.PI * 2;
 const rand = (a, b) => a + Math.random() * (b - a);
@@ -195,7 +195,7 @@ export class Game {
     // 足元の危険地帯
     P.hazardT -= dt;
     if (P.hazardT <= 0) {
-      if (under === TILE.SPIKE) { this.hurtPlayer(P.maxHp * 0.07, true); P.hazardT = 0.6; }
+      if (under === TILE.SPIKE) { this.hurtPlayer(P.maxHp * 0.07, true); P.hazardT = 0.6; sfx('spike'); }
       else if (under === TILE.POOL && this.biome.pool.effect === 'hurt') { this.hurtPlayer(P.maxHp * 0.04, true); P.hazardT = 0.5; }
     }
     if (this.rs.regen) P.hp = Math.min(P.maxHp, P.hp + P.maxHp * 0.004 * this.rs.regen * dt);
@@ -232,6 +232,7 @@ export class Game {
         this.room++;
         this.roomKills = 0; this.roomSpawned = 0; this.roomT = 0; this.roomActive = true;
         this.banner(this.room === ROOMS_PER_STAGE - 1 ? 'BOSS ROOM' : `ROOM ${this.room + 1} / ${ROOMS_PER_STAGE}`);
+        if (this.room === ROOMS_PER_STAGE - 1) playBgm('boss');
         sfx('gate');
         // 前の部屋の敵は消える
         for (const e of this.enemies) if (!e.boss) { e.dead = true; this.puff(e.x, e.y); }
@@ -556,7 +557,7 @@ export class Game {
           const a = base + (i - (n - 1) / 2) * 0.16;
           this.bullets.push({ kind: 'ice', x: P.x, y: sy, vx: Math.cos(a) * 190, vy: Math.sin(a) * 190, life: 0.9, dmg: rs.atk * 0.7 * (1 + 0.16 * (lv - 1)), pierce: Math.floor(lv / 3), r: 3, slow: true, hit: new Set() });
         }
-        sfx('shoot2');
+        sfx('ice');
         break;
       }
       case 'arrow': {
@@ -568,7 +569,7 @@ export class Game {
           const off = (i - (n - 1) / 2) * 7;
           this.bullets.push({ kind: 'arrow', x: P.x - ay * off, y: sy + ax * off, vx: ax * 260, vy: ay * 260, life: 0.9, dmg: rs.atk * 1.1 * (1 + 0.16 * (lv - 1)), pierce: 3 + lv, r: 3, hit: new Set() });
         }
-        sfx('shoot');
+        sfx('arrow');
         break;
       }
       case 'axe': {
@@ -832,7 +833,7 @@ export class Game {
     } else if (c.kind === 'p') {
       this.passives[c.id] = (this.passives[c.id] || 0) + 1;
       this.recalc();
-    } else if (c.id === 'super') { this.superT = 10; this.banner('スーパーモードっ！'); }
+    } else if (c.id === 'super') { this.superT = 10; this.banner('スーパーモードっ！'); sfx('super'); }
     else if (c.id === 'heal') { P.hp = P.maxHp; sfx('heal'); }
     else if (c.id === 'nuke') {
       this.flash = 0.4; this.shake = 0.5;
