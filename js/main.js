@@ -90,7 +90,8 @@ async function handleMove() {
   // 旧URL側：新しいURLへ案内
   if (!MOVED_TO) return false;
   const target = new URL(MOVED_TO);
-  if (location.origin === target.origin) return false;
+  // 新URL本体と、そのプレビュー用URL（xxx.dot-rush.pages.dev）、手元での確認では案内しない
+  if (location.origin === target.origin || location.hostname.endsWith('.' + target.hostname) || ['localhost', '127.0.0.1'].includes(location.hostname)) return false;
   const v = await modal({
     title: 'ゲームのURLが変わりました',
     dismiss: false,

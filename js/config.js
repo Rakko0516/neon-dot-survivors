@@ -22,7 +22,7 @@ export const GITHUB_BRANCH = 'main';
 // ゲームの公開URL（引っ越し機能で使う）
 // MOVED_TO にURLを入れると、それ以外の住所で開いた人に「引っ越しました」と案内し、
 // セーブデータごと新しいURLへ移動できるボタンを出します。空なら何もしません。
-export const MOVED_TO = '';
+export const MOVED_TO = 'https://dot-rush.pages.dev/';
 
 // Firebase SDK の読み込み元
 export const FIREBASE_SDK = 'https://www.gstatic.com/firebasejs/10.12.2';
