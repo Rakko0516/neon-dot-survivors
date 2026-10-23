@@ -1,6 +1,6 @@
 // Service Worker：オフライン対応・アップデート配信・プッシュ通知
 // VERSION を変えると全プレイヤーに「アップデートがあります」が表示されます（tools/bump-version.mjs が自動で変更）
-const VERSION = '0.5.3';
+const VERSION = '0.5.4';
 // 更新履歴を作り直してバージョン番号を戻したため、古いキャッシュと名前がかぶらないよう r2 を付ける
 const CACHE = 'nds-r2-' + VERSION;
 const RUNTIME = 'nds-runtime';
@@ -57,23 +57,28 @@ self.addEventListener('activate', (e) => {
 self.addEventListener('message', (e) => {
   if (e.data && e.data.type === 'SKIP_WAITING') self.skipWaiting();
   // オフラインでも全ステージの音が鳴るよう、まだ保存していない音を裏でダウンロード
-  if (e.data && e.data.type === 'WARM_AUDIO') e.waitUntil(warmAudio());
+  if (e.data && e.data.type === 'WARM_AUDIO') e.waitUntil(warmAudio(Array.isArray(e.data.bgm) ? e.data.bgm : null));
 });
 
 let warming = null;
-function warmAudio() {
-  if (warming) return warming;
+/** bgm：保存しておくBGMの名前（無ければ全部）。効果音はいつも全部 */
+function warmAudio(bgmKeys) {
+  if (warming) return warming.then(() => warmAudio(bgmKeys));
   warming = (async () => {
     const res = await fetch('./audio/sources.json', { cache: 'no-store' });
     if (!res.ok) return;
     const src = await res.json();
-    const want = new Set();
+    const all = new Set(), want = [];
     for (const kind of ['bgm', 'se']) {
-      for (const [name, s] of Object.entries(src[kind] || {})) want.add(new URL(`./audio/${kind}/${name}.bin?v=${s.v || '0'}`, self.location).href);
+      for (const [name, s] of Object.entries(src[kind] || {})) {
+        const url = new URL(`./audio/${kind}/${name}.bin?v=${s.v || '0'}`, self.location).href;
+        all.add(url);
+        if (kind === 'se' || !bgmKeys || bgmKeys.includes(name)) want.push(url);
+      }
     }
     const c = await caches.open(AUDIO);
-    // もう使わない古い音を消す
-    for (const r of await c.keys()) if (!want.has(r.url)) await c.delete(r);
+    // もう使わない古い音（差し替え前のもの）を消す
+    for (const r of await c.keys()) if (!all.has(r.url)) await c.delete(r);
     // 足りない音を1つずつ取ってくる（通信を占有しないように順番に）
     for (const url of want) {
       if (await c.match(url)) continue;

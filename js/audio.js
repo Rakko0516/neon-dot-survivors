@@ -113,7 +113,7 @@ export function initAudio() {
   unlocked = true;
   if (ctx.state !== 'running') {
     setAmbient();
-    ctx.resume().then(ensureBgm).catch(() => {});
+    ctx.resume().then(() => { fadeMaster(1, 0.3); ensureBgm(); }).catch(() => {});
     // iPhone：タップ中に無音を1回鳴らすと確実に音が出せるようになる
     try {
       const s = ctx.createBufferSource();
@@ -133,11 +133,34 @@ function ensureBgm() {
 }
 
 // 画面を閉じたり別アプリに切り替えたら音を止め、戻ったら再開（電池の節約と、裏で鳴り続けないように）
+// いきなり止めると「ブツッ」と変な音になるので、すばやくフェードアウトしてから止める
+let suspendTimer = null;
+function fadeMaster(to, sec) {
+  if (!ctx || !master) return;
+  const g = master.gain, t = ctx.currentTime;
+  g.cancelScheduledValues(t);
+  g.setValueAtTime(g.value, t);
+  g.linearRampToValueAtTime(to, t + sec);
+}
+function goQuiet() {
+  if (!ctx || ctx.state !== 'running') return;
+  fadeMaster(0, 0.18);
+  clearTimeout(suspendTimer);
+  suspendTimer = setTimeout(() => { if (document.visibilityState === 'hidden') ctx.suspend().catch(() => {}); }, 220);
+}
+function wakeUp() {
+  clearTimeout(suspendTimer);
+  if (!ctx || !unlocked) return;
+  setAmbient();
+  if (master) { master.gain.cancelScheduledValues(ctx.currentTime); master.gain.setValueAtTime(0, ctx.currentTime); }
+  ctx.resume().then(() => { fadeMaster(1, 0.5); ensureBgm(); }).catch(() => {});
+}
 document.addEventListener('visibilitychange', () => {
   if (!ctx) return;
-  if (document.visibilityState === 'hidden') ctx.suspend().catch(() => {});
-  else if (unlocked) { setAmbient(); ctx.resume().then(ensureBgm).catch(() => {}); }
+  if (document.visibilityState === 'hidden') goQuiet();
+  else wakeUp();
 });
+window.addEventListener('pagehide', goQuiet);
 
 // 人の耳に合わせて音量バーの値を2乗する
 const curve = (v) => v * v;
@@ -184,10 +207,36 @@ export function sfx(name) {
   if (DEBUG) (window.__sfxLog ||= []).push(name);
   const src = ctx.createBufferSource();
   src.buffer = buf;
-  let out = seGain;
-  if (SE_VOL[name]) { const g = ctx.createGain(); g.gain.value = SE_VOL[name]; g.connect(seGain); out = g; }
-  src.connect(out);
+  const g = ctx.createGain();
+  g.gain.value = SE_VOL[name] ?? 1;
+  g.connect(seGain);
+  src.connect(g);
+  // 長い効果音（ドラムロールなど）は途中で止められるように覚えておく
+  if (buf.duration > 1.5) {
+    const item = { src, g };
+    let set = playingSe.get(name);
+    if (!set) playingSe.set(name, (set = new Set()));
+    set.add(item);
+    src.onended = () => set.delete(item);
+  }
   src.start();
+}
+
+const playingSe = new Map();
+/** 鳴っている効果音をフェードアウトして止める（ガチャのスキップなど） */
+export function stopSfx(name, sec = 0.3) {
+  const set = playingSe.get(name);
+  if (!set || !ctx) return;
+  for (const { src, g } of set) {
+    try {
+      const t = ctx.currentTime;
+      g.gain.cancelScheduledValues(t);
+      g.gain.setValueAtTime(g.gain.value, t);
+      g.gain.linearRampToValueAtTime(0, t + sec);
+      src.stop(t + sec + 0.05);
+    } catch {}
+  }
+  set.clear();
 }
 
 // 中身から形式を判定（mp3 / ogg / m4a / wav）
@@ -201,7 +250,7 @@ function mimeOf(b) {
 
 /** 動作確認用 */
 export function audioState() {
-  return { ctx: ctx?.state, bgm: bgmName, playing: !!(bgmCur && !bgmCur.ended), seLoaded: [...seBuf.keys()], bgmLoaded: [...bgmBuf.keys()], live: [...liveBgm].map((c) => c.name), vol: { ...vol } };
+  return { ctx: ctx?.state, bgm: bgmName, playing: !!(bgmCur && !bgmCur.ended), seLoaded: [...seBuf.keys()], bgmLoaded: [...bgmBuf.keys()], live: [...liveBgm].map((c) => c.name), longSe: [...playingSe].filter(([, v]) => v.size).map(([k]) => k), vol: { ...vol } };
 }
 
 async function getBgm(name) {

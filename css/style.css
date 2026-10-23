@@ -372,6 +372,22 @@ img.px, canvas { image-rendering: pixelated; image-rendering: crisp-edges; }
 .bu-cost b.short { color: #d81a3a; }
 .bu-cost small { color: #6a5a48; }
 
+/* ===== ランク報酬（プロフィール） ===== */
+.rr-title { display: flex; align-items: baseline; gap: 8px; margin: 10px 0 2px; font-weight: 800; font-size: 14px; }
+.rr-title small { font-size: 11px; color: #6a5a48; font-weight: 500; }
+.rr-strip { display: flex; gap: 8px; overflow-x: auto; padding: 8px 4px 10px; scroll-snap-type: x proximity; -webkit-overflow-scrolling: touch; overscroll-behavior-x: contain; }
+.rr-card { flex: 0 0 98px; scroll-snap-align: start; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px 4px; background: linear-gradient(#fff8e0, #ecdcb4); border: 3px solid var(--ink); border-radius: 10px; box-shadow: 0 3px 0 var(--ink); }
+.rr-card.next { background: linear-gradient(#fff2b0, #ffcf3a); transform: translateY(-3px); box-shadow: 0 0 0 3px #ff5a80, 0 4px 0 var(--ink); }
+.rr-card.got { opacity: .55; filter: saturate(.5); }
+.rr-lv { font-size: 13px; font-weight: 800; color: #b81a40; }
+.rr-items { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; }
+.rr-i { display: flex; align-items: center; gap: 2px; font-size: 12px; font-weight: 800; }
+.rr-i img { width: 20px; height: 20px; }
+.rr-i.sp { flex-direction: column; gap: 0; }
+.rr-i.sp small { font-size: 9px; color: #6a5a48; }
+.rr-st { font-size: 10px; font-weight: 800; padding: 1px 6px; border-radius: 8px; background: #2a1c14; color: #fff; }
+.rr-card.next .rr-st { background: #d8204c; }
+
 /* ===== 敵のヘルプ・てき図鑑 ===== */
 .ehelp .modal, .modal.ehelp, .modal.ebook { max-width: 460px; }
 .eh-head { display: flex; gap: 12px; align-items: center; margin-bottom: 8px; }

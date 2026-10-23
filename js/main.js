@@ -9,7 +9,7 @@ import {
   cloud, initCloud, onCloud, signIn, signOut, upload, restoreFromCloud, setSyncHandlers,
   enablePush, disablePush, autoBackup,
 } from './cloud.js';
-import { pwa, initPWA, applyUpdate, fetchChangelog, isStandalone, isIOS } from './pwa.js';
+import { pwa, initPWA, applyUpdate, fetchChangelog, isStandalone, isIOS, warmAudio } from './pwa.js';
 import { APP_VERSION } from './version.js';
 import { initAudio, preloadAudio, sfx, setVolume, playBgm, stopBgm, bgmForBiome } from './audio.js';
 import { modal, toast, confirmBox, esc, closeAllModals } from './ui.js';
@@ -144,10 +144,19 @@ async function boot() {
   window.addEventListener('online', () => toast('オンラインに戻りました'));
 
   initPWA(onUpdateReady);
+  setTimeout(warmPlayable, 9000);
   initCloud();
   await Promise.all([fetchChangelog().catch(() => {}), tapped]);
   render();
   await afterBoot();
+}
+
+/** オフラインでも鳴るよう、いま遊べるステージ（クリア済み＋次）のBGMとボス曲を端末に保存してもらう */
+function warmPlayable() {
+  const n = Math.min(D.BIOMES.length, data().maxStage + 1);
+  const keys = ['home', 'menu', 'gacha', 'boss', 'clear', 'gameover'];
+  for (const b of D.BIOMES.slice(0, n)) keys.push(bgmForBiome(b.id), 'boss_' + b.boss, ...(b.bgm ? [b.bgm] : []));
+  warmAudio(keys);
 }
 
 // ===================== タイトル画面 =====================
@@ -941,6 +950,8 @@ function profileModal() {
           <div class="muted">次のランク報酬：${nextTxt}</div>
         </div>
       </div>
+      <div class="rr-title">ランク報酬<small>横にスクロールできます</small></div>
+      <div class="rr-strip">${rankRewardCards(d.rank.lv)}</div>
       <div class="name-edit"><input id="pf-name" maxlength="12" value="${esc(d.profile.name)}" placeholder="ユーザー名（12文字まで）" autocomplete="off"><button class="btn small teal" id="pf-save">名前を変更</button></div>
       <div class="mtabs" style="margin-top:10px">
         <button class="btn small ${profTab === 'icon' ? 'active' : ''}" data-ptab="icon">アイコン</button>
@@ -950,6 +961,11 @@ function profileModal() {
     buttons: [{ label: '閉じる', value: null }],
     onMount: (ov, close) => {
       hydrate(ov);
+      // ランク報酬：次にもらえる報酬が見える位置までスクロール。マウスのホイールでも横に動く
+      const strip = ov.querySelector('.rr-strip');
+      const nx = strip.querySelector('.rr-card.next');
+      if (nx) strip.scrollLeft = Math.max(0, nx.offsetLeft - strip.offsetLeft - 64);
+      strip.addEventListener('wheel', (e) => { if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) { strip.scrollLeft += e.deltaY; e.preventDefault(); } }, { passive: false });
       const reopen = () => { close(); profileModal(); };
       ov.querySelector('#pf-save').addEventListener('click', (e) => {
         e.stopPropagation();
@@ -961,6 +977,26 @@ function profileModal() {
       ov.querySelectorAll('[data-frame-id]').forEach((b) => b.addEventListener('click', (e) => { e.stopPropagation(); if (PF.setFrame(b.dataset.frameId)) { sfx('equip'); reopen(); } }));
     },
   });
+}
+
+/** ランク報酬のカード（受け取り済み・次・この先） */
+function rankRewardCards(cur) {
+  const max = Math.min(PF.RANK_MAX, Math.max(30, cur + 12));
+  const cards = [];
+  for (let lv = 2; lv <= max; lv++) {
+    const r = PF.rankReward(lv);
+    const st = lv <= cur ? 'got' : lv === cur + 1 ? 'next' : '';
+    const items = [
+      `<span class="rr-i"><img class="px" data-icon="coin" data-color="#ffcf3a" alt="">${r.gold.toLocaleString()}</span>`,
+      r.cticket ? `<span class="rr-i"><img class="px" data-icon="ticket" data-color="${M.TICKET_COLOR.char}" alt="">×${r.cticket}</span>` : '',
+      r.eticket ? `<span class="rr-i"><img class="px" data-icon="ticket" data-color="${M.TICKET_COLOR.equip}" alt="">×${r.eticket}</span>` : '',
+      ...r.icons.map((i) => `<span class="rr-i sp">${avatarHTML(i.id, 'basic', 30)}<small>アイコン</small></span>`),
+      ...r.frames.map((f) => `<span class="rr-i sp">${avatarHTML(data().profile.icon, f.id, 30)}<small>フレーム</small></span>`),
+    ].join('');
+    cards.push(`<div class="rr-card ${st}"><div class="rr-lv">Rank ${lv}</div><div class="rr-items">${items}</div>
+      <div class="rr-st">${st === 'got' ? '受け取り済み' : st === 'next' ? 'NEXT' : `あと${lv - cur}ランク`}</div></div>`);
+  }
+  return cards.join('');
 }
 
 /** ランクアップ演出（報酬一覧） */
@@ -1780,7 +1816,7 @@ async function endBattle(res) {
     let rar = D.rollRarity(Math.floor(n / 2));
     if (first && rar === 'N') rar = 'R';
     item = addItem(D.randomEquipBase(), rar);
-    if (first) d.maxStage = n;
+    if (first) { d.maxStage = n; setTimeout(warmPlayable, 3000); }
     d.stats.clears++;
   } else {
     gold = Math.round(res.gold + res.kills * 2 + (res.room - 1) / D.ROOMS_PER_STAGE * rw.gold * 0.6);

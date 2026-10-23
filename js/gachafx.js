@@ -2,7 +2,7 @@
 // ・画面タップで早送り、右上の「スキップ」で結果一覧へ
 // ・動きは Web Animations API（element.animate）で付ける（iPhoneでも途中で止まらない）
 import { sprite, toURL, light, dark } from './art.js';
-import { sfx } from './audio.js';
+import { sfx, stopSfx } from './audio.js';
 
 // ===== レア度ごとの色 =====
 const RCOL = {
@@ -143,9 +143,10 @@ export function playGacha(results) {
     const finish = () => {
       if (root.dataset.done) return;
       root.dataset.done = '1';
+      stopSfx('gacha', 0.3);
       anim(root, [{ opacity: 1 }, { opacity: 0 }], { duration: 200 }).then(() => { root.remove(); resolve(); });
     };
-    root.querySelector('.gfx-skip').addEventListener('click', (e) => { e.stopPropagation(); skipped = true; if (tapResolve) tapResolve(); finish(); });
+    root.querySelector('.gfx-skip').addEventListener('click', (e) => { e.stopPropagation(); skipped = true; stopSfx('gacha', 0.35); if (tapResolve) tapResolve(); finish(); });
     root.addEventListener('click', () => { if (tapResolve) { const f = tapResolve; tapResolve = null; f(); } });
     // 指定時間待つ（タップで早送り）
     const wait = (ms) => new Promise((res) => {
@@ -202,6 +203,7 @@ export function playGacha(results) {
 
       // ---------- 3. 開封 ----------
       chest.src = chestURL(best, true);
+      stopSfx('gacha', 0.25); // ドラムロールは開封で止める
       sfx(ORDER.indexOf(best) >= 2 ? 'rare' : 'coin');
       await Promise.all([
         doFlash(best === 'SSR' ? '#fffbe8' : C.glow, 520),

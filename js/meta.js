@@ -1,7 +1,7 @@
 // 遊びの外側の仕組み：ガチャ・ミッション・ログインボーナス・プレゼントボックス
 // 毎日0時（端末の時刻）でデイリーとログインボーナスが更新、毎週月曜0時でウィークリーが更新されます。
 import { store, commit, cleanReward } from './save.js';
-import { CHARACTERS, GACHAS, AWAKEN_MAX, EQUIP, rollRarity, randomEquipBase } from './data.js';
+import { CHARACTERS, GACHAS, AWAKEN_MAX, EQUIP, SLOT_TYPE_NAMES, rollRarity, randomEquipBase } from './data.js';
 
 const data = () => store.save.data;
 
@@ -144,6 +144,16 @@ export const MISSIONS = {
     ...[4, 6, 8, 10, 12].map((n) => ({ id: `p_chars${n}`, name: `キャラを ${n} 人そろえる`, stat: 'chars', goal: n, reward: { cticket: 2 } })),
     ...[10, 50, 100, 300].map((n) => ({ id: `p_gacha${n}`, name: `ガチャを累計 ${n} 回引く`, stat: 'gachaTotal', goal: n, reward: n >= 100 ? { cticket: 3, eticket: 3 } : { cticket: 1, eticket: 1 } })),
     ...[3, 10, 30].map((n) => ({ id: `p_login${n}`, name: `累計 ${n} 日ログイン`, stat: 'loginTotal', goal: n, reward: n >= 30 ? { cticket: 3, eticket: 3 } : { cticket: 1, eticket: 1 } })),
+    // キャラごと：〇〇を Lv〇 まで強化しよう（仲間になっているキャラだけ表示）
+    ...Object.values(CHARACTERS).flatMap((c) => [10, 20, 40, 60, 80].map((n, i) => ({
+      id: `p_c_${c.id}_${n}`, name: `${c.name}を Lv${n} まで強化しよう`, stat: 'charLv:' + c.id, goal: n,
+      reward: [{ gold: 3000 }, { cticket: 1, gold: 3000 }, { cticket: 2 }, { cticket: 3 }, { cticket: 5 }][i],
+    }))),
+    // 装備の種類ごと：〇〇の装備を Lv〇 まで強化しよう（いちばんレベルの高い装備で判定）
+    ...Object.entries(SLOT_TYPE_NAMES).flatMap(([t, nm]) => [5, 10, 20, 30, 40].map((n, i) => ({
+      id: `p_e_${t}_${n}`, name: `${nm}の装備を Lv${n} まで強化しよう`, stat: 'equipLv:' + t, goal: n,
+      reward: [{ gold: 1500 }, { eticket: 1, gold: 1500 }, { eticket: 2 }, { eticket: 3 }, { eticket: 5 }][i],
+    }))),
   ],
 };
 
@@ -171,6 +181,11 @@ function statValue(stat) {
   if (stat === 'gachaTotal') return d.stats.gachaTotal || 0;
   if (stat === 'loginTotal') return d.login.total;
   if (stat === 'google') return d.stats.googleLinked ? 1 : 0;
+  if (stat.startsWith('charLv:')) return d.chars[stat.slice(7)]?.level || 0;
+  if (stat.startsWith('equipLv:')) {
+    const t = stat.slice(8);
+    return d.items.reduce((m, it) => (EQUIP[it.base]?.type === t ? Math.max(m, it.level) : m), 0);
+  }
   return 0;
 }
 
@@ -189,17 +204,21 @@ export function missionList(kind) {
     const done = p >= def.goal;
     return { ...def, p: Math.min(p, def.goal), done, claimed: claimed.includes(def.id) };
   });
+  // 並び順：受け取れるもの → まだのもの → 受け取り済み（元の順番は保つ）
+  const rank = (x) => (x.claimed ? 2 : x.done ? 0 : 1);
+  const sorted = (arr) => arr.map((x, i) => [x, i]).sort((a, b) => rank(a[0]) - rank(b[0]) || a[1] - b[1]).map(([x]) => x);
   if (kind === 'perm') {
-    // 常時は受け取り済みを後ろへ、同じ種類は次の目標だけ見せる
+    // 常時は受け取り済みを消し、同じ種類は次の目標だけ見せる。仲間になっていないキャラの分は出さない
     const seen = new Set();
-    return list.filter((x) => {
+    return sorted(list.filter((x) => {
       if (x.claimed) return false;
+      if (x.stat.startsWith('charLv:') && !d.chars[x.stat.slice(7)]?.unlocked) return false;
       if (seen.has(x.stat)) return false;
       seen.add(x.stat);
       return true;
-    });
+    }));
   }
-  return list;
+  return sorted(list);
 }
 
 export function claimMission(kind, id) {

@@ -120,6 +120,186 @@
       "url": "https://maou.audio/bgm_8bit20/",
       "scene": "ゲームオーバー",
       "v": "d474466843"
+    },
+    "battle_forest": {
+      "file": "battle_forest.mp3",
+      "orig": "森.mp3",
+      "loop": true,
+      "title": "森（提供曲）",
+      "by": "提供曲（クレジット参照）",
+      "url": "",
+      "scene": "森ステージ",
+      "v": "8bac083db2"
+    },
+    "battle_beach": {
+      "file": "battle_beach.mp3",
+      "orig": "海辺.ogg",
+      "loop": true,
+      "title": "海辺（提供曲）",
+      "by": "提供曲（クレジット参照）",
+      "url": "",
+      "scene": "海辺ステージ",
+      "v": "d5ea551e75"
+    },
+    "battle_cave": {
+      "file": "battle_cave.mp3",
+      "orig": "水晶.mp3",
+      "loop": true,
+      "title": "水晶（提供曲）",
+      "by": "提供曲（クレジット参照）",
+      "url": "",
+      "scene": "水晶の洞窟ステージ",
+      "v": "e68cbf7ebe"
+    },
+    "battle_grave": {
+      "file": "battle_grave.mp3",
+      "orig": "墓地.mp3",
+      "loop": true,
+      "title": "墓地（提供曲）",
+      "by": "提供曲（クレジット参照）",
+      "url": "",
+      "scene": "墓地ステージ",
+      "v": "f5cf76aa1f"
+    },
+    "battle_sky": {
+      "file": "battle_sky.mp3",
+      "orig": "天空.mp3",
+      "loop": true,
+      "title": "天空（提供曲）",
+      "by": "提供曲（クレジット参照）",
+      "url": "",
+      "scene": "天空ステージ",
+      "v": "b2fc39ec5c"
+    },
+    "battle_space": {
+      "file": "battle_space.mp3",
+      "orig": "宇宙.mp3",
+      "loop": true,
+      "title": "宇宙（提供曲）",
+      "by": "提供曲（クレジット参照）",
+      "url": "",
+      "scene": "宇宙ステーションステージ",
+      "v": "d41e6185fb"
+    },
+    "boss_motherdrone": {
+      "file": "boss_motherdrone.mp3",
+      "orig": "サイバーボス戦.mp3",
+      "loop": true,
+      "title": "サイバーボス戦（提供曲）",
+      "by": "提供曲（クレジット参照）",
+      "url": "",
+      "scene": "ボス戦：マザードローン",
+      "v": "a9fd4377df"
+    },
+    "boss_skullking": {
+      "file": "boss_skullking.mp3",
+      "orig": "墓地ボス戦.mp3",
+      "loop": true,
+      "title": "墓地ボス戦（提供曲）",
+      "by": "提供曲（クレジット参照）",
+      "url": "",
+      "scene": "ボス戦：スカルキング",
+      "v": "5e06decf9c"
+    },
+    "boss_crystalking": {
+      "file": "boss_crystalking.mp3",
+      "orig": "洞窟ボス戦.mp3",
+      "loop": true,
+      "title": "洞窟ボス戦（提供曲）",
+      "by": "提供曲（クレジット参照）",
+      "url": "",
+      "scene": "ボス戦：クリスタルキング",
+      "v": "5415400b8b"
+    },
+    "boss_kingslime": {
+      "file": "boss_kingslime.mp3",
+      "orig": "ボス戦1.mp3",
+      "loop": true,
+      "title": "ボス戦1（提供曲）",
+      "by": "提供曲（クレジット参照）",
+      "url": "",
+      "scene": "ボス戦：キングスライム",
+      "v": "565148530e"
+    },
+    "boss_bigmush": {
+      "file": "boss_bigmush.mp3",
+      "orig": "ボス戦2.mp3",
+      "loop": true,
+      "title": "ボス戦2（提供曲）",
+      "by": "提供曲（クレジット参照）",
+      "url": "",
+      "scene": "ボス戦：ビッグマッシュ",
+      "v": "a19f3cfa7b"
+    },
+    "boss_pharaoh": {
+      "file": "boss_pharaoh.mp3",
+      "orig": "ボス戦3.mp3",
+      "loop": true,
+      "title": "ボス戦3（提供曲）",
+      "by": "提供曲（クレジット参照）",
+      "url": "",
+      "scene": "ボス戦：ファラオゴーレム",
+      "v": "cccb6f49dd"
+    },
+    "boss_kingcrab": {
+      "file": "boss_kingcrab.mp3",
+      "orig": "ボス戦4.mp3",
+      "loop": true,
+      "title": "ボス戦4（提供曲）",
+      "by": "提供曲（クレジット参照）",
+      "url": "",
+      "scene": "ボス戦：キングクラブ",
+      "v": "1715f24625"
+    },
+    "boss_blizzard": {
+      "file": "boss_blizzard.mp3",
+      "orig": "ボス戦5.mp3",
+      "loop": true,
+      "title": "ボス戦5（提供曲）",
+      "by": "提供曲（クレジット参照）",
+      "url": "",
+      "scene": "ボス戦：ブリザードゴースト",
+      "v": "a3df18d5cf"
+    },
+    "boss_magmagolem": {
+      "file": "boss_magmagolem.mp3",
+      "orig": "ボス戦6.mp3",
+      "loop": true,
+      "title": "ボス戦6（提供曲）",
+      "by": "提供曲（クレジット参照）",
+      "url": "",
+      "scene": "ボス戦：マグマゴーレム",
+      "v": "0badfb05d0"
+    },
+    "boss_stormbat": {
+      "file": "boss_stormbat.mp3",
+      "orig": "ボス戦7.mp3",
+      "loop": true,
+      "title": "ボス戦7（提供曲）",
+      "by": "提供曲（クレジット参照）",
+      "url": "",
+      "scene": "ボス戦：ストームバット",
+      "v": "06c288a673"
+    },
+    "boss_galaxyeye": {
+      "file": "boss_galaxyeye.mp3",
+      "orig": "ボス戦8.mp3",
+      "loop": true,
+      "title": "ボス戦8（提供曲）",
+      "by": "提供曲（クレジット参照）",
+      "url": "",
+      "scene": "ボス戦：ギャラクシーアイ",
+      "v": "59dde6cfae"
+    },
+    "boss_darklord": {
+      "file": "boss_darklord.mp3",
+      "orig": "ボス戦9.mp3",
+      "loop": true,
+      "title": "ボス戦9（提供曲）",
+      "by": "提供曲（クレジット参照）",
+      "url": "",
+      "scene": "ボス戦：魔王ダークロード",
+      "v": "6251a61e54"
     }
   },
   "se": {
