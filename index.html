@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+  <meta name="theme-color" content="#2a1a14">
+  <meta name="description" content="ドット絵のサバイバー討伐ゲーム">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" type="image/png" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="ドットサバイバーズ">
+  <title>ネオンドット・サバイバーズ</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@500;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div id="app">
+    <!-- メニュー画面 -->
+    <section id="menu" class="screen">
+      <div class="band"></div>
+      <header class="topbar">
+        <div class="rank"><span class="rank-label ol">ランク</span><span class="rank-num ol" id="rank-num">1</span></div>
+        <div class="pill"><img alt="" class="px" data-icon="gem" data-color="#ff7ad8"><span id="pill-crystal" class="ol">0</span></div>
+        <div class="pill"><img alt="" class="px" data-icon="coin" data-color="#ffcf3a"><span id="pill-gold" class="ol">0</span></div>
+        <button class="cloud-dot" id="cloud-dot" title="クラウド状態" data-tab="settings"></button>
+      </header>
+      <main id="tab-content"></main>
+      <nav class="tabbar">
+        <button data-tab="home" class="active"><img alt="" class="px" data-icon="castle" data-color="#c8a46a"><span class="ol">ホーム</span></button>
+        <button data-tab="party"><img alt="" class="px tab-char" data-char="neo"><span class="ol">装備・キャラ</span></button>
+        <button data-tab="gacha"><img alt="" class="px" data-icon="altar" data-color="#d8c060"><span class="ol">抽選</span></button>
+        <button data-tab="settings"><img alt="" class="px" data-icon="gear" data-color="#b9c3d6"><span class="ol">設定</span><i class="dot-badge hidden" id="settings-badge"></i></button>
+      </nav>
+      <div class="band"></div>
+    </section>
+
+    <!-- 戦闘画面 -->
+    <section id="battle" class="screen hidden">
+      <canvas id="game"></canvas>
+      <div class="band battle-band top"></div>
+      <div class="band battle-band bottom"></div>
+      <div class="hud">
+        <button class="round-btn" id="hud-pause">ゲーム<br>終了</button>
+        <div class="hud-left">
+          <div class="hbar"><img alt="" class="px" data-icon="coin" data-color="#ffcf3a"><span id="hud-gold" class="ol">0</span></div>
+          <div class="hbar"><span class="hlabel">スコア</span><span id="hud-score" class="ol">0</span></div>
+          <div class="hbar"><img alt="" class="px" data-icon="clock" data-color="#f2e6c8"><span id="hud-time" class="ol">00:00</span></div>
+        </div>
+        <div class="hud-right">
+          <div class="lvbox"><span class="ol">Lv.</span><span id="hud-lv" class="ol">1</span></div>
+          <div class="expbar"><div class="fill" id="hud-exp"></div></div>
+          <div class="roombox"><span id="hud-room" class="ol">ROOM 1/5</span><div class="roombar"><div class="fill" id="hud-room-fill"></div></div></div>
+        </div>
+        <div class="bossbar hidden" id="hud-boss"><span class="ol">BOSS</span><div class="track"><div class="fill"></div></div></div>
+      </div>
+      <div class="banner ol" id="hud-banner"></div>
+      <div id="joy" class="hidden"><div id="joy-knob"></div></div>
+      <div class="hint ol" id="hud-hint">画面をドラッグして移動</div>
+
+      <!-- レベルアップ（スロット式スキル選択） -->
+      <div id="levelup" class="hidden">
+        <div class="lv-title ol">レベルアップしました。スキルを選んでください。</div>
+        <div class="lv-cards" id="lv-cards"></div>
+        <div class="lv-build" id="lv-build"></div>
+      </div>
+    </section>
+
+    <!-- ロード画面 -->
+    <div id="loading" class="hidden">
+      <div class="band"></div>
+      <div class="load-body">
+        <canvas id="load-cv" width="64" height="40"></canvas>
+        <div class="load-text ol" id="load-text">Wait...</div>
+        <div class="load-tip" id="load-tip"></div>
+      </div>
+      <div class="band"></div>
+    </div>
+
+    <div id="modal-root"></div>
+    <div id="toast"></div>
+  </div>
+  <noscript>このゲームを遊ぶにはJavaScriptを有効にしてください。</noscript>
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>

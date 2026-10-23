@@ -1,0 +1,23 @@
+name: プッシュ通知を送る
+
+on:
+  push:
+    branches: [main]
+    paths: ['changelog.json']
+  workflow_dispatch: # Actions画面から手動で再送信もできる
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm install --no-save firebase-admin@12
+      - run: node tools/send-push.mjs
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          FORCE: ${{ github.event_name == 'workflow_dispatch' }}

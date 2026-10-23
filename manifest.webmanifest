@@ -1,0 +1,17 @@
+{
+  "name": "ネオンドット・サバイバーズ",
+  "short_name": "ネオンドット",
+  "description": "ドット絵の電脳サバイバー討伐ゲーム",
+  "lang": "ja",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#070611",
+  "theme_color": "#070611",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

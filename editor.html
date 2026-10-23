@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>更新履歴エディタ</title>
+  <link href="https://fonts.googleapis.com/css2?family=DotGothic16&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    html, body { overflow: auto; -webkit-user-select: text; user-select: text; }
+    .wrap { max-width: 640px; margin: 0 auto; padding: 16px; }
+    label { display: block; font-size: 13px; color: var(--muted); margin: 10px 0 4px; }
+    input[type=text], input[type=date], textarea {
+      width: 100%; background: #0009; color: var(--text); border: 2px solid var(--line);
+      font-family: inherit; font-size: 15px; padding: 8px; -webkit-user-select: text; user-select: text;
+    }
+    textarea { min-height: 110px; }
+    #out { font-family: monospace; font-size: 12px; min-height: 220px; }
+    .entry-row { display: flex; align-items: flex-start; gap: 8px; }
+    .entry-row .log-entry { flex: 1; margin: 6px 0; }
+    ol { padding-left: 20px; font-size: 13px; line-height: 1.8; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1 class="logo" style="font-size:22px">更新履歴エディタ</h1>
+    <p class="muted">ここで書いた内容がゲーム内の「更新履歴」と「お知らせ」ポップアップに表示されます。このページはゲーム内からはリンクされていません。</p>
+
+    <div class="panel">
+      <h3>新しい項目を追加</h3>
+      <label>バージョン（コードを変えていない「お知らせだけ」の場合は空欄でOK）</label>
+      <input type="text" id="f-version" placeholder="例: 0.2.0">
+      <label>日付</label>
+      <input type="date" id="f-date">
+      <label>タイトル</label>
+      <input type="text" id="f-title" placeholder="例: 新キャラ追加＆バランス調整">
+      <label>内容（1行に1項目）</label>
+      <textarea id="f-items" placeholder="新キャラ「ミラ」を追加&#10;ボスのHPを10%下げました"></textarea>
+      <label style="display:flex;gap:8px;align-items:center;color:var(--text)"><input type="checkbox" id="f-notify" checked> 通知をオンにしているプレイヤーにプッシュ通知を送る</label>
+      <div class="row" style="margin-top:12px"><button class="btn primary" id="add">追加する</button></div>
+    </div>
+
+    <div class="panel">
+      <h3>現在の更新履歴</h3>
+      <div id="list"><p class="muted">読み込み中…</p></div>
+    </div>
+
+    <div class="panel">
+      <h3>保存のしかた</h3>
+      <ol>
+        <li>下の「JSONをコピー」を押す</li>
+        <li>「GitHubで開く」を押す（GitHubにログインした状態で）</li>
+        <li>中身をすべて消して貼り付け →「Commit changes」</li>
+        <li>数分後にゲームへ反映。通知にチェックがあればプッシュ通知も届きます</li>
+      </ol>
+      <textarea id="out" readonly></textarea>
+      <div class="row" style="margin-top:8px">
+        <button class="btn cyan" id="copy">JSONをコピー</button>
+        <a class="btn" id="gh" target="_blank" rel="noopener" style="text-decoration:none">GitHubで開く</a>
+      </div>
+      <p class="muted" id="gh-note"></p>
+    </div>
+  </div>
+
+  <script type="module">
+    import { GITHUB_REPO, GITHUB_BRANCH } from './js/config.js';
+    import { APP_VERSION } from './js/version.js';
+    const $ = (s) => document.querySelector(s);
+    const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    let entries = [];
+
+    $('#f-date').value = new Date().toLocaleDateString('sv-SE');
+    $('#f-version').placeholder = `例: ${APP_VERSION}（現在のアプリ版）`;
+
+    if (GITHUB_REPO) {
+      $('#gh').href = `https://github.com/${GITHUB_REPO}/edit/${GITHUB_BRANCH}/changelog.json`;
+    } else {
+      $('#gh').removeAttribute('href');
+      $('#gh').style.opacity = .4;
+      $('#gh-note').textContent = 'js/config.js の GITHUB_REPO を設定するとボタンが使えます。';
+    }
+
+    function render() {
+      $('#list').innerHTML = entries.length ? entries.map((e, i) => `
+        <div class="entry-row">
+          <div class="log-entry">
+            <div><span class="ver">${e.version ? 'v' + esc(e.version) : 'お知らせ'}</span><span class="date">${esc(e.date)}</span>${e.notify ? ' <span class="muted">🔔</span>' : ''}</div>
+            <div class="ttl">${esc(e.title)}</div>
+            <ul>${(e.items || []).map((x) => `<li>${esc(x)}</li>`).join('')}</ul>
+          </div>
+          <button class="btn small danger" data-del="${i}">削除</button>
+        </div>`).join('') : '<p class="muted">まだありません</p>';
+      $('#out').value = JSON.stringify({ entries }, null, 2) + '\n';
+    }
+
+    $('#list').addEventListener('click', (e) => {
+      const b = e.target.closest('[data-del]');
+      if (b && confirm('この項目を削除しますか？')) { entries.splice(+b.dataset.del, 1); render(); }
+    });
+
+    $('#add').addEventListener('click', () => {
+      const title = $('#f-title').value.trim();
+      const items = $('#f-items').value.split('\n').map((s) => s.trim()).filter(Boolean);
+      if (!title && !items.length) { alert('タイトルか内容を入力してください'); return; }
+      const version = $('#f-version').value.trim();
+      const date = $('#f-date').value;
+      entries.unshift({ id: `${date}-${version || 'news'}-${Date.now().toString(36)}`, version, date, title, items, notify: $('#f-notify').checked });
+      $('#f-title').value = ''; $('#f-items').value = '';
+      render();
+      $('#out').scrollIntoView({ behavior: 'smooth' });
+    });
+
+    $('#copy').addEventListener('click', async () => {
+      try { await navigator.clipboard.writeText($('#out').value); } catch { $('#out').select(); document.execCommand('copy'); }
+      $('#copy').textContent = 'コピーしました';
+      setTimeout(() => ($('#copy').textContent = 'JSONをコピー'), 1500);
+    });
+
+    fetch('./changelog.json?t=' + Date.now(), { cache: 'no-store' })
+      .then((r) => r.json()).then((j) => { entries = j.entries || []; render(); })
+      .catch(() => { entries = []; render(); });
+  </script>
+</body>
+</html>
