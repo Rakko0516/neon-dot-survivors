@@ -41,7 +41,7 @@ export function defaultData() {
     ],
     nextUid: 5,
     // offlineAuto：遊べるステージの曲を自動で端末に保存する / offlineSkip：自分で削除したもの（自動保存しない）
-    settings: { bgmVol: 60, seVol: 80, notify: false, offlineAuto: true, offlineSkip: [] },
+    settings: { bgmVol: 60, seVol: 80, notify: false, offlineAuto: true, offlineSkip: [], enemyHelp: true },
     stats: { runs: 0, kills: 0, clears: 0, gachaTotal: 0, bossKills: 0, googleLinked: 0 },
     login: { lastDay: '', count: 0, total: 0 },
     missions: { day: '', week: '', d: {}, w: {}, dc: [], wc: [], perm: [] },
@@ -219,6 +219,7 @@ function sanitize(d) {
   d.settings = {
     bgmVol: num(d.settings?.bgmVol, 0, 100, 60), seVol: num(d.settings?.seVol, 0, 100, 80), notify: !!d.settings?.notify,
     offlineAuto: d.settings?.offlineAuto !== false,
+    enemyHelp: d.settings?.enemyHelp !== false,
     offlineSkip: (Array.isArray(d.settings?.offlineSkip) ? d.settings.offlineSkip : []).map((x) => safeId(x, 30)).filter(Boolean).slice(0, 40),
   };
   for (const k of Object.keys(d.stats)) d.stats[k] = num(d.stats[k], 0, 1e12);

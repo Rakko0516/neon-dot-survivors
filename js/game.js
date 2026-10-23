@@ -1,10 +1,17 @@
 // 戦闘エンジン（5部屋を進む縦スクロール・サバイバー）
-import { charSprite, enemySprite, icon, PICKUP, light } from './art.js';
+import { charSprite, enemySprite, icon, PICKUP, light, drawProj } from './art.js';
 import { StageMap, TILE, CORRIDOR, GATE_COLS } from './stage.js';
 import { SKILLS, WEAPON_MAX, MAX_ACTIVES, MAX_PASSIVES, ROOMS_PER_STAGE, expNeed } from './data.js';
 import { T } from './art.js';
-import { sfx, playBgm } from './audio.js';
-import { MOBS, BOSSES, WEAPON_EL, WEAK_MUL } from './enemies.js';
+import { sfx, playBgm, hasSe } from './audio.js';
+import { MOBS, BOSSES, WEAPON_EL, WEAK_MUL, MOB_ATTACKS } from './enemies.js';
+
+// 敵の攻撃の効果音：専用の音（e_<種類>）があればそれ、無ければ近い音で代用
+const ENEMY_SE = {
+  leaf: 'arrow', needle: 'arrow', snowball: 'ice', fireball: 'fire', bubble: 'shoot2', crystal: 'ice', bone: 'slash', dark: 'shoot2', star: 'shoot',
+  spore: 'spike', poison: 'spike', flame: 'fire', vine: 'slash', pinch: 'slash', beam: 'missile', icicle: 'ice', bolt: 'zap',
+};
+const sfxE = (k) => { const own = 'e_' + k; sfx(hasSe(own) ? own : ENEMY_SE[k] || 'shoot2'); };
 
 const TAU = Math.PI * 2;
 const rand = (a, b) => a + Math.random() * (b - a);
@@ -109,6 +116,8 @@ export class Game {
     this.spawnAcc = 0;
     this.eliteDone = false;
     this.helpQueue = [];
+    this.timers = []; // 少し後に起きること（予告のあとの攻撃など）
+    this.zones = [];  // 地面に残る攻撃（毒の水たまり・胞子・火炎）
     this.helpAsked = new Set();
     this.curSrc = null; // いまダメージを与えている武器（弱点の判定用）
     this.recalc();
@@ -189,6 +198,7 @@ export class Game {
     const under = M.tileAt(P.x, P.y);
     let spd = this.rs.spd;
     if (under === TILE.POOL) spd *= 0.6;
+    if (P.slowT > 0) { P.slowT -= dt; spd *= 0.6; } // 雪玉・あわ・つららで足が遅くなる
     if (P.moving) {
       const m = Math.min(1, len);
       dx /= len; dy /= len;
@@ -215,6 +225,7 @@ export class Game {
     this.updateWeapons(dt);
     this.updateBullets(dt);
     this.updateEBullets(dt);
+    this.updateZones(dt);
     this.updateGems(dt);
     this.updateFx(dt);
     if (this.shake > 0) this.shake -= dt;
@@ -315,6 +326,7 @@ export class Game {
       spd: B.spd * def.spd * rand(0.9, 1.1), dmg: B.dmg * this.stage.dmgMul, r: B.r, fly: B.fly || def.pattern === 'phase', exp: B.exp,
       size: 1, flash: 0, hits: {}, kvx: 0, kvy: 0, slowT: 0, bob: Math.random() * 6,
       st: 0, pt: rand(1.2, 2.8), side2: Math.random() < 0.5 ? -1 : 1, ph: Math.random() * 6,
+      atk: def.atk || null, at: rand(2.2, 4), aw: 0, busy: 0,
     };
     if (s.elite) { e.hp *= 3.2; e.elite = true; }
     if (s.mini) { e.mini = true; e.size = 0.62; e.hp *= 0.3; e.spd *= 1.35; e.r = Math.max(3, Math.round(e.r * 0.6)); }
@@ -328,11 +340,13 @@ export class Game {
   noticeEnemy(e) {
     const o = this.opt;
     if (o.onSeen) o.onSeen(e.boss ? 'boss' : 'mob', e.id);
-    const key = e.boss ? 'boss:' + e.id : 'pattern:' + e.pattern;
+    // 同じ「動き方＋特殊攻撃」の敵は2回目から説明しない
+    const pk = e.pattern + (e.atk ? '+' + e.atk : '');
+    const key = e.boss ? 'boss:' + e.id : 'pattern:' + pk;
     if (this.helpAsked.has(key)) return;
     this.helpAsked.add(key);
-    if (o.needHelp && o.needHelp(e.boss ? 'boss' : 'pattern', e.boss ? e.id : e.pattern)) {
-      this.helpQueue.push(e.boss ? { kind: 'boss', id: e.id } : { kind: 'mob', id: e.id, pattern: e.pattern });
+    if (o.needHelp && o.needHelp(e.boss ? 'boss' : 'pattern', e.boss ? e.id : pk)) {
+      this.helpQueue.push(e.boss ? { kind: 'boss', id: e.id } : { kind: 'mob', id: e.id, pattern: pk });
     }
   }
 
@@ -457,9 +471,9 @@ export class Game {
         e.tele = e.pt < 0.35 && d < 180;
         if (e.pt <= 0) {
           if (d < 180) {
-            const sp = 72;
-            this.ebullets.push({ x: e.x, y: e.y - 6, vx: dx * sp, vy: dy * sp, life: 3.2, dmg: e.dmg * 0.8, color: e.pal.C || e.pal.e });
-            e.pt = rand(2.3, 3.1);
+            if (e.atk) this.mobAttack(e, dx, dy, d);
+            else { const sp = 72; this.ebullets.push({ x: e.x, y: e.y - 6, vx: dx * sp, vy: dy * sp, life: 3.2, dmg: e.dmg * 0.8, color: e.pal.C || e.pal.e }); }
+            e.pt = rand(2.4, 3.2);
           } else e.pt = 0.5;
         }
         break;
@@ -521,7 +535,139 @@ export class Game {
       }
       default: break; // chase / split：まっすぐ近づく
     }
+    // 特殊攻撃（ときどき）：弾は「！」で構えてから撃つ。ほかは予告を出して、その間は立ち止まる
+    if (e.atk && e.pattern !== 'shooter') {
+      if (e.busy > 0) { e.busy -= dt; mul = 0; }
+      if (e.aw > 0) {
+        e.aw -= dt; e.tele = true; mul = Math.min(mul, 0.2);
+        if (e.aw <= 0) this.mobAttack(e, dx, dy, d);
+      } else if (e.st === 0 && !e.hidden && e.busy <= 0) {
+        e.at -= dt;
+        if (e.at <= 0) {
+          const A = MOB_ATTACKS[e.atk];
+          const range = A.type === 'melee' ? 70 : A.type === 'shot' ? 170 : 190;
+          if (d < range) { if (A.type === 'shot') e.aw = 0.45; else this.mobAttack(e, dx, dy, d); }
+          e.at = rand(3.6, 5.6);
+        }
+      }
+    }
     return { tx, ty, mul };
+  }
+
+  // ===================== 敵の特殊攻撃 =====================
+  /** 敵の弾 */
+  eshot(e, a, sp, o = {}) {
+    const x = e.x, y = e.y - 6;
+    this.ebullets.push({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: o.life || 3.2, dmg: o.dmg || e.dmg * 0.8, r: o.r || 3, t: 0, ox: x, oy: y, ux: Math.cos(a), uy: Math.sin(a), sp, ...o });
+  }
+  /** 少し後に実行（予告のあとの攻撃） */
+  later(t, fn) { this.timers.push({ t, fn }); }
+  /** 足元に飛ばして、その場所にしばらく残る（胞子・毒） */
+  lob(x, y, kind, dmg, R = 20) {
+    if (this.map.solidAt(x, y)) return;
+    this.fx.push({ kind: 'warn', x, y, R, life: 0.9, max: 0.9 });
+    this.later(0.9, () => {
+      this.zones.push({ kind: kind === 'poison' ? 'puddle' : 'cloud', x, y, R, life: kind === 'poison' ? 3.5 : 2.6, max: kind === 'poison' ? 3.5 : 2.6, every: 0.5, tick: 0, dmg: dmg * 0.4 });
+      sfx('spike');
+    });
+  }
+  /** 上から落ちてくる（つらら・カミナリ） */
+  strike(x, y, kind, dmg) {
+    this.fx.push({ kind: 'warn', x, y, R: 15, life: 0.95, max: 0.95, hit: { dmg: dmg * 1.1, color: kind === 'bolt' ? '#ffe14d' : '#9fe6ff', strike: kind, slow: kind === 'icicle' ? 1.5 : 0 } });
+  }
+  /** 細い線で予告 → ビーム */
+  beam(e, a, len, delay, dmg, w = 5) {
+    const x = e.x, y = e.y - 6, ax = Math.cos(a), ay = Math.sin(a);
+    this.fx.push({ kind: 'warnLine', x, y, ax, ay, len, w: 3, life: delay, max: delay });
+    this.later(delay, () => {
+      this.fx.push({ kind: 'beam', x, y, ax, ay, len, w, life: 0.28, max: 0.28, color: e.boss ? '#ff4f6d' : '#ff5fd0' });
+      const P = this.player;
+      const px = P.x - x, py = P.y - 6 - y;
+      const along = px * ax + py * ay, side = Math.abs(px * ay - py * ax);
+      if (along > 0 && along < len && side < w + 4) this.hurtPlayer(dmg);
+      sfxE('beam');
+    });
+  }
+  /** 扇形に予告 → ムチのように薙ぎ払う（ツタ・ハサミ） */
+  whip(x, y, a, R, half, delay, dmg, kind) {
+    this.fx.push({ kind: 'warnSector', x, y, a, R, half, life: delay, max: delay });
+    this.later(delay, () => {
+      this.fx.push({ kind: 'whip', x, y, a, R, half, life: 0.25, max: 0.25, color: kind === 'pinch' ? '#ff6a4a' : '#4a9a3a' });
+      if (this.inSector(this.player, x, y, a, R, half)) this.hurtPlayer(dmg);
+      sfxE(kind);
+    });
+  }
+  /** 扇形に予告 → しばらく炎を吹き続ける（follow で向きを追う） */
+  cone(e, a, R, half, delay, dur, dmg, follow = 0) {
+    this.fx.push({ kind: 'warnSector', x: e.x, y: e.y - 4, a, R, half, life: delay, max: delay });
+    this.later(delay, () => {
+      if (e.dead) return;
+      this.zones.push({ kind: 'flame', owner: e, x: e.x, y: e.y - 4, a, R, half, life: dur, max: dur, every: 0.25, tick: 0, dmg, follow });
+      sfxE('flame');
+    });
+  }
+  inSector(p, x, y, a, R, half) {
+    const dx = p.x - x, dy = p.y - 4 - y;
+    const d = Math.hypot(dx, dy);
+    if (d > R + 4) return false;
+    if (d < 6) return true;
+    let da = Math.atan2(dy, dx) - a;
+    while (da > Math.PI) da -= TAU;
+    while (da < -Math.PI) da += TAU;
+    return Math.abs(da) <= half + 0.08;
+  }
+  /** モブの特殊攻撃を出す */
+  mobAttack(e, dx, dy, d) {
+    const P = this.player;
+    const aim = Math.atan2(P.y - (e.y - 6), P.x - e.x);
+    const dmg = e.dmg;
+    switch (e.atk) {
+      case 'leaf': this.eshot(e, aim, 70, { kind: 'leaf', wave: 1 }); break;
+      case 'needle': for (const k of [-0.3, 0, 0.3]) this.eshot(e, aim + k, 86, { kind: 'needle' }); break;
+      case 'snowball': this.eshot(e, aim, 74, { kind: 'snowball', slow: 1.5 }); break;
+      case 'fireball': this.eshot(e, aim, 82, { kind: 'fireball', r: 4, trail: 1 }); break;
+      case 'bubble': for (const k of [-0.45, 0, 0.45]) this.eshot(e, aim + k, 40, { kind: 'bubble', r: 4, slow: 1.2, life: 4 }); break;
+      case 'crystal': for (let i = 0; i < 4; i++) this.eshot(e, aim + (i * Math.PI) / 2, 76, { kind: 'crystal' }); break;
+      case 'bone': this.eshot(e, aim, 100, { kind: 'bone', boomer: 1, r: 4, life: 2.2 }); break;
+      case 'dark': this.eshot(e, aim, 46, { kind: 'dark', home: 2.2, r: 4, life: 4 }); break;
+      case 'star': { const off = Math.random() * TAU; for (let i = 0; i < 5; i++) this.eshot(e, off + (i / 5) * TAU, 60, { kind: 'star' }); break; }
+      case 'spore': case 'poison': this.lob(P.x, P.y, e.atk, dmg); break;
+      case 'icicle': case 'bolt': this.strike(P.x, P.y, e.atk, dmg); break;
+      case 'beam': this.beam(e, aim, 200, 0.75, dmg * 1.1, 5); e.busy = 1.1; break;
+      case 'flame': this.cone(e, aim, 56, 0.45, 0.5, 0.9, dmg * 0.45); e.busy = 1.5; break;
+      case 'vine': this.whip(e.x, e.y - 4, aim, 46, 0.65, 0.55, dmg * 1.1, 'vine'); e.busy = 0.9; break;
+      case 'pinch': this.whip(e.x, e.y - 4, aim, 32, 0.9, 0.4, dmg * 1.2, 'pinch'); e.busy = 0.7; break;
+      default: return;
+    }
+    const A = MOB_ATTACKS[e.atk];
+    if (A && A.type === 'shot') sfxE(e.atk);
+  }
+
+  /** 地面に残る攻撃と、予告のあとの攻撃 */
+  updateZones(dt) {
+    for (const tm of this.timers) { tm.t -= dt; if (tm.t <= 0 && !tm.done) { tm.done = true; if (!this.clearing && !this.ended) tm.fn(); } }
+    this.timers = this.timers.filter((t) => !t.done);
+    const P = this.player;
+    for (const z of this.zones) {
+      z.life -= dt; z.tick -= dt;
+      if (z.kind === 'flame' && z.owner) {
+        if (z.owner.dead) { z.life = 0; continue; }
+        z.x = z.owner.x; z.y = z.owner.y - 4;
+        if (z.follow) {
+          // ゆっくり向きを追ってくる
+          let da = Math.atan2(P.y - 4 - z.y, P.x - z.x) - z.a;
+          while (da > Math.PI) da -= TAU;
+          while (da < -Math.PI) da += TAU;
+          z.a += Math.max(-z.follow * dt, Math.min(z.follow * dt, da));
+        }
+      }
+      if (z.tick <= 0) {
+        z.tick = z.every;
+        const hit = z.kind === 'flame' ? this.inSector(P, z.x, z.y, z.a, z.R, z.half) : Math.hypot(P.x - z.x, (P.y - z.y) / 0.62) < z.R + 2;
+        if (hit) this.hurtPlayer(z.dmg);
+      }
+    }
+    this.zones = this.zones.filter((z) => z.life > 0);
   }
 
   // ===================== ボス =====================
@@ -539,7 +685,7 @@ export class Game {
     act.t += dt;
     let tx = dx, ty = dy, mul = 0;
     const P = this.player;
-    const shoot = (a, sp, k = 1) => this.ebullets.push({ x: e.x, y: e.y - 8, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 5, dmg: 9 * this.stage.dmgMul * k, boss: true });
+    const shoot = (a, sp, k = 1) => this.ebullets.push({ x: e.x, y: e.y - 8, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 5, dmg: 9 * this.stage.dmgMul * k, boss: true, kind: e.def.proj, r: 3, slow: e.def.proj === 'snow' || e.def.proj === 'bubble' ? 1 : 0 });
     const aim = Math.atan2(P.y - (e.y - 8), P.x - e.x);
     let done = false;
     switch (act.kind) {
@@ -618,6 +764,10 @@ export class Game {
         done = act.t > 1.5;
         break;
       }
+      case 'beam': mul = 0; e.tele = act.t < 0.9; done = act.t > 1.6; break;
+      case 'flame': mul = 0; e.tele = act.t < 0.6; done = act.t > 2.6; break;
+      case 'poison': mul = 0.4; done = act.t > 1.4; break;
+      case 'vine': mul = 0; e.tele = act.t < 0.8; done = act.t > 1.4; break;
       case 'summon': {
         e.tele = act.t < 0.5;
         if (act.t >= 0.5 && !act.fired) {
@@ -654,6 +804,21 @@ export class Game {
       if (this.map.solidAt(act.x, act.y)) { act.x = e.x; act.y = e.y; }
       this.fx.push({ kind: 'warn', x: act.x, y: act.y, R: 38, life: 1.2, max: 1.2 });
       sfx('super');
+    }
+    const aim = Math.atan2(P.y - (e.y - 6), P.x - e.x);
+    const enr = e.ai.enraged;
+    if (kind === 'beam') {
+      for (const k of enr ? [-0.5, -0.25, 0, 0.25, 0.5] : [-0.32, 0, 0.32]) this.beam(e, aim + k, 280, 0.9, e.dmg * 1.2, 8);
+      sfx('super');
+    }
+    if (kind === 'flame') this.cone(e, aim, 92, 0.5, 0.6, 1.9, e.dmg * 0.5, enr ? 1.1 : 0.75);
+    if (kind === 'poison') {
+      const n = enr ? 6 : 4;
+      for (let i = 0; i < n; i++) this.lob(i === 0 ? P.x : P.x + rand(-80, 80), i === 0 ? P.y : P.y + rand(-70, 70), 'poison', e.dmg, 22);
+    }
+    if (kind === 'vine') {
+      for (let k = 0; k < 4; k++) this.whip(e.x, e.y - 4, aim + (k * Math.PI) / 2 + (enr ? 0.4 : 0), 86, 0.36, 0.8, e.dmg * 1.2, 'vine');
+      if (enr) for (let k = 0; k < 4; k++) this.whip(e.x, e.y - 4, aim + (k * Math.PI) / 2 - 0.4, 86, 0.3, 1.25, e.dmg * 1.2, 'vine');
     }
     if (kind === 'rain') {
       const n = e.ai.enraged ? 7 : 5;
@@ -716,7 +881,9 @@ export class Game {
       for (const o of this.enemies) if (!o.dead) { o.dead = true; this.puff(o.x, o.y); }
       this.spawns = [];
       this.ebullets = [];
-      this.fx = this.fx.filter((f) => f.kind !== 'warn' && f.kind !== 'warnLine');
+      this.fx = this.fx.filter((f) => !['warn', 'warnLine', 'warnSector'].includes(f.kind));
+      this.timers = [];
+      this.zones = [];
       this.banner('STAGE CLEAR!');
       return;
     }
@@ -1100,9 +1267,33 @@ export class Game {
   updateEBullets(dt) {
     const P = this.player;
     for (const b of this.ebullets) {
-      b.x += b.vx * dt; b.y += b.vy * dt; b.life -= dt;
-      if ((b.x - P.x) ** 2 + (b.y - (P.y - 6)) ** 2 < 36) { this.hurtPlayer(b.dmg); b.life = 0; }
-      if (this.map.solidAt(b.x, b.y, true)) b.life = 0;
+      b.t = (b.t || 0) + dt;
+      if (b.wave) { // ゆらゆら（向きを左右に振る）
+        const r = Math.cos(b.t * 8) * dt * 3, c = Math.cos(r), s = Math.sin(r);
+        [b.vx, b.vy] = [b.vx * c - b.vy * s, b.vx * s + b.vy * c];
+      }
+      if (b.home > 0) { // 追いかける（曲がるのは遅い）
+        b.home -= dt;
+        let da = Math.atan2(P.y - 6 - b.y, P.x - b.x) - Math.atan2(b.vy, b.vx);
+        while (da > Math.PI) da -= TAU;
+        while (da < -Math.PI) da += TAU;
+        const r = Math.max(-1.5 * dt, Math.min(1.5 * dt, da)), c = Math.cos(r), s = Math.sin(r);
+        [b.vx, b.vy] = [b.vx * c - b.vy * s, b.vx * s + b.vy * c];
+      }
+      if (b.boomer) { // ブーメラン：行って戻ってくる
+        const dist = b.sp * b.t - 92 * b.t * b.t;
+        b.x = b.ox + b.ux * dist; b.y = b.oy + b.uy * dist;
+      } else { b.x += b.vx * dt; b.y += b.vy * dt; }
+      if (b.kind === 'bubble') { b.vx *= 1 - dt * 0.25; b.vy *= 1 - dt * 0.25; }
+      if (b.trail && Math.random() < 0.6) this.fx.push({ kind: 'spark', x: b.x, y: b.y, vx: 0, vy: 0, life: 0.25, color: Math.random() < 0.5 ? '#ff6a1a' : '#ffd23a' });
+      b.life -= dt;
+      const hr = (b.r || 3) + 3;
+      if ((b.x - P.x) ** 2 + (b.y - (P.y - 6)) ** 2 < hr * hr) {
+        this.hurtPlayer(b.dmg);
+        if (b.slow) P.slowT = Math.max(P.slowT || 0, b.slow);
+        b.life = 0;
+      }
+      if (!b.boomer && this.map.solidAt(b.x, b.y, true)) b.life = 0;
     }
     this.ebullets = this.ebullets.filter((b) => b.life > 0);
   }
@@ -1230,7 +1421,13 @@ export class Game {
       if (f.kind === 'warn' && f.hit && f.life <= 0 && !f.done) {
         f.done = true;
         this.fx.push({ kind: 'boom', x: f.x, y: f.y, R: f.R + 2, life: 0.3, max: 0.3, color: f.hit.color });
-        if (Math.hypot(this.player.x - f.x, this.player.y - f.y) < f.R + 3) this.hurtPlayer(f.hit.dmg);
+        if (f.hit.strike === 'bolt') this.fx.push({ kind: 'bolt', x1: f.x + rand(-6, 6), y1: f.y - 90, x2: f.x, y2: f.y, life: 0.22 });
+        if (f.hit.strike === 'icicle') for (let i = 0; i < 6; i++) this.fx.push({ kind: 'spark', x: f.x, y: f.y, vx: rand(-60, 60), vy: rand(-60, 20), life: 0.35, color: '#e0f8ff' });
+        if (Math.hypot(this.player.x - f.x, this.player.y - f.y) < f.R + 3) {
+          this.hurtPlayer(f.hit.dmg);
+          if (f.hit.slow) this.player.slowT = Math.max(this.player.slowT || 0, f.hit.slow);
+        }
+        if (f.hit.strike) sfxE(f.hit.strike);
         sfx('boom');
       }
     }
@@ -1362,8 +1559,43 @@ export class Game {
       g.drawImage(s, Math.round(p.x - s.width / 2), Math.round(p.y - s.height / 2 + Math.sin(this.t * 5) * 1.5));
     }
 
-    // 攻撃の予告（赤い円・赤い線）は足元に描く
+    // 地面に残る攻撃（毒の水たまり・胞子のもや）
+    for (const z of this.zones) {
+      if (z.kind === 'flame') continue;
+      const k = z.life / z.max, fade = Math.min(1, z.life / 0.4) * Math.min(1, (z.max - z.life) / 0.2);
+      if (z.kind === 'puddle') {
+        g.globalAlpha = 0.75 * fade;
+        g.fillStyle = '#5a2a8a'; g.beginPath(); g.ellipse(z.x, z.y, z.R, z.R * 0.62, 0, 0, TAU); g.fill();
+        g.fillStyle = '#a05ae8'; g.beginPath(); g.ellipse(z.x, z.y, z.R - 3, z.R * 0.62 - 2, 0, 0, TAU); g.fill();
+        g.fillStyle = '#e0b8ff';
+        for (let i = 0; i < 4; i++) { const ph = this.t * 3 + i * 1.7; if (Math.sin(ph) > 0.3) g.fillRect(Math.round(z.x + Math.cos(i * 2.1) * z.R * 0.5), Math.round(z.y + Math.sin(i * 2.1) * z.R * 0.3), 2, 2); }
+      } else {
+        g.globalAlpha = 0.5 * fade;
+        g.fillStyle = '#7ab84a';
+        for (let i = 0; i < 9; i++) {
+          const a = i * 0.7 + this.t * 0.8, r = z.R * (0.3 + ((i * 37) % 10) / 14);
+          g.beginPath(); g.arc(z.x + Math.cos(a) * r, z.y + Math.sin(a) * r * 0.62 - 3, 5 + (i % 3), 0, TAU); g.fill();
+        }
+        g.fillStyle = '#d8ffb0'; g.globalAlpha = 0.6 * fade;
+        for (let i = 0; i < 5; i++) g.fillRect(Math.round(z.x + Math.cos(i * 1.3 + this.t * 2) * z.R * 0.7), Math.round(z.y - 4 + Math.sin(i * 2.1 + this.t * 3) * z.R * 0.4), 1, 1);
+      }
+      void k;
+      g.globalAlpha = 1;
+    }
+    // 攻撃の予告（赤い円・赤い線・扇形）は足元に描く
     for (const f of this.fx) {
+      if (f.kind === 'warnSector') {
+        const k = 1 - f.life / f.max;
+        g.globalAlpha = 0.18 + k * 0.25;
+        g.fillStyle = '#ff2a4a';
+        g.beginPath(); g.moveTo(f.x, f.y); g.arc(f.x, f.y, f.R, f.a - f.half, f.a + f.half); g.closePath(); g.fill();
+        g.globalAlpha = Math.floor(this.t * 12) % 2 ? 0.9 : 0.5;
+        g.strokeStyle = '#ff4f6d'; g.lineWidth = 1; g.stroke();
+        // だんだん広がる線＝あとどれくらいで来るか
+        g.beginPath(); g.arc(f.x, f.y, f.R * k, f.a - f.half, f.a + f.half); g.stroke();
+        g.globalAlpha = 1;
+        continue;
+      }
       if (f.kind === 'warn') {
         const k = 1 - f.life / f.max;
         const blink = Math.floor(this.t * (k > 0.6 ? 16 : 8)) % 2;
@@ -1484,14 +1716,48 @@ export class Game {
       }
     }
     for (const b of this.ebullets) {
+      if (b.kind) { drawProj(g, b.kind, b.x, b.y, this.t + (b.t || 0), Math.atan2(b.vy, b.vx)); continue; }
       const x = Math.round(b.x), y = Math.round(b.y);
       g.fillStyle = '#7a1030'; g.fillRect(x - 3, y - 3, 6, 6);
       g.fillStyle = b.color || '#ff4f6d'; g.fillRect(x - 2, y - 2, 4, 4);
       g.fillStyle = '#ffd0d8'; g.fillRect(x - 1, y - 1, 2, 2);
     }
 
+    // 炎（扇形に吹き出し続ける）
+    for (const z of this.zones) {
+      if (z.kind !== 'flame') continue;
+      for (let i = 0; i < 22; i++) {
+        const r = ((this.t * 90 + i * 17) % z.R);
+        const a = z.a + Math.sin(i * 12.9 + this.t * 7) * z.half * (0.3 + r / z.R * 0.7);
+        const k = r / z.R;
+        g.fillStyle = k < 0.35 ? '#fff3a0' : k < 0.7 ? '#ffb03a' : '#ff5a1a';
+        const sz = 2 + Math.round(k * 4);
+        g.globalAlpha = 0.9 - k * 0.4;
+        g.fillRect(Math.round(z.x + Math.cos(a) * r - sz / 2), Math.round(z.y + Math.sin(a) * r - sz / 2), sz, sz);
+      }
+      g.globalAlpha = 1;
+    }
     // エフェクト
     for (const f of this.fx) {
+      if (f.kind === 'beam') {
+        const k = f.life / f.max;
+        g.save(); g.translate(f.x, f.y); g.rotate(Math.atan2(f.ay, f.ax));
+        g.globalAlpha = k; g.fillStyle = f.color; g.fillRect(0, -f.w / 2 - 1, f.len, f.w + 2);
+        g.fillStyle = '#ffffff'; g.fillRect(0, -Math.max(1, f.w / 4), f.len, Math.max(2, f.w / 2));
+        g.restore(); g.globalAlpha = 1;
+        continue;
+      }
+      if (f.kind === 'whip') {
+        const k = 1 - f.life / f.max;
+        const a = f.a - f.half + k * f.half * 2;
+        g.strokeStyle = f.color; g.lineWidth = 3;
+        g.beginPath(); g.arc(f.x, f.y, f.R * 0.85, f.a - f.half, a); g.stroke();
+        g.strokeStyle = '#ffffff'; g.lineWidth = 1;
+        g.beginPath(); g.moveTo(f.x, f.y); g.quadraticCurveTo(f.x + Math.cos(a - 0.3) * f.R * 0.5, f.y + Math.sin(a - 0.3) * f.R * 0.5, f.x + Math.cos(a) * f.R, f.y + Math.sin(a) * f.R); g.stroke();
+        g.strokeStyle = f.color; g.lineWidth = 2;
+        g.beginPath(); g.moveTo(f.x, f.y); g.quadraticCurveTo(f.x + Math.cos(a - 0.3) * f.R * 0.5, f.y + Math.sin(a - 0.3) * f.R * 0.5, f.x + Math.cos(a) * f.R, f.y + Math.sin(a) * f.R); g.stroke();
+        continue;
+      }
       if (f.kind === 'spark') { g.fillStyle = f.color; g.fillRect(Math.round(f.x), Math.round(f.y), 2, 2); }
       else if (f.kind === 'dust') {
         g.globalAlpha = Math.max(0, f.life / f.max);
@@ -1547,6 +1813,44 @@ export class Game {
     if (P.iframe > 0.35 && this.superT <= 0) { g.fillStyle = 'rgba(255,40,80,0.15)'; g.fillRect(0, 0, this.cv.width, this.cv.height); }
   }
 
+  /** キャラの絵に虹色のグラデーションを重ねた絵（毎フレーム色が流れる） */
+  rainbowSprite(s) {
+    if (!this._rb || this._rb.width !== s.width || this._rb.height !== s.height) {
+      this._rb = document.createElement('canvas');
+      this._rb.width = s.width; this._rb.height = s.height;
+    }
+    const c = this._rb, g = c.getContext('2d');
+    g.clearRect(0, 0, c.width, c.height);
+    g.globalCompositeOperation = 'source-over';
+    g.drawImage(s, 0, 0);
+    g.globalCompositeOperation = 'source-atop';
+    // 斜めの虹を2周分つくって、時間でずらす（流れて見える）
+    const L = c.width + c.height;
+    const shift = ((this.t * 40) % L);
+    const gr = g.createLinearGradient(-shift, -shift, -shift + 2 * L, -shift + 2 * L);
+    for (let i = 0; i <= 24; i++) gr.addColorStop(i / 24, `hsla(${(i * 50) % 360},100%,60%,0.55)`);
+    g.fillStyle = gr;
+    g.fillRect(0, 0, c.width, c.height);
+    g.globalCompositeOperation = 'source-over';
+    return c;
+  }
+  /** 外側の光：キャラの形を1色で塗ったもの（色は時間で変わる） */
+  rainbowGlow(s) {
+    if (!this._rg || this._rg.width !== s.width || this._rg.height !== s.height) {
+      this._rg = document.createElement('canvas');
+      this._rg.width = s.width; this._rg.height = s.height;
+    }
+    const c = this._rg, g = c.getContext('2d');
+    g.clearRect(0, 0, c.width, c.height);
+    g.globalCompositeOperation = 'source-over';
+    g.drawImage(s, 0, 0);
+    g.globalCompositeOperation = 'source-in';
+    g.fillStyle = `hsl(${(this.t * 360) % 360},100%,65%)`;
+    g.fillRect(0, 0, c.width, c.height);
+    g.globalCompositeOperation = 'source-over';
+    return c;
+  }
+
   drawPlayer(g) {
     const P = this.player;
     const frame = P.moving ? (Math.floor(P.anim) % 2 ? 'walk1' : 'walk2') : 'idle';
@@ -1568,11 +1872,28 @@ export class Game {
     }
     const blink = P.iframe > 0 && Math.floor(P.iframe * 20) % 2 && this.superT <= 0;
     if (!blink) {
+      // スーパーモード（無敵）中は虹色のグラデーションが流れるように光る
+      const img = this.superT > 0 ? this.rainbowSprite(s) : s;
       g.save();
       g.translate(x, y - s.height + 2 + bob);
-      if (P.face < 0) { g.scale(-1, 1); g.drawImage(s, -Math.round(s.width / 2), 0); }
-      else g.drawImage(s, -Math.round(s.width / 2), 0);
+      if (this.superT > 0) {
+        // 外側の光（色が変わる輪郭）
+        const glow = this.rainbowGlow(s);
+        if (P.face < 0) g.scale(-1, 1);
+        g.globalAlpha = 0.75;
+        for (const [ox, oy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) g.drawImage(glow, -Math.round(s.width / 2) + ox, oy);
+        g.globalAlpha = 1;
+        g.drawImage(img, -Math.round(s.width / 2), 0);
+      } else if (P.face < 0) { g.scale(-1, 1); g.drawImage(img, -Math.round(s.width / 2), 0); }
+      else g.drawImage(img, -Math.round(s.width / 2), 0);
       g.restore();
+    }
+    // 雪玉などで足が遅くなっている間は、足元に氷
+    if (P.slowT > 0) {
+      g.globalAlpha = 0.7; g.fillStyle = '#9fe6ff';
+      g.beginPath(); g.ellipse(x, y + 1, 8, 3, 0, 0, TAU); g.fill();
+      g.fillStyle = '#ffffff'; g.fillRect(x - 5, y, 2, 1); g.fillRect(x + 3, y + 1, 2, 1);
+      g.globalAlpha = 1;
     }
     // 足元のHPバー（参考画面のように）
     const bw = 18;

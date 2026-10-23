@@ -541,6 +541,7 @@ function homeHTML() {
       <span>${D.CHARACTERS[cid].name} 戦闘力 ${pw.toLocaleString()}</span>
     </div>
     ${cleared ? '<div class="muted" style="text-align:center;color:#7aff8a">クリア済み</div>' : ''}
+    <div class="help-tg"><span>初めて会う敵の説明<small>${d.settings.enemyHelp ? '出撃中に初めての敵が出たら、止めて説明します' : 'オフ：説明を出さずにそのまま進みます'}</small></span><button class="toggle ${d.settings.enemyHelp ? 'on' : ''}" data-act="toggle-enemy-help" aria-label="初めて会う敵の説明"></button></div>
   </div>
   ${locked
     ? `<button class="btn btn-start locked" disabled><img class="px" data-icon="lock" data-color="#8a7a60" alt=""> ロック中</button>`
@@ -1610,6 +1611,7 @@ async function onAction(act, el) {
     case 'undo-prev':
       if (await confirmBox('1つ前に戻す', '直前の読み込み・復元・削除の前の状態に戻します。', '戻す') && restorePrev()) toast('元に戻しました');
       break;
+    case 'toggle-enemy-help': d.settings.enemyHelp = !d.settings.enemyHelp; sfx('click'); commit(); toast(d.settings.enemyHelp ? '初めての敵の説明：オン' : '初めての敵の説明：オフ（図鑑からいつでも見られます）'); break;
     case 'toggle-notify':
       if (d.settings.notify) { await disablePush().catch(() => {}); d.settings.notify = false; commit(); toast('通知をオフにしました'); }
       else {
@@ -1841,7 +1843,7 @@ async function startBattle() {
     stage: info, char: D.CHARACTERS[cid], stats: D.charStats(d, cid),
     hud, onLevelUp: showLevelUp, onEnd: endBattle,
     // 初めて出会った敵の説明（モブは行動パターンごと、ボスは1体ごとに1回だけ）
-    needHelp: (kind, key) => !seen()[kind === 'boss' ? 'hb' : 'p'].includes(key),
+    needHelp: (kind, key) => data().settings.enemyHelp && !seen()[kind === 'boss' ? 'hb' : 'p'].includes(key),
     onSeen: (kind, id) => { const list = seen()[kind === 'boss' ? 'b' : 'm']; if (!list.includes(id)) { list.push(id); commit(); } },
     onHelp: (h, done) => {
       const s = seen();
@@ -1972,12 +1974,14 @@ function weakHTML(el) {
 function mobHelpHTML(id) {
   const M = EN.MOBS[id];
   const P = EN.PATTERNS[M.pattern];
-  const same = Object.entries(EN.MOBS).filter(([k, x]) => x.pattern === M.pattern && k !== id && seen().m.includes(k));
+  const A = M.atk ? EN.MOB_ATTACKS[M.atk] : null;
+  const same = Object.entries(EN.MOBS).filter(([k, x]) => x.pattern === M.pattern && (x.atk || null) === (M.atk || null) && k !== id && seen().m.includes(k));
   return `<div class="eh">
     <div class="eh-head"><img class="eh-img" src="${enemyURL(M)}" alt=""><div><div class="eh-name">${M.name}</div><span class="eh-type">${P.name}</span><div class="eh-flavor">${M.flavor || ''}</div></div></div>
     <img class="eh-diagram" src="${diagramURL(M.pattern, M)}" alt="攻撃のしかたの図">
     <div class="eh-sec"><b>攻撃パターン</b><p>${P.attack}</p></div>
     <div class="eh-sec"><b>よけ方・倒し方</b><p>${P.dodge}</p></div>
+    ${A ? `<div class="eh-atk"><img src="${diagramURL(M.atk, M)}" alt=""><div><b>特殊攻撃：${A.name}</b><p>${A.desc}</p><p class="dodge">よけ方：${A.dodge}</p></div></div>` : ''}
     ${weakHTML(M.weak)}
     ${same.length ? `<div class="eh-same"><b>同じタイプの敵</b><div>${same.map(([, x]) => `<span><img src="${enemyURL(x)}" alt="">${x.name}</span>`).join('')}</div></div>` : ''}
   </div>`;

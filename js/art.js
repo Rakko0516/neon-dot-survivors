@@ -1067,3 +1067,89 @@ export function patternURL(base, dot) {
   g.fillRect(3, 12, 1, 1); g.fillRect(12, 6, 1, 1);
   return c.toDataURL();
 }
+
+// ===================== 敵の弾（種類ごとの見た目） =====================
+/**
+ * 敵の弾を描く（戦闘とヘルプの図で共通）
+ * @param {CanvasRenderingContext2D} g
+ * @param {string} kind 弾の種類
+ * @param {number} t 時間（アニメーション用）
+ * @param {number} a 進む向き（ラジアン）
+ */
+export function drawProj(g, kind, x, y, t = 0, a = 0) {
+  x = Math.round(x); y = Math.round(y);
+  const R = (c, px, py, w, h) => { g.fillStyle = c; g.fillRect(x + px, y + py, w, h); };
+  switch (kind) {
+    case 'snow': case 'snowball':
+      R('#5a8ac8', -3, -2, 6, 4); R('#5a8ac8', -2, -3, 4, 6); R('#ffffff', -2, -2, 4, 4); R('#dff4ff', -1, 1, 3, 1);
+      if (kind === 'snow') { R('#ffffff', -4, 0, 1, 1); R('#ffffff', 3, -1, 1, 1); R('#ffffff', 0, -4, 1, 1); R('#ffffff', -1, 3, 1, 1); }
+      break;
+    case 'fire': case 'fireball': {
+      const f = Math.floor(t * 14) % 2;
+      R('#8a1a0a', -3, -3, 6, 6); R('#ff6a1a', -2, -2, 5, 5); R('#ffd23a', -1, -1 - f, 3, 3); R('#fff6c0', 0, 0 - f, 1, 1);
+      break;
+    }
+    case 'dark':
+      R('#1e1226', -3, -3, 7, 7); R('#7a3ac8', -2, -2, 5, 5); R('#c47aff', -1, -1, 2, 2);
+      if (Math.floor(t * 10) % 2) { R('#c47aff', -4, 0, 1, 1); R('#c47aff', 4, -1, 1, 1); }
+      break;
+    case 'spore':
+      R('#3a6a2a', -3, -2, 6, 5); R('#9ad86a', -2, -3, 4, 6); R('#d8ffb0', -1, -2, 2, 2); R('#9ad86a', -4, 0, 1, 1); R('#9ad86a', 3, 1, 1, 1);
+      break;
+    case 'bubble':
+      g.strokeStyle = '#8ad0ff'; g.lineWidth = 1; g.beginPath(); g.arc(x, y, 4.5, 0, Math.PI * 2); g.stroke();
+      g.fillStyle = 'rgba(160,220,255,0.35)'; g.beginPath(); g.arc(x, y, 4, 0, Math.PI * 2); g.fill();
+      R('#ffffff', -2, -3, 2, 1); R('#ffffff', -3, -2, 1, 1);
+      break;
+    case 'crystal': {
+      g.save(); g.translate(x, y); g.rotate(a);
+      g.fillStyle = '#1e4a6a'; g.fillRect(-4, -2, 8, 4);
+      g.fillStyle = '#7ae0f0'; g.fillRect(-3, -1, 6, 2);
+      g.fillStyle = '#e0ffff'; g.fillRect(1, -1, 2, 1);
+      g.restore();
+      break;
+    }
+    case 'bone': {
+      g.save(); g.translate(x, y); g.rotate(t * 14);
+      g.fillStyle = '#5a5048'; g.fillRect(-5, -2, 10, 4);
+      g.fillStyle = '#f4ecd8'; g.fillRect(-3, -1, 6, 2); g.fillRect(-5, -2, 2, 2); g.fillRect(-5, 0, 2, 2); g.fillRect(3, -2, 2, 2); g.fillRect(3, 0, 2, 2);
+      g.restore();
+      break;
+    }
+    case 'bolt': case 'energy': {
+      const c1 = kind === 'bolt' ? '#ffd23a' : '#36f2ff';
+      g.fillStyle = kind === 'bolt' ? 'rgba(255,230,80,0.4)' : 'rgba(54,242,255,0.35)'; g.fillRect(x - 4, y - 4, 8, 8);
+      R('#1e1226', -2, -3, 5, 6); R(c1, -1, -2, 3, 4); R('#ffffff', 0, -1, 1, 2);
+      break;
+    }
+    case 'star': {
+      const s = Math.floor(t * 8) % 2;
+      R('#a06a10', -1, -4, 3, 9); R('#a06a10', -4, -1, 9, 3);
+      R('#ffd23a', 0, -3, 1, 7); R('#ffd23a', -3, 0, 7, 1); R('#ffd23a', -1, -1, 3, 3); R(s ? '#ffffff' : '#fff3a0', 0, 0, 1, 1);
+      break;
+    }
+    case 'needle': {
+      g.save(); g.translate(x, y); g.rotate(a);
+      g.fillStyle = '#3a2a20'; g.fillRect(-4, -1, 8, 2);
+      g.fillStyle = '#f4ecd8'; g.fillRect(-3, 0, 6, 1); g.fillStyle = '#ffffff'; g.fillRect(3, 0, 2, 1);
+      g.restore();
+      break;
+    }
+    case 'leaf': {
+      g.save(); g.translate(x, y); g.rotate(a + Math.sin(t * 10) * 0.5);
+      g.fillStyle = '#2a5a1a'; g.fillRect(-4, -2, 8, 4);
+      g.fillStyle = '#6ad85a'; g.fillRect(-3, -1, 6, 2); g.fillStyle = '#b8f08a'; g.fillRect(-2, 0, 4, 1);
+      g.restore();
+      break;
+    }
+    case 'slime':
+      R('#2a6a2a', -3, -2, 7, 5); R('#6ad85a', -2, -2, 5, 4); R('#d8ffc0', -1, -1, 1, 1);
+      break;
+    case 'sand':
+      R('#8a5a2a', -3, -3, 6, 6); R('#e8b86a', -2, -2, 4, 4); R('#fff0c0', -1, -1, 1, 1);
+      if (Math.floor(t * 12) % 2) { R('#e8b86a', -4, 1, 1, 1); R('#e8b86a', 3, -2, 1, 1); }
+      break;
+    default:
+      R('#7a1030', -3, -3, 6, 6); R('#ff4f6d', -2, -2, 4, 4); R('#ffd0d8', -1, -1, 2, 2);
+  }
+}
