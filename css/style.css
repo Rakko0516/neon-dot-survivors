@@ -222,8 +222,8 @@ img.px, canvas { image-rendering: pixelated; image-rendering: crisp-edges; }
 .altar .ttl { font-size: 22px; margin-top: 4px; }
 .rates { font-size: 12px; display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-top: 8px; }
 .gacha-result { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
-.gacha-result .itile { animation: pop .35s steps(4) both; }
-@keyframes pop { from { transform: scale(0) rotate(-20deg); } }
+.gacha-result .gres { animation: rise .4s var(--ease-out, ease-out) backwards; }
+@keyframes pop { from { transform: scale(.6); opacity: 0; } }
 
 /* ===== 設定 ===== */
 .set-row { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-top: 2px dotted #c8b48a55; }
@@ -407,7 +407,8 @@ img.px, canvas { image-rendering: pixelated; image-rendering: crisp-edges; }
 }
 .gbanner.char { background: radial-gradient(ellipse at 50% 40%, #fff6c8 0, #ffb84a 35%, #c8406a 75%, #5a1a4a 100%); }
 .gbanner.equip { background: radial-gradient(ellipse at 50% 40%, #e8f8ff 0, #6ac8ff 35%, #3a5ac8 75%, #1a1a5a 100%); }
-.gbanner::before { content: ''; position: absolute; inset: 0; background: repeating-conic-gradient(from 0deg at 50% 45%, #ffffff22 0 8deg, transparent 8deg 20deg); animation: spin 12s linear infinite; }
+.gbanner::before { content: ''; position: absolute; left: 50%; top: 45%; width: 260%; aspect-ratio: 1; background: repeating-conic-gradient(from 0deg, #ffffff26 0 8deg, transparent 8deg 20deg); transform: translate(-50%, -50%); animation: spinC 14s linear infinite; pointer-events: none; }
+@keyframes spinC { to { transform: translate(-50%, -50%) rotate(360deg); } }
 @keyframes spin { to { transform: rotate(360deg); } }
 .gb-chars, .gb-items { position: absolute; top: 12px; left: 0; right: 0; display: flex; justify-content: center; gap: 2px; }
 .gb-chars img { width: 25%; max-width: 92px; animation: bob 1.4s steps(2) infinite; filter: drop-shadow(0 4px 0 #0004); }
@@ -421,7 +422,7 @@ img.px, canvas { image-rendering: pixelated; image-rendering: crisp-edges; }
 .btn small { display: block; font-size: 11px; font-weight: 500; }
 .btn > small { display: block; font-size: 11px; opacity: .9; }
 .gacha-result.chars { grid-template-columns: repeat(5, 1fr); }
-.ctile.res { animation: pop .35s steps(4) both; }
+.ctile.res { animation: none; }
 .ctile.res.s5 { box-shadow: 0 0 0 3px #ffe27a, 0 0 12px #ffd23a; }
 .ctile.res.s4 { box-shadow: 0 0 0 2px #c45cff; }
 .ctile .rs { position: absolute; top: 1px; left: 0; right: 0; text-align: center; font-size: 8px; color: #ffd23a; letter-spacing: -1px; }
@@ -519,7 +520,7 @@ img.px, canvas { image-rendering: pixelated; image-rendering: crisp-edges; }
 
 /* ランクアップ */
 .modal.rankup { text-align: center; position: relative; overflow: hidden; }
-.ru-burst { position: absolute; inset: -50%; background: repeating-conic-gradient(from 0deg, #ffd23a33 0 10deg, transparent 10deg 24deg); animation: spin 8s linear infinite; pointer-events: none; }
+.ru-burst { position: absolute; left: 50%; top: 40%; width: 240%; aspect-ratio: 1; background: repeating-conic-gradient(from 0deg, #ffd23a33 0 10deg, transparent 10deg 24deg); transform: translate(-50%, -50%); animation: spinC 8s linear infinite; pointer-events: none; }
 .ru-title { position: relative; font-size: 34px; color: #ffd23a; letter-spacing: 3px; animation: ruPop .6s var(--spring) both; }
 @keyframes ruPop { from { transform: scale(2.2); opacity: 0; } }
 .ru-lv { position: relative; display: flex; justify-content: center; align-items: center; gap: 12px; font-size: 22px; margin: 6px 0 10px; }
@@ -611,3 +612,45 @@ img.px, canvas { image-rendering: pixelated; image-rendering: crisp-edges; }
 }
 
 .overlay.still, .overlay.still .modal { animation: none; }
+
+/* ガチャ結果：名前を各タイルの下に読みやすく */
+.gacha-result { align-items: start; }
+.gres { display: flex; flex-direction: column; align-items: center; gap: 3px; min-width: 0; }
+.gres .itile, .gres .ctile { width: 100%; }
+.gname { width: 100%; font-size: 10px; line-height: 1.25; text-align: center; color: var(--ink); font-weight: 800; word-break: break-all; }
+.gname.r-R { color: #1d5fa8; } .gname.r-SR { color: #7a2bc0; } .gname.r-SSR { color: #b07a10; }
+
+/* ===== ガチャ演出（宝箱→卵） ===== */
+.gfx { position: fixed; inset: 0; z-index: 75; overflow: hidden; background: radial-gradient(ellipse at 50% 55%, #3a2a4a 0, #140a1c 70%); touch-action: manipulation; }
+.gfx-N { --gc: #fff4d8; } .gfx-R { --gc: #8ad0ff; } .gfx-SR { --gc: #d8a0ff; } .gfx-SSR { --gc: #ffe27a; }
+.gfx[data-r="N"] { --gc: #fff4d8; } .gfx[data-r="R"] { --gc: #8ad0ff; } .gfx[data-r="SR"] { --gc: #d8a0ff; } .gfx[data-r="SSR"] { --gc: #ffe27a; }
+/* 集中線：画面より大きい正方形を中心で回す（端が切れない） */
+.gfx-rays { position: absolute; left: 50%; top: 52%; width: 300vmax; height: 300vmax; transform: translate(-50%, -50%); opacity: .25; transition: opacity .4s, background .4s;
+  background: repeating-conic-gradient(from 0deg, var(--gc) 0 6deg, transparent 6deg 18deg); animation: spinC 18s linear infinite; pointer-events: none; }
+.gfx.opened .gfx-rays { opacity: .45; animation-duration: 9s; }
+.gfx-SSR.opened .gfx-rays { background: repeating-conic-gradient(from 0deg, #ff7a9a 0 6deg, transparent 6deg 12deg, #ffd23a 12deg 18deg, transparent 18deg 24deg, #4ac8ff 24deg 30deg, transparent 30deg 36deg); opacity: .5; }
+.gfx-floor { position: absolute; left: 50%; top: calc(52% + 70px); width: 240px; height: 40px; transform: translateX(-50%); border-radius: 50%; background: radial-gradient(ellipse, #0008, transparent 70%); opacity: 0; }
+.gfx-stage { position: absolute; left: 50%; top: 52%; width: 0; height: 0; }
+.gfx-chest { position: absolute; width: 208px; left: -104px; top: -60px; image-rendering: pixelated; }
+.gfx-egg { position: absolute; width: 140px; height: 170px; left: -70px; top: -100px; }
+.gfx-egg img { position: absolute; inset: 0; width: 100%; height: 100%; image-rendering: pixelated; transform-origin: 50% 90%; }
+.gfx-egg.r-SR img.whole { filter: drop-shadow(0 0 10px #d8a0ff); }
+.gfx-egg.r-SSR img.whole { filter: drop-shadow(0 0 14px #ffe27a) drop-shadow(0 0 4px #fff); }
+.gfx-card { position: absolute; width: 220px; left: -110px; top: -130px; display: flex; flex-direction: column; align-items: center; text-align: center; }
+.gfx-card-rays { position: absolute; left: 50%; top: 70px; width: 340px; height: 340px; transform: translate(-50%, -50%); border-radius: 50%; background: radial-gradient(circle, var(--gc) 0, transparent 62%); opacity: .55; pointer-events: none; }
+.gfx-card.r-N .gfx-card-rays { opacity: .25; }
+.gfx-item { position: relative; width: 140px; height: 140px; object-fit: contain; image-rendering: pixelated; filter: drop-shadow(0 6px 0 #0006); }
+.gfx-rar { position: relative; margin-top: 6px; font-size: 26px; letter-spacing: 2px; }
+.gfx-card.r-R .gfx-rar { color: #8ad0ff; } .gfx-card.r-SR .gfx-rar { color: #e0b0ff; }
+.gfx-card.r-SSR .gfx-rar { background: linear-gradient(90deg, #ff7a9a, #ffd23a, #6ae86a, #4ac8ff, #c45cff); -webkit-background-clip: text; background-clip: text; color: transparent; text-shadow: none; filter: drop-shadow(0 2px 0 #2a1810) drop-shadow(0 0 6px #fff8); }
+.gfx-name { position: relative; font-size: 18px; margin-top: 2px; }
+.gfx-sub { position: relative; margin-top: 4px; font-size: 12px; padding: 2px 10px; border-radius: 10px; background: var(--red); border: 2px solid var(--ink); color: #fff; }
+.gfx-p { position: absolute; left: -4px; top: -4px; width: 8px; height: 8px; pointer-events: none; }
+.gfx-flash { position: absolute; inset: 0; opacity: 0; pointer-events: none; }
+.gfx-skip { position: absolute; top: calc(16px + var(--safe-t)); right: 12px; z-index: 2; font-family: inherit; font-weight: 800; font-size: 13px; padding: 7px 12px; border: 3px solid var(--ink); border-radius: 16px; background: var(--cream); color: var(--ink); box-shadow: 0 3px 0 var(--ink); }
+.gfx-count { position: absolute; top: calc(22px + var(--safe-t)); left: 16px; font-size: 18px; }
+.gfx-hint { position: absolute; left: 0; right: 0; bottom: calc(40px + var(--safe-b)); text-align: center; font-size: 14px; opacity: .8; animation: blink 1.2s steps(2) infinite; }
+
+.gfx-beam { position: absolute; left: 0; bottom: 20px; width: 150px; height: 70vh; transform-origin: 50% 100%; pointer-events: none;
+  background: linear-gradient(to top, var(--gc), transparent 85%); filter: blur(6px); opacity: 0; }
+.gfx-SSR .gfx-beam { background: linear-gradient(to top, #fffbe8, #ffe27a 30%, transparent 85%); }

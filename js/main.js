@@ -16,6 +16,7 @@ import { modal, toast, confirmBox, esc, closeAllModals } from './ui.js';
 import { Game } from './game.js';
 import * as M from './meta.js';
 import * as PF from './profile.js';
+import { playGacha } from './gachafx.js';
 
 const $ = (s, r = document) => r.querySelector(s);
 const data = () => store.save.data;
@@ -625,53 +626,43 @@ function gachaHTML() {
 async function doGacha(n, by) {
   const type = gachaType;
   if (!M.payGacha(type, n, by)) { toast(by === 'ticket' ? 'チケットが足りません' : 'コインが足りません'); return; }
-  sfx('gacha');
+  const STAR_R = { 3: 'R', 4: 'SR', 5: 'SSR' };
   if (type === 'char') {
     const res = M.pullChars(n);
+    // 演出：宝箱 → 卵が1つずつ割れる
+    await playGacha(res.map((r) => {
+      const c = D.CHARACTERS[r.id];
+      return { rarity: STAR_R[r.star], name: `${'★'.repeat(r.star)} ${c.name}`, img: toURL(charSprite(c, 'idle'), 6, `c:${c.id}`), sub: r.isNew ? 'NEW!' : r.awaken ? `覚醒 +${r.awaken}` : `+${r.coins.toLocaleString()} コイン` };
+    }));
     const best = Math.max(...res.map((r) => r.star));
-    await gachaReveal(best);
-    sfx(best >= 5 ? 'rare' : 'unlock');
     await modal({
       title: best >= 5 ? '★5 獲得！' : '獲得キャラ',
       body: `<div class="gacha-result chars">${res.map((r, i) => {
         const c = D.CHARACTERS[r.id];
-        return `<div class="ctile res s${r.star}" style="--cbg:${c.bg};animation-delay:${i * 0.08}s">
+        return `<div class="gres" style="animation-delay:${i * 0.05}s"><div class="ctile res s${r.star}" style="--cbg:${c.bg}">
           <img data-portrait="${r.id}" alt="${c.name}">
           <span class="rs ol">${'★'.repeat(r.star)}</span>
           <span class="rn ol">${r.isNew ? '<b class="rnew">NEW</b>' : r.awaken ? `覚醒+${r.awaken}` : `+${r.coins}G`}</span>
-        </div>`;
+        </div><div class="gname r-${STAR_R[r.star]}">${c.name}</div></div>`;
       }).join('')}</div>`,
       buttons: [{ label: 'OK', value: true, cls: 'teal' }],
       onMount: hydrate,
     });
   } else {
     const got = M.pullEquips(n, addItem);
+    await playGacha(got.map((it) => {
+      const b = D.EQUIP[it.base];
+      return { rarity: it.rarity, name: b.name, img: toURL(icon(b.icon, b.color), 8, `i8:${b.icon}${b.color}`), sub: D.SLOT_TYPE_NAMES[b.type] };
+    }));
     const best = Math.max(...got.map((g) => D.RARITY_ORDER.indexOf(g.rarity)));
-    await gachaReveal(best >= 3 ? 5 : best >= 2 ? 4 : 3);
-    sfx(best >= 2 ? 'rare' : 'coin');
     await modal({
       title: best >= 3 ? '★ SSR 獲得！ ★' : best >= 2 ? 'SR 獲得！' : '獲得アイテム',
-      body: `<div class="gacha-result">${got.map((it) => itemTile(it, { act: 'none', noOwner: true })).join('')}</div>
-        <p class="muted" style="text-align:center">${got.map((g) => D.EQUIP[g.base].name).join('、')}</p>`,
+      body: `<div class="gacha-result">${got.map((it, i) => `<div class="gres" style="animation-delay:${i * 0.05}s">${itemTile(it, { act: 'none', noOwner: true })}<div class="gname r-${it.rarity}">${D.EQUIP[it.base].name}</div></div>`).join('')}</div>`,
       buttons: [{ label: 'OK', value: true, cls: 'teal' }],
-      onMount: (ov) => { hydrate(ov); ov.querySelectorAll('.gacha-result .itile').forEach((el, i) => { el.style.animationDelay = i * 0.07 + 's'; }); },
+      onMount: hydrate,
     });
   }
   render();
-}
-
-/** ガチャ演出（光の色で結果の良さがわかる） */
-function gachaReveal(best) {
-  return new Promise((resolve) => {
-    const ov = document.createElement('div');
-    ov.className = `greveal g${best}`;
-    ov.innerHTML = `<div class="gorb"></div><div class="gtext ol">${best >= 5 ? '虹色の光が…！' : best >= 4 ? '金色に輝いた！' : 'タップでスキップ'}</div>`;
-    document.getElementById('modal-root').appendChild(ov);
-    let done = false;
-    const end = () => { if (done) return; done = true; ov.remove(); resolve(); };
-    ov.addEventListener('click', end);
-    setTimeout(end, best >= 5 ? 2200 : 1400);
-  });
 }
 
 // ----- プロフィール -----
