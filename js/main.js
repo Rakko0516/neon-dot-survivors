@@ -90,8 +90,11 @@ function toApp(x, y) {
 // Android のホーム画面アプリでは縦向きに固定（iPhoneは仕組み上できないので案内で対応）
 try { screen.orientation?.lock?.('portrait').catch(() => {}); } catch {}
 fitScreen();
-addEventListener('resize', fitScreen);
-addEventListener('orientationchange', () => setTimeout(fitScreen, 300));
+// iPhoneは回転した直後に古い大きさを返すことがあるので、少し時間をおいてもう一度合わせる
+const refit = () => { fitScreen(); for (const t of [120, 350, 800]) setTimeout(fitScreen, t); };
+addEventListener('resize', refit);
+addEventListener('orientationchange', refit);
+screen.orientation?.addEventListener?.('change', refit);
 if (window.visualViewport) visualViewport.addEventListener('resize', fitScreen);
 const data = () => store.save.data;
 

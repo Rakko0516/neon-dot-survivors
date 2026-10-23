@@ -3,7 +3,7 @@
 const VERSION = '0.5.2';
 // 更新履歴を作り直してバージョン番号を戻したため、古いキャッシュと名前がかぶらないよう r4 を付ける
 // BUILD：更新履歴に載せない小さな修正を配信するときに上げる（バージョン番号はそのまま）
-const BUILD = 2;
+const BUILD = 3;
 const CACHE = 'nds-r4-' + VERSION + '-b' + BUILD;
 const RUNTIME = 'nds-runtime';
 // 音のファイル（バージョンをまたいで残す。中身の指紋 ?v= ごとに保存）

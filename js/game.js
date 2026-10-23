@@ -158,6 +158,7 @@ export class Game {
     const dpr = Math.min(3, window.devicePixelRatio || 1);
     const box = this.cv.parentElement;
     const cw = (box && box.clientWidth) || window.innerWidth, ch = (box && box.clientHeight) || window.innerHeight;
+    this._bw = box ? box.clientWidth : 0; this._bh = box ? box.clientHeight : 0; this._dpr = dpr;
     const W = Math.round(cw * dpr), H = Math.round(ch * dpr);
     this.cv.width = W;
     this.cv.height = H;
@@ -175,6 +176,9 @@ export class Game {
 
   _loop(now) {
     if (!this.running) return;
+    // 画面の向きを変えたあとなどで、表示の大きさと絵の大きさがずれていたら合わせ直す（縦長に引き伸ばされるのを防ぐ）
+    const box = this.cv.parentElement;
+    if (box && (box.clientWidth !== this._bw || box.clientHeight !== this._bh || Math.min(3, window.devicePixelRatio || 1) !== this._dpr)) this.resize();
     let dt = (now - this.last) / 1000;
     this.last = now;
     if (dt > 0.05) dt = 0.05;
