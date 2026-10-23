@@ -133,6 +133,7 @@ export const MISSIONS = {
   ],
   // 常時（一度だけ）：stat は累計の値
   perm: [
+    { id: 'p_google', name: 'Google連携をしよう', stat: 'google', goal: 1, reward: { ticket: 3, gold: 3000 } },
     ...[1, 2, 3, 5, 8, 10, 15, 20, 25, 30].map((n) => ({ id: `p_stage${n}`, name: `STAGE ${n} をクリア`, stat: 'maxStage', goal: n, reward: n >= 10 ? { ticket: 3 } : n >= 3 ? { ticket: 1, gold: 1000 } : { gold: 1000 } })),
     ...[300, 1000, 3000, 10000, 30000].map((n, i) => ({ id: `p_kill${n}`, name: `敵を累計 ${n.toLocaleString()} 体倒す`, stat: 'kills', goal: n, reward: i >= 2 ? { ticket: 2 } : { gold: 2000 } })),
     ...[4, 6, 8, 10, 12].map((n) => ({ id: `p_chars${n}`, name: `キャラを ${n} 人そろえる`, stat: 'chars', goal: n, reward: { ticket: 2 } })),
@@ -164,6 +165,7 @@ function statValue(stat) {
   if (stat === 'chars') return Object.values(d.chars).filter((c) => c.unlocked).length;
   if (stat === 'gachaTotal') return d.stats.gachaTotal || 0;
   if (stat === 'loginTotal') return d.login.total;
+  if (stat === 'google') return d.stats.googleLinked ? 1 : 0;
   return 0;
 }
 

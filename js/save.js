@@ -39,7 +39,7 @@ export function defaultData() {
     ],
     nextUid: 5,
     settings: { bgmVol: 60, seVol: 80, notify: false },
-    stats: { runs: 0, kills: 0, clears: 0, gachaTotal: 0, bossKills: 0 },
+    stats: { runs: 0, kills: 0, clears: 0, gachaTotal: 0, bossKills: 0, googleLinked: 0 },
     login: { lastDay: '', count: 0, total: 0 },
     missions: { day: '', week: '', d: {}, w: {}, dc: [], wc: [], perm: [] },
     presents: [],

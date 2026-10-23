@@ -65,7 +65,10 @@ export async function initPWA(handler) {
 
 async function notifyWaiting(worker) {
   pwa.waiting = worker;
-  const entries = (await fetchChangelog()).filter((e) => e.version && compareVersion(e.version, APP_VERSION) > 0);
+  const all = await fetchChangelog();
+  let entries = all.filter((e) => e.version && compareVersion(e.version, APP_VERSION) > 0);
+  // 番号が戻った更新（履歴の整理など）でも、最新のお知らせは見せる
+  if (!entries.length && all[0] && all[0].version !== APP_VERSION) entries = [all[0]];
   // 裏に回っている時は端末通知も出す
   if (document.visibilityState === 'hidden' && pwa.reg && 'Notification' in window && Notification.permission === 'granted') {
     pwa.reg.showNotification('アップデートがあります', {

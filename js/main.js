@@ -125,8 +125,17 @@ async function boot() {
   render();
   bindGlobal();
 
-  onChange(() => { updateWallet(); if (!inBattle) render(); });
-  onCloud(() => { updateCloudDot(); if (tab === 'settings' && !inBattle) render(); });
+  onChange(() => {
+    // クラウドのセーブを読み込んで連携済みの印が消えても、ログイン中なら付け直す
+    if (cloud.user && !data().stats.googleLinked) { data().stats.googleLinked = 1; commit(); return; }
+    updateWallet(); if (!inBattle) render();
+  });
+  onCloud(() => {
+    updateCloudDot();
+    // 常時ミッション「Google連携をしよう」：一度でもログインしたら達成
+    if (cloud.user && !data().stats.googleLinked) { data().stats.googleLinked = 1; commit(); }
+    if (tab === 'settings' && !inBattle) render();
+  });
   setSyncHandlers({ onConflict: askConflict, onApplyRemote: (save) => { replaceSave(save, true); toast('クラウドのセーブを読み込みました'); } });
   setInterval(() => { if (document.visibilityState === 'visible') addPlayTime(15); }, 15000);
 

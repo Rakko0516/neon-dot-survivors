@@ -21,6 +21,7 @@ const bgmBuf = new Map();     // name -> { buffer, loop }（最近使った数�
 const bgmBusy = new Map();    // name -> Promise
 const bgmTries = {};
 let bgmName = null, bgmCur = null, wantBgm = null, wantFb = null;
+const liveBgm = new Set(); // 実際に鳴っているBGM（重なり確認用）
 
 async function loadSources() {
   if (sources) return sources;
@@ -121,7 +122,8 @@ export function initAudio() {
 /** 流れているべきBGMが鳴っていなければ流す */
 function ensureBgm() {
   if (!wantBgm || !ctx || ctx.state !== 'running') return;
-  if (bgmCur && bgmCur.name === wantBgm && !bgmCur.ended) return;
+  // クリア・ゲームオーバーのような1回だけの曲は、終わった後にタップしても流し直さない
+  if (bgmCur && bgmCur.name === wantBgm && (!bgmCur.ended || !bgmCur.loop)) return;
   playBgm(wantBgm, wantFb);
 }
 
@@ -194,7 +196,7 @@ function mimeOf(b) {
 
 /** 動作確認用 */
 export function audioState() {
-  return { ctx: ctx?.state, bgm: bgmName, playing: !!(bgmCur && !bgmCur.ended), seLoaded: [...seBuf.keys()], bgmLoaded: [...bgmBuf.keys()], vol: { ...vol } };
+  return { ctx: ctx?.state, bgm: bgmName, playing: !!(bgmCur && !bgmCur.ended), seLoaded: [...seBuf.keys()], bgmLoaded: [...bgmBuf.keys()], live: [...liveBgm].map((c) => c.name), vol: { ...vol } };
 }
 
 async function getBgm(name) {
@@ -227,6 +229,24 @@ function fadeTo(gainNode, to, sec) {
   g.linearRampToValueAtTime(to, t + sec);
 }
 
+/** 鳴っているBGMをフェードアウトして止め、少し後にスピーカーからも切り離す（iPhoneで止まりきらず重なるのを防ぐ） */
+function fadeOut(c, sec) {
+  if (c.fading) return;
+  c.fading = true;
+  try { fadeTo(c.gain, 0, sec); } catch {}
+  try { c.src.stop(ctx.currentTime + sec + 0.05); } catch {}
+  setTimeout(() => {
+    try { c.src.disconnect(); } catch {}
+    try { c.gain.disconnect(); } catch {}
+    c.ended = true;
+    liveBgm.delete(c);
+  }, (sec + 0.2) * 1000);
+}
+/** 鳴っているBGMを全部止める（except だけ残す） */
+function silenceAll(sec, except) {
+  for (const c of [...liveBgm]) if (c !== except) fadeOut(c, sec);
+}
+
 /**
  * 場面のBGMに切り替える
  * @param {string} name sources.json の bgm のキー（例 home, battle_grass, boss）
@@ -240,14 +260,12 @@ export async function playBgm(name, fallback) {
   let playName = name;
   if (!item && fallback) { item = await getBgm(fallback); playName = fallback; }
   if (wantBgm !== name) return; // 読み込み中に別の場面へ移った
-  // まだ音が使えない（一度も画面を触っていない）ときは、使えるようになってから流す
-  if (ctx.state !== 'running') return;
   if (bgmCur && bgmCur.name === name && !bgmCur.ended) return;
-  const prev = bgmCur;
-  if (prev) {
-    fadeTo(prev.gain, 0, 0.4);
-    try { prev.src.stop(ctx.currentTime + 0.45); } catch {}
-  }
+  // 前の場面の曲は、新しい曲を流せるかどうかに関係なく必ず止める
+  silenceAll(0.4);
+  bgmCur = null;
+  // まだ音が使えない（一度も画面を触っていない・一時的に止まっている）ときは、使えるようになってから流す
+  if (ctx.state !== 'running') return;
   bgmName = name;
   bgmCur = null;
   if (!item) return;
@@ -257,8 +275,9 @@ export async function playBgm(name, fallback) {
   const g = ctx.createGain();
   g.gain.value = 0;
   src.connect(g).connect(bgmGain);
-  const cur = { name, playName, src, gain: g, ended: false };
-  src.onended = () => { cur.ended = true; };
+  const cur = { name, playName, src, gain: g, ended: false, loop: item.loop };
+  liveBgm.add(cur);
+  src.onended = () => { cur.ended = true; liveBgm.delete(cur); };
   src.start();
   fadeTo(g, 1, 0.5);
   bgmCur = cur;
@@ -266,11 +285,7 @@ export async function playBgm(name, fallback) {
 
 export function stopBgm() {
   wantBgm = null; wantFb = null;
-  if (bgmCur && ctx) {
-    const cur = bgmCur;
-    fadeTo(cur.gain, 0, 0.3);
-    try { cur.src.stop(ctx.currentTime + 0.35); } catch {}
-  }
+  if (ctx) silenceAll(0.3);
   bgmCur = null;
   bgmName = null;
 }

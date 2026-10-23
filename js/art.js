@@ -586,6 +586,62 @@ const ICON_ROWS = {
   ticket: ['AAAAAAAAAAA.', 'AwwAAAAAAAA.', '.AAAABAAAA..', 'AAAABBBAAAA.', '.AAAABAAAA..', 'AAAAAAAAAAA.'],
   check: ['.........AA.', '........AA..', '.......AA...', 'AA....AA....', '.AA..AA.....', '..AAAA......', '...AA.......'],
   lock: ['...AAA....', '..A...A...', '..A...A...', '.BBBBBBB..', '.BBBwBBB..', '.BBBwBBB..', '.BBBBBBB..'],
+  // ホームタブ：お城（色は ICON_PAL で固定）
+  castleHome: [
+    '...........x...........',
+    '...........xFF.........',
+    '...........xFFF........',
+    '..x........x........x..',
+    '..xFF.....RRR.......xFF',
+    '..x......RRRRR......x..',
+    '.RRR....RRRRRRR....RRR.',
+    '.RRR...RRRRRRRRR...RRR.',
+    'RRRRR.RRRRRRRRRRR.RRRRR',
+    'GGGGG..GGGGGGGGG..GGGGG',
+    'SSSSS..SSSSSSSSS..SSSSS',
+    'SSpSS..SSSSeSSSS..SSpSS',
+    'SSpSSS.SSSeeeSSS.SSSpSS',
+    'SSSSSSSSSSSeSSSSSSSSSSS',
+    'SSSSSSSSSSSSSSSSSSSSSSS',
+    'SDSSSSSSSSpppSSSSSSSSDS',
+    'SSSSDSSSSpppppSSSSDSSSS',
+    'SSSSSSSSSpppppSSSSSSSSS',
+    'SSDSSSSSSpppGpSSSSSSDSS',
+    'SSSSSSSSSpppppSSSSSSSSS',
+    'DDDDDDDDDpppppDDDDDDDDD',
+  ],
+  // ガチャタブ：ガチャガチャ（カプセルトイの機械）
+  gachapon: [
+    '.......KKKKK.......',
+    '.....KKKKKKKKK.....',
+    '...ggggggggggggg...',
+    '..ggwwggggggggggg..',
+    '..gwgggggBBgggggg..',
+    '.ggwggggBBBBgggggg.',
+    '.gggggggccccgggggg.',
+    '.gggRRgggccggYYggg.',
+    '.ggRRRRgggggYYYYgg.',
+    '.ggccccPPgggccccgg.',
+    '..gYccPPPPggRccBB..',
+    '..YYYYccccgRRRRBB..',
+    '...cccgccggccccc...',
+    '..DDDDDDDDDDDDDDD..',
+    '..KwKKKKKKKKKKKKK..',
+    '..KKKKKKKKKGGGKKK..',
+    '..KKKKKKKKGGwGGKK..',
+    '..KKKKKKKKKGGGKKK..',
+    '..KKKKKKKKKKKKKKK..',
+    '..KKpppppKKKKKKKK..',
+    '..KKpYYppKKKKKKKK..',
+    '..KKpccppKKKKKKKK..',
+    '..DDDDDDDDDDDDDDD..',
+    '..DD...........DD..',
+  ],
+};
+// 色を固定する多色アイコン（data-color は使わない）
+const ICON_PAL = {
+  castleHome: { S: '#e4dccd', D: '#a89a88', R: '#e8405e', G: '#ffd23a', F: '#ff8ab0', x: '#6a4a3a', p: '#3a2a40', e: '#7ee0ff', w: '#ffffff' },
+  gachapon: { K: '#ec4a62', D: '#9a2a40', g: '#cdeeff', w: '#ffffff', c: '#f6f2ea', R: '#ff4a5a', Y: '#ffc82a', B: '#3a9cff', P: '#b86aff', G: '#ffcf3a', p: '#3a2030' },
 };
 
 const iconCache = new Map();
@@ -594,7 +650,8 @@ export function icon(name, color, color2) {
   const key = name + color + color2;
   if (iconCache.has(key)) return iconCache.get(key);
   const rows = ICON_ROWS[name] || ICON_ROWS.star;
-  const cv = sprite(rows, { A: color, B: color2 || dark(color, 0.45), C: light(color, 0.4), w: '#ffffff', p: '#1e1226' }, { volume: true });
+  const pal = ICON_PAL[name] || { A: color, B: color2 || dark(color, 0.45), C: light(color, 0.4), w: '#ffffff', p: '#1e1226' };
+  const cv = sprite(rows, pal, { volume: true });
   iconCache.set(key, cv);
   return cv;
 }
