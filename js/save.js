@@ -43,7 +43,8 @@ export function defaultData() {
     // offlineAuto：遊べるステージの曲を自動で端末に保存する / offlineSkip：自分で削除したもの（自動保存しない）
     settings: { bgmVol: 60, seVol: 80, notify: false, offlineAuto: true, offlineSkip: [], enemyHelp: true },
     stats: { runs: 0, kills: 0, clears: 0, gachaTotal: 0, bossKills: 0, googleLinked: 0 },
-    login: { lastDay: '', count: 0, total: 0 },
+    // streak：いま何日連続でログインしているか / best：いちばん長く続いた連続日数
+    login: { lastDay: '', count: 0, total: 0, streak: 0, best: 0 },
     missions: { day: '', week: '', d: {}, w: {}, dc: [], wc: [], perm: [] },
     presents: [],
     receivedGifts: [],
@@ -208,6 +209,14 @@ function sanitize(d) {
   }));
   d.receivedGifts = (Array.isArray(d.receivedGifts) ? d.receivedGifts : []).map((x) => safeId(x, 60)).slice(-500);
   d.seenNews = safeText(d.seenNews, 80);
+  d.login = {
+    lastDay: /^\d{4}-\d{2}-\d{2}$/.test(d.login?.lastDay || '') ? d.login.lastDay : '',
+    count: num(d.login?.count, 0, 1e6), total: num(d.login?.total, 0, 1e6),
+    streak: num(d.login?.streak, 0, 1e6), best: num(d.login?.best, 0, 1e6),
+  };
+  // 連続記録が無い古いデータ：ログインしたことがあれば「1日目」から数える
+  if (d.login.total > 0 && !d.login.streak) d.login.streak = 1;
+  if (d.login.best < d.login.streak) d.login.best = d.login.streak;
   const ids = (a) => (Array.isArray(a) ? a : []).map((x) => safeId(x, 30)).filter(Boolean).slice(0, 300);
   d.seen = { m: ids(d.seen?.m), b: ids(d.seen?.b), p: ids(d.seen?.p), hb: ids(d.seen?.hb) };
   // プリセット：知らないキャラは捨て、装備は部位ごとの番号だけ残す（なくなった装備は呼び出し時に外れる）

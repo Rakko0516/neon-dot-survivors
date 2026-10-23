@@ -107,6 +107,10 @@ export function checkLoginBonus() {
   const d = data();
   const today = dayKey();
   if (d.login.lastDay === today) return null;
+  // 連続ログイン：前回が「昨日」なら続き、それ以外は1日目から
+  const y = new Date(); y.setDate(y.getDate() - 1);
+  d.login.streak = d.login.lastDay === dayKey(y) ? (d.login.streak || 0) + 1 : 1;
+  d.login.best = Math.max(d.login.best || 0, d.login.streak);
   d.login.lastDay = today;
   const idx = d.login.count % LOGIN_CYCLE.length;
   d.login.count++;
@@ -143,7 +147,9 @@ export const MISSIONS = {
     ...[300, 1000, 3000, 10000, 30000].map((n, i) => ({ id: `p_kill${n}`, name: `敵を累計 ${n.toLocaleString()} 体倒す`, stat: 'kills', goal: n, reward: i >= 2 ? { eticket: 3 } : { gold: 2000 } })),
     ...[4, 6, 8, 10, 12].map((n) => ({ id: `p_chars${n}`, name: `キャラを ${n} 人そろえる`, stat: 'chars', goal: n, reward: { cticket: 2 } })),
     ...[10, 50, 100, 300].map((n) => ({ id: `p_gacha${n}`, name: `ガチャを累計 ${n} 回引く`, stat: 'gachaTotal', goal: n, reward: n >= 100 ? { cticket: 3, eticket: 3 } : { cticket: 1, eticket: 1 } })),
-    ...[3, 10, 30].map((n) => ({ id: `p_login${n}`, name: `累計 ${n} 日ログイン`, stat: 'loginTotal', goal: n, reward: n >= 30 ? { cticket: 3, eticket: 3 } : { cticket: 1, eticket: 1 } })),
+    // 連続ログイン・累計ログイン（豪華報酬）
+    { id: 'p_streak7', name: '7日間連続ログインを達成しよう', stat: 'loginBest', goal: 7, reward: { cticket: 100, eticket: 100, gold: 77777 } },
+    ...[7, 30, 50, 100, 200, 300].map((n) => ({ id: `p_tlogin${n}`, name: `累計${n}日間ログインを達成しよう`, stat: 'loginTotal', goal: n, reward: { cticket: 100, eticket: 100, gold: 100000 } })),
     // キャラごと：〇〇を Lv〇 まで強化しよう（仲間になっているキャラだけ表示）
     ...Object.values(CHARACTERS).flatMap((c) => [10, 20, 40, 60, 80].map((n, i) => ({
       id: `p_c_${c.id}_${n}`, name: `${c.name}を Lv${n} まで強化しよう`, stat: 'charLv:' + c.id, goal: n,
@@ -180,6 +186,7 @@ function statValue(stat) {
   if (stat === 'chars') return Object.values(d.chars).filter((c) => c.unlocked).length;
   if (stat === 'gachaTotal') return d.stats.gachaTotal || 0;
   if (stat === 'loginTotal') return d.login.total;
+  if (stat === 'loginBest') return d.login.best || 0;
   if (stat === 'google') return d.stats.googleLinked ? 1 : 0;
   if (stat.startsWith('charLv:')) return d.chars[stat.slice(7)]?.level || 0;
   if (stat.startsWith('equipLv:')) {
