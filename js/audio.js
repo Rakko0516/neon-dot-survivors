@@ -34,8 +34,15 @@ async function fetchDecoded(path) {
 }
 
 /** 起動時に呼ぶ：音の読み込みだけ先に済ませておく（スマホは操作するまで鳴らせないので、鳴らすのは initAudio 後） */
+// iPhone（iOS 17〜）：音の種類を「環境音」にする。
+// 他のアプリで再生中の音楽を止めずに一緒に鳴る（ゲームの音はマナーモードのときは鳴らなくなる）
+function setAmbient() {
+  try { if (navigator.audioSession && navigator.audioSession.type !== 'ambient') navigator.audioSession.type = 'ambient'; } catch {}
+}
+
 export function preloadAudio() {
   if (ctx) return;
+  setAmbient();
   try {
     ctx = new (window.AudioContext || window.webkitAudioContext)();
     master = ctx.createGain(); master.connect(ctx.destination);
@@ -51,6 +58,7 @@ export function initAudio() {
   if (!ctx) preloadAudio();
   if (!ctx) return;
   unlocked = true;
+  setAmbient();
   if (ctx.state !== 'running') ctx.resume().then(() => { if (wantBgm && (!bgmCur || bgmCur.name !== wantBgm)) playBgm(wantBgm); }).catch(() => {});
   // まだ鳴っていないBGMがあれば、音が使えるようになった時点で流す
   if (wantBgm && (!bgmCur || bgmCur.name !== wantBgm)) playBgm(wantBgm);
@@ -60,7 +68,7 @@ export function initAudio() {
 document.addEventListener('visibilitychange', () => {
   if (!ctx) return;
   if (document.visibilityState === 'hidden') ctx.suspend().catch(() => {});
-  else if (unlocked) ctx.resume().catch(() => {});
+  else if (unlocked) { setAmbient(); ctx.resume().catch(() => {}); }
 });
 let unlocked = false;
 

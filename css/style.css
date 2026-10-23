@@ -727,7 +727,7 @@ body { font-size: 1rem; }
   .equip-stage, .char-show { max-width: 560px; margin-left: auto; margin-right: auto; }
 }
 /* スマホ横向き（高さがとても低い）：HUDとレベルアップ画面を詰める */
-@media (orientation: landscape) and (max-height: 500px) {
+@media (orientation: landscape) and (max-height: 500px) and (pointer: fine) {
   .hud-left { top: calc(8px + var(--safe-t)); transform: scale(.85); transform-origin: left top; }
   .hud-right { transform: scale(.85); transform-origin: right top; }
   #levelup { justify-content: flex-start; }
@@ -774,15 +774,11 @@ body { font-size: 1rem; }
   .ticker { height: 22px; margin-bottom: 4px; }
 }
 
-/* ===== スマホを横にしたとき：縦向きにしてもらう案内 ===== */
-#rotate { display: none; }
-html.sideways #rotate {
-  display: flex; position: fixed; inset: 0; z-index: 200; flex-direction: column; align-items: center; justify-content: center; gap: 18px;
-  background: var(--pattern) repeat, #2a8a80; background-size: 32px 32px;
-}
-.rotate-phone { width: 46px; height: 80px; border: 5px solid #fff; border-radius: 10px; box-shadow: 0 4px 0 var(--ink); animation: rotPhone 1.8s ease-in-out infinite; }
-@keyframes rotPhone { 0%, 20% { transform: rotate(-90deg); } 60%, 100% { transform: rotate(0); } }
-.rotate-text { font-size: 18px; }
+/* ===== スマホを横にしたとき：画面ごと回して縦のまま表示（main.js の applyPortraitLock） ===== */
+#safe-probe { position: fixed; left: 0; top: 0; width: 0; height: 0; visibility: hidden; pointer-events: none;
+  padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px); }
+html.sideways, html.sideways body { background: #2a1810; }
+html.sideways #app { padding-left: 0; padding-right: 0; }
 
 /* =====================================================================
    横画面レイアウト（PC・iPad横向き）：左にメニュー、右に広い画面

@@ -137,7 +137,9 @@ export class Game {
 
   resize() {
     const dpr = Math.min(3, window.devicePixelRatio || 1);
-    const W = Math.round(window.innerWidth * dpr), H = Math.round(window.innerHeight * dpr);
+    const box = this.cv.parentElement;
+    const cw = (box && box.clientWidth) || window.innerWidth, ch = (box && box.clientHeight) || window.innerHeight;
+    const W = Math.round(cw * dpr), H = Math.round(ch * dpr);
     this.cv.width = W;
     this.cv.height = H;
     // 通路（9マス+α）が横幅に収まる最大の整数倍

@@ -41,10 +41,49 @@ function fitScreen() {
   root.classList.toggle('wide', wide);
   root.style.setProperty('--z', z.toFixed(3));
   root.style.setProperty('--app-h', h + 'px');
-  // スマホを横にしたら案内を出し、戦闘中ならポーズする
-  const sideways = isPhone() && w > h;
-  root.classList.toggle('sideways', sideways);
-  try { if (sideways && inBattle && game && !game.paused) openPause(); } catch { /* 起動直後はまだ戦闘の準備前 */ }
+  applyPortraitLock(w, h);
+}
+
+/**
+ * スマホを横向きにしても、画面は縦向きのまま表示する（iPhoneは向きを固定できないので、画面を逆に回して打ち消す）
+ * rot：0 = そのまま / -90 = 左に倒した（端末の上が左）/ 90 = 右に倒した
+ */
+const appRot = { rot: 0, w: 0, h: 0 };
+function applyPortraitLock(w, h) {
+  const app = document.getElementById('app');
+  const root = document.documentElement;
+  let rot = 0;
+  if (isPhone() && w > h) {
+    const angle = (screen.orientation && typeof screen.orientation.angle === 'number') ? screen.orientation.angle : (window.orientation || 90);
+    rot = (angle === 270 || angle === -90) ? 90 : -90;
+  }
+  appRot.rot = rot; appRot.w = w; appRot.h = h;
+  root.classList.toggle('sideways', rot !== 0);
+  if (!rot) {
+    app.style.cssText = '';
+    root.style.removeProperty('--safe-t'); root.style.removeProperty('--safe-b');
+    return;
+  }
+  // 中身は「縦長」：幅＝画面の高さ、高さ＝画面の幅
+  app.style.cssText = `position:fixed;left:0;top:0;width:${h}px;height:${w}px;transform-origin:0 0;`
+    + (rot === -90 ? `transform:translateY(${h}px) rotate(-90deg);` : `transform:translateX(${w}px) rotate(90deg);`);
+  root.style.setProperty('--app-h', w + 'px');
+  // ノッチ側が中身の「上」になるので、安全領域の値を入れ替える
+  const probe = document.getElementById('safe-probe');
+  if (probe) {
+    const cs = getComputedStyle(probe);
+    const L = cs.paddingLeft, R = cs.paddingRight;
+    root.style.setProperty('--safe-t', rot === -90 ? L : R);
+    root.style.setProperty('--safe-b', rot === -90 ? R : L);
+  }
+  const z = Math.max(1, Math.min(1.6, Math.min(h / 440, w / 860)));
+  root.style.setProperty('--z', z.toFixed(3));
+}
+/** 画面上の座標（指の位置）→ 中身の座標 */
+function toApp(x, y) {
+  if (appRot.rot === -90) return [appRot.h - y, x];
+  if (appRot.rot === 90) return [y, appRot.w - x];
+  return [x, y];
 }
 // Android のホーム画面アプリでは縦向きに固定（iPhoneは仕組み上できないので案内で対応）
 try { screen.orientation?.lock?.('portrait').catch(() => {}); } catch {}
@@ -1054,7 +1093,7 @@ function bindGlobal() {
   bt.addEventListener('pointerdown', (e) => {
     if (!game || e.target.closest('button') || e.target.closest('#levelup')) return;
     initAudio();
-    pid = e.pointerId; ox = e.clientX; oy = e.clientY;
+    pid = e.pointerId; [ox, oy] = toApp(e.clientX, e.clientY);
     joy.style.left = ox + 'px'; joy.style.top = oy + 'px';
     joy.classList.remove('hidden');
     knob.style.transform = '';
@@ -1063,7 +1102,8 @@ function bindGlobal() {
   });
   bt.addEventListener('pointermove', (e) => {
     if (e.pointerId !== pid || !game) return;
-    let dx = e.clientX - ox, dy = e.clientY - oy;
+    const [px, py] = toApp(e.clientX, e.clientY);
+    let dx = px - ox, dy = py - oy;
     const l = Math.hypot(dx, dy), R = 40;
     if (l > R) { dx = (dx / l) * R; dy = (dy / l) * R; }
     knob.style.transform = `translate(${dx}px,${dy}px)`;
