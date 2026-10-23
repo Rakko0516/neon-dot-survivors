@@ -880,7 +880,16 @@ export class Game {
       // ステージクリアが決まったら：残りの敵と弾を消し、落ちている経験値とコインを集めきってから終わる
       this.clearing = true;
       this.clearT = 0;
-      for (const o of this.enemies) if (!o.dead) { o.dead = true; this.puff(o.x, o.y); }
+      // そのとき出ていたモブも一緒に倒れて、経験値とコインを落とす（ボスの分と一緒に集まる）
+      for (const o of this.enemies) {
+        if (o.dead || o === e) continue;
+        o.dead = true;
+        this.kills++;
+        this.puff(o.x, o.y);
+        for (let i = 0; i < 4; i++) this.fx.push({ kind: 'spark', x: o.x, y: o.y, vx: rand(-60, 60), vy: rand(-60, 60), life: rand(0.2, 0.4), color: light(o.pal.A || '#ffffff', 0.4) });
+        this.dropGem(o.x, o.y, o.elite ? 40 : o.exp);
+        this.pickups.push({ kind: 'coin', x: o.x + rand(-4, 4), y: o.y, v: (o.elite ? 60 + this.stage.n * 15 : (o.mini ? 6 : 15) + this.stage.n * 5) });
+      }
       this.spawns = [];
       this.ebullets = [];
       this.fx = this.fx.filter((f) => !['warn', 'warnLine', 'warnSector'].includes(f.kind));

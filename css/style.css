@@ -311,17 +311,18 @@ img.px, canvas { image-rendering: pixelated; image-rendering: crisp-edges; }
 /* 左上の情報カード（時間・コイン・スコア） */
 .hud-left { padding-left: 8px; top: calc(20px + var(--safe-t)); }
 .hcard {
-  position: relative; display: flex; flex-direction: column; gap: 2px; min-width: 124px; padding: 5px 10px 6px 8px;
-  background: linear-gradient(160deg, #2e2552f0, #171230f0); border: 2px solid #ffd23a; border-radius: 14px 4px 14px 4px;
+  position: relative; display: flex; flex-direction: column; gap: 2px; min-width: 128px; padding: 5px 10px 6px;
+  background: linear-gradient(160deg, #2e2552f0, #171230f0); border: 2px solid #ffd23a; border-radius: 12px;
   box-shadow: 0 0 0 2px var(--ink), 0 4px 0 2px #0006, inset 0 0 12px #7a5aff55;
 }
-.hcard::before { content: ''; position: absolute; left: 8px; right: 8px; top: 31px; height: 1px; background: linear-gradient(90deg, transparent, #ffd23a99, transparent); }
-.hc-time { display: flex; align-items: center; gap: 5px; font-size: 21px; letter-spacing: 1px; color: #e8fbff; margin-bottom: 3px; }
-.hc-time img { width: 20px; height: 20px; filter: drop-shadow(0 0 4px #36f2ff); }
+.hcard::before { content: ''; position: absolute; left: 8px; right: 8px; top: 40px; height: 1px; background: linear-gradient(90deg, transparent, #ffd23a99, transparent); }
+.hc-score { display: flex; flex-direction: column; line-height: 1; margin-bottom: 5px; }
+.hc-score span:last-child { font-size: 22px; letter-spacing: 1px; color: #fff4c0; margin-top: 2px; }
+.hc-lb { align-self: flex-start; font-size: 9px; font-weight: 800; letter-spacing: 1px; color: #1e1226; background: #ffd23a; padding: 0 5px; border-radius: 3px; line-height: 13px; }
 .hc-row { display: flex; align-items: center; gap: 5px; font-size: 15px; color: #fff4c0; }
 .hc-row img { width: 18px; height: 18px; }
-.hc-sc { font-size: 12px; color: #c8bfff; gap: 6px; }
-.hc-lb { font-size: 9px; font-weight: 800; letter-spacing: 1px; color: #1e1226; background: #c8bfff; padding: 0 4px; border-radius: 3px; }
+.hc-tm { font-size: 12px; color: #c8e8ff; gap: 6px; }
+.hc-tm img { width: 14px; height: 14px; }
 .hlabel { font-size: 11px; background: #fff; color: var(--ink); padding: 0 6px; border-radius: 4px; border: 2px solid var(--ink); }
 .hud-right { position: absolute; right: 74px; top: calc(22px + var(--safe-t)); width: 150px; }
 .lvbox { display: flex; justify-content: space-between; align-items: center; height: 30px; padding: 0 10px; background: linear-gradient(#5a4232, #3a2a20); border: 3px solid var(--ink); border-radius: 6px 6px 0 0; font-size: 17px; }
