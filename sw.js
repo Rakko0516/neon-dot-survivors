@@ -1,6 +1,6 @@
 // Service Worker：オフライン対応・アップデート配信・プッシュ通知
 // VERSION を変えると全プレイヤーに「アップデートがあります」が表示されます（tools/bump-version.mjs が自動で変更）
-const VERSION = '0.5.4';
+const VERSION = '0.5.5';
 // 更新履歴を作り直してバージョン番号を戻したため、古いキャッシュと名前がかぶらないよう r2 を付ける
 const CACHE = 'nds-r2-' + VERSION;
 const RUNTIME = 'nds-runtime';
@@ -57,13 +57,13 @@ self.addEventListener('activate', (e) => {
 self.addEventListener('message', (e) => {
   if (e.data && e.data.type === 'SKIP_WAITING') self.skipWaiting();
   // オフラインでも全ステージの音が鳴るよう、まだ保存していない音を裏でダウンロード
-  if (e.data && e.data.type === 'WARM_AUDIO') e.waitUntil(warmAudio(Array.isArray(e.data.bgm) ? e.data.bgm : null));
+  if (e.data && e.data.type === 'WARM_AUDIO') e.waitUntil(warmAudio(Array.isArray(e.data.bgm) ? e.data.bgm : null, e.data.se !== false));
 });
 
 let warming = null;
 /** bgm：保存しておくBGMの名前（無ければ全部）。効果音はいつも全部 */
-function warmAudio(bgmKeys) {
-  if (warming) return warming.then(() => warmAudio(bgmKeys));
+function warmAudio(bgmKeys, withSe = true) {
+  if (warming) return warming.then(() => warmAudio(bgmKeys, withSe));
   warming = (async () => {
     const res = await fetch('./audio/sources.json', { cache: 'no-store' });
     if (!res.ok) return;
@@ -73,7 +73,7 @@ function warmAudio(bgmKeys) {
       for (const [name, s] of Object.entries(src[kind] || {})) {
         const url = new URL(`./audio/${kind}/${name}.bin?v=${s.v || '0'}`, self.location).href;
         all.add(url);
-        if (kind === 'se' || !bgmKeys || bgmKeys.includes(name)) want.push(url);
+        if (kind === 'se' ? withSe : !bgmKeys || bgmKeys.includes(name)) want.push(url);
       }
     }
     const c = await caches.open(AUDIO);
@@ -119,7 +119,7 @@ self.addEventListener('fetch', (e) => {
         const hit = await c.match(req);
         if (hit) return hit;
         const res = await fetch(req);
-        if (res.ok && url.searchParams.has('v')) c.put(req, res.clone());
+        if (res.ok && url.searchParams.has('v') && req.headers.get('X-NDS-Keep') !== '0') c.put(req, res.clone());
         return res;
       }));
       return;

@@ -182,6 +182,10 @@ export function itemStats(item) {
   for (const [k, v] of Object.entries(base.sub)) out[k] = (out[k] || 0) + v * r.mult;
   return out;
 }
+// 合成（限界突破）：同じ装備（同じ種類・同じレア度）を1つ使うと、レベル上限が +5（最大 ★5）
+export const MERGE_MAX = 5;
+export const MERGE_LV = 5;
+export const itemMaxLv = (item) => RARITIES[item.rarity].maxLv + (item.plus || 0) * MERGE_LV;
 export const upgradeCost = (item) => Math.round(40 * item.level * RARITIES[item.rarity].mult);
 export const salvageValue = (item) => Math.round(30 * RARITIES[item.rarity].mult * (1 + (item.level - 1) * 0.5));
 export const charUpgradeCost = (lv) => Math.round(80 * lv + 10 * lv * lv);
@@ -194,8 +198,10 @@ export function charStats(data, charId) {
   const lvMul = (1 + 0.08 * (cs.level - 1)) * (1 + 0.08 * (cs.awaken || 0));
   const t = c.trait;
   const st = { hp: c.hp * lvMul, atk: c.atk * lvMul, def: 0, spd: t.spdPct || 0, crit: c.crit + (t.crit || 0), cd: t.cd || 0, exp: t.exp || 0, magnet: 0, area: t.area || 0, armor: t.armor || 0, slow: t.slow || 0, lifesteal: t.lifesteal || 0, regen: t.regen || 0 };
+  // 装備は全キャラ共通（キャラを変えても装備はそのまま）
+  const eq = data.equip || {};
   for (const slot of SLOTS) {
-    const uid = cs.equip[slot.id];
+    const uid = eq[slot.id];
     if (uid == null) continue;
     const item = data.items.find((i) => i.uid === uid);
     if (!item) continue;

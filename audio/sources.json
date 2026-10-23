@@ -9,7 +9,8 @@
       "by": "入手先確認中",
       "url": "",
       "scene": "ホーム",
-      "v": "4452b7e372"
+      "v": "4452b7e372",
+      "size": 937656
     },
     "menu": {
       "file": "menu.mp3",
@@ -19,7 +20,8 @@
       "by": "入手先確認中",
       "url": "",
       "scene": "装備・キャラ・設定",
-      "v": "4235f98c56"
+      "v": "4235f98c56",
+      "size": 2051339
     },
     "gacha": {
       "file": "gacha.mp3",
@@ -29,7 +31,8 @@
       "by": "入手先確認中",
       "url": "",
       "scene": "ガチャ",
-      "v": "c89a044fab"
+      "v": "c89a044fab",
+      "size": 1883477
     },
     "battle_grass": {
       "file": "battle_grass.mp3",
@@ -39,7 +42,8 @@
       "by": "魔王魂",
       "url": "https://maou.audio/bgm_8bit12/",
       "scene": "草原ステージ",
-      "v": "3f1ef91440"
+      "v": "3f1ef91440",
+      "size": 2508482
     },
     "battle_desert": {
       "file": "battle_desert.mp3",
@@ -49,7 +53,8 @@
       "by": "魔王魂",
       "url": "https://maou.audio/bgm_8bit08/",
       "scene": "砂漠ステージ",
-      "v": "9c9ac6a819"
+      "v": "9c9ac6a819",
+      "size": 1316254
     },
     "battle_snow": {
       "file": "battle_snow.mp3",
@@ -59,7 +64,8 @@
       "by": "魔王魂",
       "url": "https://maou.audio/bgm_8bit11/",
       "scene": "雪国ステージ",
-      "v": "506075df3a"
+      "v": "506075df3a",
+      "size": 2215911
     },
     "battle_cyber": {
       "file": "battle_cyber.mp3",
@@ -69,7 +75,8 @@
       "by": "入手先確認中",
       "url": "",
       "scene": "サイバーシティステージ",
-      "v": "4c0f17ac85"
+      "v": "4c0f17ac85",
+      "size": 1891522
     },
     "battle_volcano": {
       "file": "battle_volcano.mp3",
@@ -79,7 +86,8 @@
       "by": "魔王魂",
       "url": "https://maou.audio/bgm_8bit10/",
       "scene": "火山ステージ",
-      "v": "e10cd04a5b"
+      "v": "e10cd04a5b",
+      "size": 1813259
     },
     "battle_castle": {
       "file": "battle_castle.mp3",
@@ -89,7 +97,8 @@
       "by": "入手先確認中",
       "url": "",
       "scene": "魔王城ステージ",
-      "v": "44c43ca0dc"
+      "v": "44c43ca0dc",
+      "size": 1090608
     },
     "boss": {
       "file": "boss.mp3",
@@ -99,7 +108,8 @@
       "by": "魔王魂",
       "url": "https://maou.audio/bgm_8bit18/",
       "scene": "ボス部屋",
-      "v": "b9eaf461df"
+      "v": "b9eaf461df",
+      "size": 1770471
     },
     "clear": {
       "file": "clear.mp3",
@@ -109,7 +119,8 @@
       "by": "魔王魂",
       "url": "https://maou.audio/game_jingle01/",
       "scene": "ステージクリア",
-      "v": "6442b4985e"
+      "v": "6442b4985e",
+      "size": 106837
     },
     "gameover": {
       "file": "gameover.mp3",
@@ -119,7 +130,8 @@
       "by": "魔王魂",
       "url": "https://maou.audio/bgm_8bit20/",
       "scene": "ゲームオーバー",
-      "v": "d474466843"
+      "v": "d474466843",
+      "size": 1208368
     },
     "battle_forest": {
       "file": "battle_forest.mp3",
@@ -129,7 +141,8 @@
       "by": "提供曲（クレジット参照）",
       "url": "",
       "scene": "森ステージ",
-      "v": "8bac083db2"
+      "v": "8bac083db2",
+      "size": 2487331
     },
     "battle_beach": {
       "file": "battle_beach.mp3",
@@ -139,7 +152,8 @@
       "by": "提供曲（クレジット参照）",
       "url": "",
       "scene": "海辺ステージ",
-      "v": "d5ea551e75"
+      "v": "d5ea551e75",
+      "size": 3317442
     },
     "battle_cave": {
       "file": "battle_cave.mp3",
@@ -149,7 +163,8 @@
       "by": "提供曲（クレジット参照）",
       "url": "",
       "scene": "水晶の洞窟ステージ",
-      "v": "e68cbf7ebe"
+      "v": "e68cbf7ebe",
+      "size": 2852679
     },
     "battle_grave": {
       "file": "battle_grave.mp3",
@@ -159,7 +174,8 @@
       "by": "提供曲（クレジット参照）",
       "url": "",
       "scene": "墓地ステージ",
-      "v": "f5cf76aa1f"
+      "v": "f5cf76aa1f",
+      "size": 1460345
     },
     "battle_sky": {
       "file": "battle_sky.mp3",
@@ -169,7 +185,8 @@
       "by": "提供曲（クレジット参照）",
       "url": "",
       "scene": "天空ステージ",
-      "v": "b2fc39ec5c"
+      "v": "b2fc39ec5c",
+      "size": 2211522
     },
     "battle_space": {
       "file": "battle_space.mp3",
@@ -179,7 +196,8 @@
       "by": "提供曲（クレジット参照）",
       "url": "",
       "scene": "宇宙ステーションステージ",
-      "v": "d41e6185fb"
+      "v": "d41e6185fb",
+      "size": 1255827
     },
     "boss_motherdrone": {
       "file": "boss_motherdrone.mp3",
@@ -189,7 +207,8 @@
       "by": "提供曲（クレジット参照）",
       "url": "",
       "scene": "ボス戦：マザードローン",
-      "v": "a9fd4377df"
+      "v": "a9fd4377df",
+      "size": 3184688
     },
     "boss_skullking": {
       "file": "boss_skullking.mp3",
@@ -199,7 +218,8 @@
       "by": "提供曲（クレジット参照）",
       "url": "",
       "scene": "ボス戦：スカルキング",
-      "v": "5e06decf9c"
+      "v": "5e06decf9c",
+      "size": 3344505
     },
     "boss_crystalking": {
       "file": "boss_crystalking.mp3",
@@ -209,7 +229,8 @@
       "by": "提供曲（クレジット参照）",
       "url": "",
       "scene": "ボス戦：クリスタルキング",
-      "v": "5415400b8b"
+      "v": "5415400b8b",
+      "size": 2337328
     },
     "boss_kingslime": {
       "file": "boss_kingslime.mp3",
@@ -219,7 +240,8 @@
       "by": "提供曲（クレジット参照）",
       "url": "",
       "scene": "ボス戦：キングスライム",
-      "v": "565148530e"
+      "v": "565148530e",
+      "size": 2319042
     },
     "boss_bigmush": {
       "file": "boss_bigmush.mp3",
@@ -229,7 +251,8 @@
       "by": "提供曲（クレジット参照）",
       "url": "",
       "scene": "ボス戦：ビッグマッシュ",
-      "v": "a19f3cfa7b"
+      "v": "a19f3cfa7b",
+      "size": 2669031
     },
     "boss_pharaoh": {
       "file": "boss_pharaoh.mp3",
@@ -239,7 +262,8 @@
       "by": "提供曲（クレジット参照）",
       "url": "",
       "scene": "ボス戦：ファラオゴーレム",
-      "v": "cccb6f49dd"
+      "v": "cccb6f49dd",
+      "size": 3502494
     },
     "boss_kingcrab": {
       "file": "boss_kingcrab.mp3",
@@ -249,7 +273,8 @@
       "by": "提供曲（クレジット参照）",
       "url": "",
       "scene": "ボス戦：キングクラブ",
-      "v": "1715f24625"
+      "v": "1715f24625",
+      "size": 3155431
     },
     "boss_blizzard": {
       "file": "boss_blizzard.mp3",
@@ -259,7 +284,8 @@
       "by": "提供曲（クレジット参照）",
       "url": "",
       "scene": "ボス戦：ブリザードゴースト",
-      "v": "a3df18d5cf"
+      "v": "a3df18d5cf",
+      "size": 1655271
     },
     "boss_magmagolem": {
       "file": "boss_magmagolem.mp3",
@@ -269,7 +295,8 @@
       "by": "提供曲（クレジット参照）",
       "url": "",
       "scene": "ボス戦：マグマゴーレム",
-      "v": "0badfb05d0"
+      "v": "0badfb05d0",
+      "size": 2435339
     },
     "boss_stormbat": {
       "file": "boss_stormbat.mp3",
@@ -279,7 +306,8 @@
       "by": "提供曲（クレジット参照）",
       "url": "",
       "scene": "ボス戦：ストームバット",
-      "v": "06c288a673"
+      "v": "06c288a673",
+      "size": 4832597
     },
     "boss_galaxyeye": {
       "file": "boss_galaxyeye.mp3",
@@ -289,7 +317,8 @@
       "by": "提供曲（クレジット参照）",
       "url": "",
       "scene": "ボス戦：ギャラクシーアイ",
-      "v": "59dde6cfae"
+      "v": "59dde6cfae",
+      "size": 2830311
     },
     "boss_darklord": {
       "file": "boss_darklord.mp3",
@@ -299,7 +328,8 @@
       "by": "提供曲（クレジット参照）",
       "url": "",
       "scene": "ボス戦：魔王ダークロード",
-      "v": "6251a61e54"
+      "v": "6251a61e54",
+      "size": 1731705
     }
   },
   "se": {
@@ -308,217 +338,296 @@
       "orig": "ボタン選択.ogg",
       "use": "ボタンを押したとき（全ボタン共通）",
       "by": "効果音ラボ",
-      "v": "5b7ab5cca3"
+      "v": "5b7ab5cca3",
+      "size": 1719
     },
     "reel": {
       "file": "reel.mp3",
       "orig": "ボタン選択.ogg",
       "use": "スロット回転",
       "by": "効果音ラボ",
-      "v": "5b7ab5cca3"
+      "v": "5b7ab5cca3",
+      "size": 1719
     },
     "gem": {
       "file": "gem.mp3",
       "orig": "ボタン選択.ogg",
       "use": "経験値を拾う",
       "by": "効果音ラボ",
-      "v": "5b7ab5cca3"
+      "v": "5b7ab5cca3",
+      "size": 1719
     },
     "equip": {
       "file": "equip.mp3",
       "orig": "シャキーン3.mp3",
       "use": "装備を付ける",
       "by": "効果音ラボ",
-      "v": "234f344253"
+      "v": "234f344253",
+      "size": 38918
     },
     "reelStop": {
       "file": "reelStop.mp3",
       "orig": "パワーアップ.mp3",
       "use": "スロットが止まる",
       "by": "効果音ラボ",
-      "v": "c8a4fd1dc6"
+      "v": "c8a4fd1dc6",
+      "size": 15094
     },
     "levelup": {
       "file": "levelup.mp3",
       "orig": "レベルアップ.mp3",
       "use": "レベルアップ",
       "by": "効果音ラボ",
-      "v": "556a0aa958"
+      "v": "556a0aa958",
+      "size": 31395
     },
     "gate": {
       "file": "gate.mp3",
       "orig": "スピードアップ.mp3",
       "use": "ゲートが開く",
       "by": "効果音ラボ",
-      "v": "4e6a698a93"
+      "v": "4e6a698a93",
+      "size": 20528
     },
     "shoot": {
       "file": "shoot.mp3",
       "orig": "ショット.mp3",
       "use": "プラズマ弾",
       "by": "効果音ラボ",
-      "v": "dc4c0ba1c5"
+      "v": "dc4c0ba1c5",
+      "size": 13840
     },
     "shoot2": {
       "file": "shoot2.mp3",
       "orig": "氷魔法1.mp3",
       "use": "ハート弾・お札・毛糸玉",
       "by": "効果音ラボ",
-      "v": "da6dacd32f"
+      "v": "da6dacd32f",
+      "size": 38500
     },
     "ice": {
       "file": "ice.mp3",
       "orig": "氷魔法2.mp3",
       "use": "アイスシャード",
       "by": "効果音ラボ",
-      "v": "41181c2cd5"
+      "v": "41181c2cd5",
+      "size": 53546
     },
     "arrow": {
       "file": "arrow.mp3",
       "orig": "弓矢を放つ.mp3",
       "use": "弓矢",
       "by": "効果音ラボ",
-      "v": "fd78f4c9a0"
+      "v": "fd78f4c9a0",
+      "size": 17184
     },
     "hit": {
       "file": "hit.mp3",
       "orig": "弓矢が刺さる.mp3",
       "use": "攻撃が当たる",
       "by": "効果音ラボ",
-      "v": "2bf9e6b206"
+      "v": "2bf9e6b206",
+      "size": 15512
     },
     "kill": {
       "file": "kill.mp3",
       "orig": "軽いパンチ1.mp3",
       "use": "敵を倒す",
       "by": "効果音ラボ",
-      "v": "92e9d60575"
+      "v": "92e9d60575",
+      "size": 16766
     },
     "hurt": {
       "file": "hurt.mp3",
       "orig": "重いパンチ2.mp3",
       "use": "ダメージを受ける",
       "by": "効果音ラボ",
-      "v": "0e9399afe7"
+      "v": "0e9399afe7",
+      "size": 17374
     },
     "slash": {
       "file": "slash.mp3",
       "orig": "剣で斬る2.mp3",
       "use": "斬撃",
       "by": "効果音ラボ",
-      "v": "9079ad234c"
+      "v": "9079ad234c",
+      "size": 17184
     },
     "zap": {
       "file": "zap.mp3",
       "orig": "雷魔法2.mp3",
       "use": "雷",
       "by": "効果音ラボ",
-      "v": "9fd5f212cf"
+      "v": "9fd5f212cf",
+      "size": 24707
     },
     "boom": {
       "file": "boom.mp3",
       "orig": "爆発3.mp3",
       "use": "爆発",
       "by": "効果音ラボ",
-      "v": "cc15dcffae"
+      "v": "cc15dcffae",
+      "size": 75888
     },
     "missile": {
       "file": "missile.mp3",
       "orig": "ビームガン.mp3",
       "use": "ホーミング弾",
       "by": "効果音ラボ",
-      "v": "d421724792"
+      "v": "d421724792",
+      "size": 26530
     },
     "fire": {
       "file": "fire.mp3",
       "orig": "火炎魔法2.mp3",
       "use": "狐火",
       "by": "効果音ラボ",
-      "v": "7630e1506d"
+      "v": "7630e1506d",
+      "size": 56244
     },
     "shootBoss": {
       "file": "shootBoss.mp3",
       "orig": "ビーム砲1.mp3",
       "use": "ボスの弾",
       "by": "効果音ラボ",
-      "v": "818b56189b"
+      "v": "818b56189b",
+      "size": 56472
     },
     "spike": {
       "file": "spike.mp3",
       "orig": "ナイフで突き刺す1.mp3",
       "use": "トゲを踏む",
       "by": "効果音ラボ",
-      "v": "5c0cc5d69f"
+      "v": "5c0cc5d69f",
+      "size": 16766
     },
     "heal": {
       "file": "heal.mp3",
       "orig": "ステータス治療1.mp3",
       "use": "回復・光の柱",
       "by": "効果音ラボ",
-      "v": "f611952fb5"
+      "v": "f611952fb5",
+      "size": 38500
     },
     "coin": {
       "file": "coin.mp3",
       "orig": "アイテムを入手2.mp3",
       "use": "コイン・報酬を受け取る",
       "by": "効果音ラボ",
-      "v": "2a205ad351"
+      "v": "2a205ad351",
+      "size": 31167
     },
     "boss": {
       "file": "se_boss.mp3",
       "orig": "警報が鳴る.mp3",
       "use": "ボス登場",
       "by": "効果音ラボ",
-      "v": "4ad2475211"
+      "v": "4ad2475211",
+      "size": 64831
     },
     "gacha": {
       "file": "se_gacha.mp3",
       "orig": "ドラムロール.mp3",
       "use": "ガチャ開始",
       "by": "効果音ラボ",
-      "v": "b474572c8d"
+      "v": "b474572c8d",
+      "size": 97432
     },
     "super": {
       "file": "super.mp3",
       "orig": "ビーム砲チャージ.mp3",
       "use": "スーパーモード",
       "by": "効果音ラボ",
-      "v": "25d7687828"
+      "v": "25d7687828",
+      "size": 63577
     },
     "rare": {
       "file": "rare.mp3",
       "orig": "レベルアップ.mp3",
       "use": "レア獲得・SR以上",
       "by": "効果音ラボ",
-      "v": "556a0aa958"
+      "v": "556a0aa958",
+      "size": 31395
     },
     "unlock": {
       "file": "unlock.mp3",
       "orig": "アイテムを入手2.mp3",
       "use": "キャラ獲得",
       "by": "効果音ラボ",
-      "v": "2a205ad351"
+      "v": "2a205ad351",
+      "size": 31167
     },
     "error": {
       "file": "error.mp3",
       "orig": "トランペットのグリスダウン.mp3",
       "use": "コイン不足など",
       "by": "効果音ラボ",
-      "v": "b8b6d1e0a9"
+      "v": "b8b6d1e0a9",
+      "size": 17184
     },
     "panel": {
       "file": "panel.mp3",
       "orig": "パネル表示.ogg",
       "use": "大きな画面が出たとき（お知らせ・ログボ・ランクアップ・結果）",
       "by": "効果音ラボ",
-      "v": "040c25a36a"
+      "v": "040c25a36a",
+      "size": 43515
     },
     "panel2": {
       "file": "panel2.mp3",
       "orig": "パネル表示2.ogg",
       "use": "画面を開いたとき（プレゼント・ミッション・確認など）",
       "by": "効果音ラボ",
-      "v": "4a27cb3bb6"
+      "v": "4a27cb3bb6",
+      "size": 19274
+    },
+    "talisman": {
+      "file": "se_talisman.mp3",
+      "orig": "お札.mp3",
+      "use": "カグラ：追尾のお札",
+      "by": "提供音源",
+      "v": "a642b016c0",
+      "size": 14182
+    },
+    "heart": {
+      "file": "se_heart.mp3",
+      "orig": "ハートビーム.mp3",
+      "use": "ルル：ハートビーム",
+      "by": "提供音源",
+      "v": "6e512d9cd2",
+      "size": 25125
+    },
+    "drone": {
+      "file": "se_drone.mp3",
+      "orig": "ドローン.mp3",
+      "use": "サポートドローンの射撃",
+      "by": "提供音源",
+      "v": "a2b87d75e7",
+      "size": 12084
+    },
+    "barrier": {
+      "file": "se_barrier.mp3",
+      "orig": "バリア.mp3",
+      "use": "バリアフィールド",
+      "by": "提供音源",
+      "v": "b52dd962fe",
+      "size": 18438
+    },
+    "holy": {
+      "file": "se_holy.mp3",
+      "orig": "ホーリーピラー.mp3",
+      "use": "ホーリーピラー（セラ）",
+      "by": "提供音源",
+      "v": "0572a31083",
+      "size": 25125
+    },
+    "yarn": {
+      "file": "se_yarn.mp3",
+      "orig": "毛玉ボール.mp3",
+      "use": "ミミ：毛糸ボール",
+      "by": "提供音源",
+      "v": "1870bbd492",
+      "size": 14676
     }
   }
 }

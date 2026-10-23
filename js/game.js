@@ -708,8 +708,8 @@ export class Game {
     if (e.boss) {
       this.shake = 0.7;
       for (let i = 0; i < 20; i++) this.dropGem(e.x + rand(-24, 24), e.y + rand(-24, 24), 20);
-      for (let i = 0; i < 6; i++) this.pickups.push({ kind: 'coin', x: e.x + rand(-28, 28), y: e.y + rand(-28, 28), v: 15 + this.stage.n * 3 });
-      this.gold += 100;
+      for (let i = 0; i < 12; i++) this.pickups.push({ kind: 'coin', x: e.x + rand(-30, 30), y: e.y + rand(-30, 30), v: 40 + this.stage.n * 8 });
+      this.gold += 600 + this.stage.n * 60;
       // ステージクリアが決まったら：残りの敵と弾を消し、落ちている経験値とコインを集めきってから終わる
       this.clearing = true;
       this.clearT = 0;
@@ -723,8 +723,8 @@ export class Game {
     if (e.elite) {
       this.dropGem(e.x, e.y, 40);
       this.pickups.push({ kind: 'heart', x: e.x + 10, y: e.y });
-      this.pickups.push({ kind: 'coin', x: e.x - 10, y: e.y, v: 40 + this.stage.n * 10 });
-      this.gold += 30;
+      for (let i = 0; i < 3; i++) this.pickups.push({ kind: 'coin', x: e.x - 10 + i * 8, y: e.y + rand(-6, 6), v: 60 + this.stage.n * 15 });
+      this.gold += 120;
       return;
     }
     this.dropGem(e.x, e.y, e.exp);
@@ -733,8 +733,8 @@ export class Game {
       for (const k of [-1, 1]) this.addEnemy({ x: e.x + k * 7, y: e.y, id: e.id, mini: true });
     }
     const r = Math.random();
-    if (r < 0.14) this.pickups.push({ kind: 'coin', x: e.x, y: e.y, v: 5 + this.stage.n * 2 });
-    else if (r < 0.15) this.pickups.push({ kind: 'heart', x: e.x, y: e.y });
+    if (r < 0.45) this.pickups.push({ kind: 'coin', x: e.x, y: e.y, v: (e.mini ? 6 : 15) + this.stage.n * 5 });
+    else if (r < 0.46) this.pickups.push({ kind: 'heart', x: e.x, y: e.y });
   }
 
   dropGem(x, y, v) {
@@ -792,7 +792,9 @@ export class Game {
         if (w.t <= 0) {
           w.t = 0.5;
           const dmg = rs.atk * 0.35 * (1 + 0.28 * (lv - 1));
-          for (const e of this.query(P.x, P.y, w.R)) if (!e.dead && dist2(e, P) < (w.R + e.r) ** 2) this.damage(e, dmg);
+          let hit = false;
+          for (const e of this.query(P.x, P.y, w.R)) if (!e.dead && dist2(e, P) < (w.R + e.r) ** 2) { this.damage(e, dmg); hit = true; }
+          if (hit) sfx('barrier'); // 敵に当たったときだけ鳴らす
         }
         continue;
       }
@@ -837,7 +839,7 @@ export class Game {
           const a = base + (i - (n - 1) / 2) * 0.22;
           this.bullets.push({ kind: 'heart', x: P.x, y: sy, vx: Math.cos(a) * 150, vy: Math.sin(a) * 150, life: 1.2, dmg: rs.atk * 0.8 * (1 + 0.16 * (lv - 1)), pierce: 2 + Math.floor(lv / 3), r: 4, hit: new Set() });
         }
-        sfx('shoot2');
+        sfx('heart');
         break;
       }
       case 'ice': {
@@ -928,7 +930,7 @@ export class Game {
           const a = -Math.PI / 2 + (i - (n - 1) / 2) * 0.5;
           this.bullets.push({ kind: 'talisman', x: P.x, y: sy, vx: Math.cos(a) * 90, vy: Math.sin(a) * 90, life: 2.2, dmg: rs.atk * 0.95 * (1 + 0.16 * (lv - 1)), pierce: 1 + Math.floor(lv / 3), r: 3, hit: new Set() });
         }
-        sfx('shoot2');
+        sfx('talisman');
         break;
       }
       case 'thunder': {
@@ -957,7 +959,7 @@ export class Game {
           const a = base + (i - (n - 1) / 2) * 0.6;
           this.bullets.push({ kind: 'yarn', x: P.x, y: sy, vx: Math.cos(a) * 160, vy: Math.sin(a) * 160, life: 2.6, dmg: rs.atk * 0.85 * (1 + 0.16 * (lv - 1)), pierce: 999, r: 4 * rs.area, bounces: 3 + lv, hit: new Map() });
         }
-        sfx('shoot2');
+        sfx('yarn');
         break;
       }
       case 'drone': {
@@ -969,6 +971,7 @@ export class Game {
           setTimeout(() => {
             if (tg.dead || !w.dx) return;
             const a = Math.atan2(tg.y - w.dy, tg.x - w.dx);
+            sfx('drone');
             this.bullets.push({ kind: 'plasma', x: w.dx, y: w.dy, vx: Math.cos(a) * 200, vy: Math.sin(a) * 200, life: 1, dmg: rs.atk * 0.65 * (1 + 0.15 * (lv - 1)), pierce: 0, r: 2 });
           }, i * 90);
         }
@@ -1221,7 +1224,7 @@ export class Game {
       if (f.kind === 'holy' && f.life <= 0.15 && !f.done) {
         f.done = true;
         for (const e of this.query(f.x, f.y, f.R + 8)) if (!e.dead && Math.hypot(e.x - f.x, e.y - f.y) < f.R + e.r) this.damage(e, f.dmg);
-        sfx('heal');
+        sfx('holy');
       }
       // 落下攻撃：赤い円が消えた瞬間に落ちてくる
       if (f.kind === 'warn' && f.hit && f.life <= 0 && !f.done) {

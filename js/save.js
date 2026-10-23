@@ -21,10 +21,11 @@ function emit() { for (const fn of listeners) fn(store.save); }
 export function defaultData() {
   const chars = {};
   for (const [id, c] of Object.entries(CHARACTERS)) {
-    chars[id] = { unlocked: !c.unlock, level: 1, awaken: 0, equip: emptyEquip() };
+    chars[id] = { unlocked: !c.unlock, level: 1, awaken: 0 };
   }
-  Object.assign(chars.neo.equip, { weapon: 1, body: 2, feet: 3 }); // 初期装備
   return {
+    // 装備は全キャラ共通（キャラを変えたときはキャラだけ入れ替わる）
+    equip: { ...emptyEquip(), weapon: 1, body: 2, feet: 3 }, // 初期装備
     gold: 1500,
     ticketsChar: 5,   // キャラガチャチケット
     ticketsEquip: 5,  // 装備ガチャチケット
@@ -39,7 +40,8 @@ export function defaultData() {
       { uid: 4, base: 'r_ruby', rarity: 'R', level: 1 },
     ],
     nextUid: 5,
-    settings: { bgmVol: 60, seVol: 80, notify: false },
+    // offlineAuto：遊べるステージの曲を自動で端末に保存する / offlineSkip：自分で削除したもの（自動保存しない）
+    settings: { bgmVol: 60, seVol: 80, notify: false, offlineAuto: true, offlineSkip: [] },
     stats: { runs: 0, kills: 0, clears: 0, gachaTotal: 0, bossKills: 0, googleLinked: 0 },
     login: { lastDay: '', count: 0, total: 0 },
     missions: { day: '', week: '', d: {}, w: {}, dc: [], wc: [], perm: [] },
@@ -89,6 +91,13 @@ const MIGRATIONS = {
     d.rank = { lv: Math.max(1, (d.maxStage || 0) + 1), exp: 0 };
     return d;
   },
+  // v5 → v6：装備をキャラごとから全キャラ共通に（いま出撃しているキャラの装備を共通の装備にする）
+  6: (d) => {
+    const cur = d.chars?.[d.selectedChar]?.equip || {};
+    d.equip = { ...emptyEquip(), ...cur };
+    for (const c of Object.values(d.chars || {})) delete c.equip;
+    return d;
+  },
   // v4 → v5：ガチャチケットを「キャラガチャチケット」と「装備ガチャチケット」の2種類に分ける。
   // 今までのチケットは回収（未受け取りのプレゼントのチケットも）。代わりに gifts.json で各50枚を配布
   5: (d) => {
@@ -117,7 +126,7 @@ function migrate(save) {
   const d = save.data;
   for (const k of Object.keys(def)) if (d[k] === undefined) d[k] = def[k];
   for (const id of Object.keys(def.chars)) if (!d.chars[id]) d.chars[id] = def.chars[id];
-  for (const c of Object.values(d.chars)) c.equip = { ...emptyEquip(), ...c.equip };
+  d.equip = { ...emptyEquip(), ...d.equip };
   d.items = d.items.filter((i) => EQUIP[i.base]);
   d.settings = { ...def.settings, ...d.settings };
   // 旧形式（オン/オフ）→ 音量
@@ -163,15 +172,24 @@ function sanitize(d) {
     c.unlocked = !!c.unlocked;
     c.level = num(c.level, 1, 999, 1);
     c.awaken = num(c.awaken, 0, 99);
-    const eq = emptyEquip();
-    for (const k of Object.keys(eq)) eq[k] = c.equip && Number.isFinite(c.equip[k]) ? c.equip[k] : null;
-    c.equip = eq;
+    delete c.equip;
   }
   // 装備：知らない種類・レア度は捨てる、個数の上限
   d.items = (Array.isArray(d.items) ? d.items : [])
     .filter((i) => i && EQUIP[i.base] && RARITIES[i.rarity] && Number.isFinite(i.uid))
     .slice(0, 3000)
-    .map((i) => ({ uid: num(i.uid, 1, 1e9), base: i.base, rarity: i.rarity, level: num(i.level, 1, 999, 1) }));
+    .map((i) => ({ uid: num(i.uid, 1, 1e9), base: i.base, rarity: i.rarity, level: num(i.level, 1, 999, 1), plus: num(i.plus, 0, 5) }));
+  // 共通の装備：持っている装備だけ・同じ装備を2か所に付けない
+  {
+    const have = new Set(d.items.map((i) => i.uid));
+    const used = new Set();
+    const eq = emptyEquip();
+    for (const k of Object.keys(eq)) {
+      const u = d.equip?.[k];
+      if (Number.isFinite(u) && have.has(u) && !used.has(u)) { eq[k] = u; used.add(u); }
+    }
+    d.equip = eq;
+  }
   // プロフィール
   d.profile = d.profile || {};
   d.profile.name = safeText(d.profile.name, 12) || 'プレイヤー';
@@ -190,7 +208,11 @@ function sanitize(d) {
   d.seenNews = safeText(d.seenNews, 80);
   const ids = (a) => (Array.isArray(a) ? a : []).map((x) => safeId(x, 30)).filter(Boolean).slice(0, 300);
   d.seen = { m: ids(d.seen?.m), b: ids(d.seen?.b), p: ids(d.seen?.p), hb: ids(d.seen?.hb) };
-  d.settings = { bgmVol: num(d.settings?.bgmVol, 0, 100, 60), seVol: num(d.settings?.seVol, 0, 100, 80), notify: !!d.settings?.notify };
+  d.settings = {
+    bgmVol: num(d.settings?.bgmVol, 0, 100, 60), seVol: num(d.settings?.seVol, 0, 100, 80), notify: !!d.settings?.notify,
+    offlineAuto: d.settings?.offlineAuto !== false,
+    offlineSkip: (Array.isArray(d.settings?.offlineSkip) ? d.settings.offlineSkip : []).map((x) => safeId(x, 30)).filter(Boolean).slice(0, 40),
+  };
   for (const k of Object.keys(d.stats)) d.stats[k] = num(d.stats[k], 0, 1e12);
   return d;
 }

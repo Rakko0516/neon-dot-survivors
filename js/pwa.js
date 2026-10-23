@@ -82,9 +82,9 @@ async function notifyWaiting(worker) {
 }
 
 /** オフライン用に保存してもらうBGMを指定（遊べるステージの分だけ。通信量の節約）。起動後に main.js から呼ぶ */
-export function warmAudio(bgmKeys) {
+export function warmAudio(bgmKeys, withSe = true) {
   if (!('serviceWorker' in navigator)) return;
-  navigator.serviceWorker.ready.then((r) => r.active && r.active.postMessage({ type: 'WARM_AUDIO', bgm: bgmKeys })).catch(() => {});
+  navigator.serviceWorker.ready.then((r) => r.active && r.active.postMessage({ type: 'WARM_AUDIO', bgm: bgmKeys, se: withSe })).catch(() => {});
 }
 
 export function applyUpdate() {

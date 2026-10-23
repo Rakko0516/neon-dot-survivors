@@ -175,6 +175,21 @@ img.px, canvas { image-rendering: pixelated; image-rendering: crisp-edges; }
 .itile .lv { position: absolute; bottom: 2px; left: 0; right: 0; text-align: center; font-size: 11px; }
 .itile .rar { position: absolute; top: 4px; left: 6px; font-size: 10px; }
 .itile .who { position: absolute; top: 3px; right: 3px; width: 20px; height: 20px; border-radius: 50%; background: #fff8; border: 2px solid var(--ink); }
+.itile .eqd { position: absolute; top: 2px; right: 2px; min-width: 18px; height: 18px; line-height: 14px; font-size: 11px; text-align: center; border-radius: 50%; background: #2a948a; border: 2px solid var(--ink); color: #fff; }
+.itile .plus { position: absolute; bottom: 15px; left: 0; right: 0; text-align: center; font-size: 9px; color: #ffd23a; letter-spacing: -1px; }
+.plus-t { color: #d8204c; font-weight: 800; }
+/* 合成 */
+.mg-row { display: flex; align-items: center; justify-content: center; gap: 12px; margin: 6px 0 10px; }
+.mg-col { display: flex; flex-direction: column; align-items: center; gap: 4px; width: 84px; }
+.mg-col .itile { width: 72px; }
+.mg-l { font-size: 13px; font-weight: 800; }
+.mg-l.up { color: #d8204c; }
+.mg-arrow { font-size: 18px; color: #d8204c; }
+.mg-sub { font-size: 13px; font-weight: 800; color: #6a5a48; margin-bottom: 4px; }
+.mg-mats { max-height: 180px; overflow-y: auto; }
+.mg-mat { border-radius: 10px; padding: 0; cursor: pointer; }
+.mg-mat.sel { outline: 4px solid #ff5a80; outline-offset: -2px; background: #ffe0e8; }
+.mg-mat .itile { pointer-events: none; width: 100%; }
 .itile.empty { background: #0002; box-shadow: inset 0 0 0 2px #b89a6a; border-style: dashed; color: #7a6040; font-size: 11px; flex-direction: column; }
 .itile.empty img { width: 40%; opacity: .35; filter: grayscale(1); }
 .itile.new::after { content: 'NEW'; position: absolute; top: 4px; right: 4px; font-size: 9px; background: var(--red); color: #fff; padding: 0 3px; border-radius: 3px; border: 1px solid var(--ink); }
@@ -371,6 +386,18 @@ img.px, canvas { image-rendering: pixelated; image-rendering: crisp-edges; }
 .bu-cost b { font-size: 18px; }
 .bu-cost b.short { color: #d81a3a; }
 .bu-cost small { color: #6a5a48; }
+
+/* ===== オフライン用の保存 ===== */
+.off-sum { margin: 8px 0 4px; font-size: 14px; }
+.off-all { display: flex; gap: 6px; margin-bottom: 6px; }
+.off-all .btn { flex: 1; }
+.off-row { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 2px dotted #c8b48a88; }
+.off-l { flex: 1; display: flex; flex-direction: column; font-size: 13px; line-height: 1.3; }
+.off-l small { font-size: 11px; color: #6a5a48; }
+.off-st { font-size: 11px; font-weight: 800; padding: 1px 6px; border-radius: 8px; border: 2px solid var(--ink); background: #e8dcc0; white-space: nowrap; }
+.off-st.all { background: #5aee6a; }
+.off-st.part { background: #ffd23a; }
+.off-row .btn { min-width: 56px; }
 
 /* ===== ランク報酬（プロフィール） ===== */
 .rr-title { display: flex; align-items: baseline; gap: 8px; margin: 10px 0 2px; font-weight: 800; font-size: 14px; }

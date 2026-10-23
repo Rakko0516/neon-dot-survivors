@@ -11,7 +11,7 @@ import {
 } from './cloud.js';
 import { pwa, initPWA, applyUpdate, fetchChangelog, isStandalone, isIOS, warmAudio } from './pwa.js';
 import { APP_VERSION } from './version.js';
-import { initAudio, preloadAudio, sfx, setVolume, playBgm, stopBgm, bgmForBiome } from './audio.js';
+import { initAudio, preloadAudio, sfx, setVolume, playBgm, stopBgm, bgmForBiome, setAudioKeep } from './audio.js';
 import { modal, toast, confirmBox, esc, closeAllModals } from './ui.js';
 import { Game } from './game.js';
 import * as M from './meta.js';
@@ -122,6 +122,7 @@ async function boot() {
   load();
   const d = data();
   setVolume({ bgm: d.settings.bgmVol, se: d.settings.seVol });
+  setAudioKeep(d.settings.offlineAuto);
   preloadAudio();
   hydrate(document);
   render();
@@ -153,10 +154,92 @@ async function boot() {
 
 /** オフラインでも鳴るよう、いま遊べるステージ（クリア済み＋次）のBGMとボス曲を端末に保存してもらう */
 function warmPlayable() {
+  const st = data().settings;
+  setAudioKeep(st.offlineAuto);
+  if (!st.offlineAuto) return;
+  const skip = new Set(st.offlineSkip);
   const n = Math.min(D.BIOMES.length, data().maxStage + 1);
-  const keys = ['home', 'menu', 'gacha', 'boss', 'clear', 'gameover'];
-  for (const b of D.BIOMES.slice(0, n)) keys.push(bgmForBiome(b.id), 'boss_' + b.boss, ...(b.bgm ? [b.bgm] : []));
-  warmAudio(keys);
+  const keys = skip.has('base') ? [] : [...BASE_BGM];
+  for (const b of D.BIOMES.slice(0, n)) if (!skip.has('st:' + b.id)) keys.push(...stageBgm(b));
+  warmAudio(keys, !skip.has('base'));
+}
+const BASE_BGM = ['home', 'menu', 'gacha', 'boss', 'clear', 'gameover'];
+const stageBgm = (b) => [bgmForBiome(b.id), 'boss_' + b.boss, ...(b.bgm ? [b.bgm] : [])];
+
+// ===================== オフライン用の保存（設定） =====================
+const AUDIO_CACHE = 'nds-audio';
+async function offlineGroups() {
+  const src = await (await fetch('./audio/sources.json')).json();
+  const url = (kind, k) => new URL(`./audio/${kind}/${k}.bin?v=${src[kind][k].v || '0'}`, location.href).href;
+  const item = (kind, k) => (src[kind]?.[k] ? [{ url: url(kind, k), size: src[kind][k].size || 0 }] : []);
+  const groups = [{ id: 'base', label: '基本（メニューの曲・効果音）', items: [...BASE_BGM.flatMap((k) => item('bgm', k)), ...Object.keys(src.se).flatMap((k) => item('se', k))] }];
+  D.BIOMES.forEach((b, i) => groups.push({ id: 'st:' + b.id, label: `STAGE ${i + 1}　${b.name}`, sub: 'ステージ曲＋ボス曲', items: [...new Set(stageBgm(b))].flatMap((k) => item('bgm', k)) }));
+  return groups;
+}
+const mb = (n) => (n / 1048576).toFixed(1) + 'MB';
+async function offlineModal() {
+  if (!('caches' in window)) { toast('この端末ではオフライン用の保存が使えません'); return; }
+  const st = data().settings;
+  const groups = await offlineGroups();
+  const cache = await caches.open(AUDIO_CACHE);
+  const have = new Set((await cache.keys()).map((r) => r.url));
+  let used = 0;
+  const rows = groups.map((g) => {
+    const total = g.items.reduce((a, x) => a + x.size, 0);
+    const got = g.items.filter((x) => have.has(x.url));
+    used += got.reduce((a, x) => a + x.size, 0);
+    const state = !g.items.length ? 'none' : got.length === g.items.length ? 'all' : got.length ? 'part' : 'none';
+    return `<div class="off-row">
+      <div class="off-l"><b>${g.label}</b><small>${g.sub ? g.sub + '・' : ''}${mb(total)}</small></div>
+      <span class="off-st ${state}">${state === 'all' ? '保存済み' : state === 'part' ? '一部' : '未保存'}</span>
+      ${state === 'all' ? `<button class="btn small dark" data-off-del="${g.id}">削除</button>` : `<button class="btn small teal" data-off-save="${g.id}">保存</button>`}
+    </div>`;
+  }).join('');
+  const v = await modal({
+    title: 'オフライン用の保存',
+    body: `<p class="muted" style="margin-top:0">BGMや効果音を端末に保存しておくと、通信がなくても音が鳴ります。容量が気になるときは削除できます（削除しても、遊ぶときに通信があれば普通に鳴ります）。</p>
+      <div class="set-row"><div class="lbl">遊べるステージの曲を自動で保存<small>オフにすると、自分で「保存」したものだけ残します</small></div><button class="toggle ${st.offlineAuto ? 'on' : ''}" data-off-auto aria-label="自動で保存"></button></div>
+      <div class="off-sum">保存している容量：<b>${mb(used)}</b></div>
+      <div class="off-all"><button class="btn small teal" data-off-save="*">すべて保存</button><button class="btn small dark" data-off-del="*">すべて削除</button></div>
+      <div class="off-list">${rows}</div>`,
+    buttons: [{ label: '閉じる', value: null }],
+    onMount: (ov, close) => {
+      ov.querySelector('[data-off-auto]').addEventListener('click', () => close('auto'));
+      ov.querySelectorAll('[data-off-save]').forEach((b) => b.addEventListener('click', () => close('save:' + b.dataset.offSave)));
+      ov.querySelectorAll('[data-off-del]').forEach((b) => b.addEventListener('click', () => close('del:' + b.dataset.offDel)));
+    },
+  });
+  if (!v) return;
+  if (v === 'auto') {
+    st.offlineAuto = !st.offlineAuto;
+    commit();
+    setAudioKeep(st.offlineAuto);
+    if (st.offlineAuto) warmPlayable();
+    toast(st.offlineAuto ? '遊べるステージの曲を自動で保存します' : '自動で保存しないようにしました');
+    return offlineModal();
+  }
+  const [op, id] = v.split(':').length > 2 ? [v.slice(0, v.indexOf(':')), v.slice(v.indexOf(':') + 1)] : v.split(':');
+  const targets = id === '*' ? groups : groups.filter((g) => g.id === id);
+  const skip = new Set(st.offlineSkip);
+  if (op === 'save') {
+    if (!navigator.onLine) { toast('保存するには通信が必要です'); return offlineModal(); }
+    const list = targets.flatMap((g) => g.items).filter((x) => !have.has(x.url));
+    toast(`保存しています…（${mb(list.reduce((a, x) => a + x.size, 0))}）`);
+    let ok = 0;
+    for (const x of list) {
+      try { const r = await fetch(x.url); if (r.ok) { await cache.put(x.url, r); ok++; } } catch {}
+    }
+    for (const g of targets) skip.delete(g.id);
+    toast(ok === list.length ? '保存しました' : `${list.length - ok}個の保存に失敗しました（通信を確認してください）`);
+  } else {
+    if (id === '*' && !(await confirmBox('すべて削除', '保存しているBGMと効果音をすべて削除しますか？（ゲームのデータは消えません）', '削除する', 'red'))) return offlineModal();
+    for (const x of targets.flatMap((g) => g.items)) await cache.delete(x.url);
+    for (const g of targets) skip.add(g.id);
+    toast('削除しました');
+  }
+  st.offlineSkip = [...skip];
+  commit();
+  return offlineModal();
 }
 
 // ===================== タイトル画面 =====================
@@ -372,8 +455,10 @@ function render() {
   updateCloudDot();
 }
 
-function ownerOf(uid) {
-  for (const [id, c] of Object.entries(data().chars)) if (Object.values(c.equip).includes(uid)) return id;
+/** 装備している部位（装備していなければ null）。装備は全キャラ共通 */
+function equippedSlot(uid) {
+  const eq = data().equip;
+  for (const k of Object.keys(eq)) if (eq[k] === uid) return k;
   return null;
 }
 function hasUnreadNews() {
@@ -388,12 +473,13 @@ function starsHTML(n, max = 5) {
 function itemTile(it, opt = {}) {
   const base = D.EQUIP[it.base];
   const R = D.RARITIES[it.rarity];
-  const owner = opt.noOwner ? null : ownerOf(it.uid);
+  const owner = opt.noOwner ? null : equippedSlot(it.uid);
   return `<button class="itile ${it.rarity === 'SSR' ? 'ssr' : ''} ${newItems.has(it.uid) ? 'new' : ''}" style="--rc:${R.color};--rd:${R.dark}" data-act="${opt.act || 'item'}" data-uid="${it.uid}" ${opt.slot ? `data-slot="${opt.slot}"` : ''}>
     <img class="ic px" data-icon="${base.icon}" data-color="${base.color}" alt="">
     <span class="rar ol">${R.name}</span>
     <span class="lv ol">LV:${it.level}</span>
-    ${owner ? `<img class="who px" data-portrait="${owner}" alt="">` : ''}
+    ${it.plus ? `<span class="plus ol">${'★'.repeat(it.plus)}</span>` : ''}
+    ${owner ? '<span class="eqd ol">E</span>' : ''}
   </button>`;
 }
 
@@ -546,7 +632,7 @@ function equipHTML() {
   const cs = d.chars[cid];
   const st = D.charStats(d, cid);
   const slotTile = (s) => {
-    const it = d.items.find((i) => i.uid === cs.equip[s.id]);
+    const it = d.items.find((i) => i.uid === d.equip[s.id]);
     if (it) return itemTile(it, { act: 'slot', slot: s.id, noOwner: true });
     const sample = Object.values(D.EQUIP).find((e) => e.type === s.type);
     return `<button class="itile empty" data-act="slot" data-slot="${s.id}"><img class="px" data-icon="${sample.icon}" data-color="#9a8a70" alt="">${s.name}</button>`;
@@ -712,15 +798,18 @@ async function itemModal(uid, slotId) {
   const cid = d.selectedChar;
   const base = D.EQUIP[it.base];
   const R = D.RARITIES[it.rarity];
-  const owner = ownerOf(uid);
+  const owner = equippedSlot(uid);
   const st = D.itemStats(it);
   const cost = D.upgradeCost(it);
-  const maxed = it.level >= R.maxLv;
+  const maxLv = D.itemMaxLv(it);
+  const maxed = it.level >= maxLv;
+  const mats = mergeMaterials(it);
   const lines = Object.entries(st).map(([k, v]) => `<div>${D.formatStat(k, v)}</div>`).join('');
   const buttons = [];
-  if (owner === cid) buttons.push({ label: '外す', value: 'unequip' });
+  if (owner) buttons.push({ label: '外す', value: 'unequip' });
   else buttons.push({ label: '装備する', value: 'equip', cls: 'teal' });
   buttons.push({ label: maxed ? '強化MAX' : '強化', value: 'up', cls: 'gold' });
+  if ((it.plus || 0) < D.MERGE_MAX) buttons.push({ label: `合成${mats.length ? `（${mats.length}）` : ''}`, value: 'merge', cls: mats.length ? 'red' : '' });
   if (!owner) buttons.push({ label: `売却 +${D.salvageValue(it)}G`, value: 'sell', cls: 'dark' });
   buttons.push({ label: '閉じる', value: null });
   const v = await modal({
@@ -728,25 +817,30 @@ async function itemModal(uid, slotId) {
     body: `<div class="item-detail">${itemTile(it, { act: 'none', noOwner: true })}
       <div class="stats" style="flex:1">
         <div style="color:${R.dark}"><b>${R.name}</b> ／ ${D.SLOT_TYPE_NAMES[base.type]}</div>
-        <div class="muted">LV ${it.level} / ${R.maxLv}</div>
+        <div class="muted">LV ${it.level} / ${maxLv}${it.plus ? `　<span class="plus-t">限界突破${'★'.repeat(it.plus)}</span>` : ''}</div>
         ${lines}
-        ${owner ? `<div class="muted">${D.CHARACTERS[owner].name}が装備中</div>` : ''}
+        ${owner ? '<div class="muted">装備中（全キャラ共通）</div>' : ''}
       </div></div>`,
     buttons,
     onMount: (ov) => {
       hydrate(ov);
       const upBtn = [...ov.querySelectorAll('.mbtns .btn')].find((b) => b.textContent.startsWith('強化'));
       if (upBtn && (maxed || d.gold < cost)) upBtn.disabled = true;
+      const mgBtn = [...ov.querySelectorAll('.mbtns .btn')].find((b) => b.textContent.startsWith('合成'));
+      if (mgBtn && !mats.length) mgBtn.disabled = true;
     },
   });
   if (v === 'equip') equipItem(uid, slotId);
   else if (v === 'unequip') {
-    for (const k of Object.keys(d.chars[cid].equip)) if (d.chars[cid].equip[k] === uid) d.chars[cid].equip[k] = null;
+    for (const k of Object.keys(d.equip)) if (d.equip[k] === uid) d.equip[k] = null;
     commit();
+  } else if (v === 'merge') {
+    await mergeModal(uid);
+    itemModal(uid, slotId);
   } else if (v === 'up') {
     if (!maxed) {
       const costAt = (lv) => D.upgradeCost({ ...it, level: lv });
-      const to = await bulkUpgradeModal({ title: base.name, cur: it.level, max: R.maxLv, costAt, statsAt: (lv) => D.itemStats({ ...it, level: lv }) });
+      const to = await bulkUpgradeModal({ title: base.name, cur: it.level, max: maxLv, costAt, statsAt: (lv) => D.itemStats({ ...it, level: lv }) });
       if (to) applyUpgrade(it, it.level, to, costAt);
     }
     itemModal(uid, slotId);
@@ -759,19 +853,82 @@ async function itemModal(uid, slotId) {
   }
 }
 
+// ===== 合成（限界突破） =====
+/** 合成に使える装備（同じ種類・同じレア度・装備していない・自分以外）。レベルの低い順 */
+function mergeMaterials(it) {
+  return data().items.filter((x) => x.uid !== it.uid && x.base === it.base && x.rarity === it.rarity && !equippedSlot(x.uid))
+    .sort((a, b) => (a.plus || 0) - (b.plus || 0) || a.level - b.level);
+}
+/** 素材に使った装備の強化コインの半分を返す */
+function mergeRefund(m) {
+  let c = 0;
+  for (let l = 1; l < m.level; l++) c += D.upgradeCost({ ...m, level: l });
+  return Math.floor(c / 2);
+}
+async function mergeModal(uid) {
+  const d = data();
+  const it = d.items.find((i) => i.uid === uid);
+  const mats = mergeMaterials(it);
+  if (!mats.length) { toast('同じ装備（同じレア度）がありません'); return; }
+  let pick = mats[0].uid;
+  const base = D.EQUIP[it.base];
+  const after = { ...it, plus: (it.plus || 0) + 1 };
+  const body = () => {
+    const m = mats.find((x) => x.uid === pick);
+    const refund = mergeRefund(m);
+    return `<div class="mg">
+      <p class="muted" style="margin-top:0">同じ装備を1つ使って<b>限界突破</b>します。レベル上限が +${D.MERGE_LV} 上がり、もっと強化できるようになります（最大★${D.MERGE_MAX}）。</p>
+      <div class="mg-row">
+        <div class="mg-col">${itemTile(it, { act: 'none', noOwner: true })}<div class="mg-l">Lv上限 ${D.itemMaxLv(it)}</div></div>
+        <div class="mg-arrow">▶</div>
+        <div class="mg-col">${itemTile(after, { act: 'none', noOwner: true })}<div class="mg-l up">Lv上限 ${D.itemMaxLv(after)}</div></div>
+      </div>
+      <div class="mg-sub">素材にする装備をえらぶ</div>
+      <div class="inv mg-mats">${mats.map((x) => `<div class="mg-mat ${x.uid === pick ? 'sel' : ''}" data-mat="${x.uid}">${itemTile(x, { act: 'none', noOwner: true })}</div>`).join('')}</div>
+      ${refund ? `<p class="muted">素材の強化に使ったコインの半分（${refund.toLocaleString()}コイン）が戻ります。</p>` : ''}
+    </div>`;
+  };
+  const v = await modal({
+    title: `${base.name}を合成`,
+    body: body(),
+    buttons: [{ label: 'やめる', value: null }, { label: '合成する', value: true, cls: 'red' }],
+    onMount: (ov) => {
+      hydrate(ov);
+      const wire = () => ov.querySelectorAll('[data-mat]').forEach((el) => el.addEventListener('click', (e) => {
+        e.stopPropagation();
+        pick = +el.dataset.mat;
+        ov.querySelector('.mbody').innerHTML = body();
+        hydrate(ov); wire();
+      }));
+      wire();
+    },
+  });
+  if (!v) return;
+  const m = d.items.find((x) => x.uid === pick);
+  if (!m || equippedSlot(m.uid) || (it.plus || 0) >= D.MERGE_MAX) return;
+  const refund = mergeRefund(m);
+  d.items = d.items.filter((x) => x.uid !== m.uid);
+  it.plus = (it.plus || 0) + 1;
+  d.gold += refund;
+  sfx('rare');
+  commit();
+  toast(`限界突破！ ${base.name} ★${it.plus}（Lv上限 ${D.itemMaxLv(it)}）`);
+}
+
 function equipItem(uid, slotId) {
   const d = data();
   const cid = d.selectedChar;
   const it = d.items.find((i) => i.uid === uid);
   const type = D.EQUIP[it.base].type;
-  const owner = ownerOf(uid);
-  if (owner) for (const k of Object.keys(d.chars[owner].equip)) if (d.chars[owner].equip[k] === uid) d.chars[owner].equip[k] = null;
+  const owner = equippedSlot(uid);
+  if (owner) d.equip[owner] = null;
   let slot = slotId && D.SLOTS.find((s) => s.id === slotId && s.type === type) ? slotId : null;
   if (!slot) {
     const cands = D.SLOTS.filter((s) => s.type === type);
-    slot = (cands.find((s) => d.chars[cid].equip[s.id] == null) || cands[0]).id;
+    slot = (cands.find((s) => d.equip[s.id] == null) || cands[0]).id;
   }
-  d.chars[cid].equip[slot] = uid;
+  d.equip[slot] = uid;
+  void cid;
   sfx('equip');
   commit();
 }
@@ -780,7 +937,7 @@ function equipItem(uid, slotId) {
 async function slotModal(slotId) {
   const d = data();
   const slot = D.SLOTS.find((s) => s.id === slotId);
-  const cur = d.chars[d.selectedChar].equip[slotId];
+  const cur = d.equip[slotId];
   const list = d.items.filter((it) => D.EQUIP[it.base].type === slot.type)
     .sort((a, b) => D.RARITY_ORDER.indexOf(b.rarity) - D.RARITY_ORDER.indexOf(a.rarity) || b.level - a.level);
   if (!list.length) { toast(`${slot.name}の装備を持っていません`); return; }
@@ -797,7 +954,7 @@ async function slotModal(slotId) {
       }));
     },
   }).then((v) => {
-    if (v === 'off') { d.chars[d.selectedChar].equip[slotId] = null; commit(); }
+    if (v === 'off') { d.equip[slotId] = null; commit(); }
   });
 }
 
@@ -809,10 +966,10 @@ function autoEquip() {
     return (s.atk || 0) * 12 + (s.hp || 0) + (s.def || 0) * 8 + (s.crit || 0) * 300 + (s.cd || 0) * 400 + (s.spd || 0) * 200 + (s.exp || 0) * 150;
   };
   const used = new Set();
-  for (const [oid, oc] of Object.entries(d.chars)) if (oid !== cid) for (const u of Object.values(oc.equip)) if (u != null) used.add(u);
+  void cid;
   for (const s of D.SLOTS) {
     const best = d.items.filter((it) => D.EQUIP[it.base].type === s.type && !used.has(it.uid)).sort((a, b) => score(b) - score(a))[0];
-    d.chars[cid].equip[s.id] = best ? best.uid : null;
+    d.equip[s.id] = best ? best.uid : null;
     if (best) used.add(best.uid);
   }
   sfx('levelup');
@@ -1168,6 +1325,7 @@ function settingsHTML() {
     <div class="set-row"><div class="lbl">更新のお知らせ通知<small>${notifyNote}</small></div><button class="toggle ${d.settings.notify ? 'on' : ''}" data-act="toggle-notify" aria-label="通知"></button></div>
     ${volHTML()}
     <p class="muted" style="margin:2px 0 0">バーを0にすると消音になります</p>
+    <div class="set-row"><div class="lbl">オフライン用の保存<small>BGM・効果音を端末に保存／削除</small></div><button class="btn small" data-act="offline">管理する</button></div>
   </div>
   <div class="panel">
     <h3>アプリ</h3>
@@ -1316,14 +1474,14 @@ async function onAction(act, el) {
     case 'item': sfx('click'); itemModal(+el.dataset.uid); break;
     case 'slot': {
       sfx('click');
-      const uid = d.chars[d.selectedChar].equip[el.dataset.slot];
+      const uid = d.equip[el.dataset.slot];
       if (uid != null && d.items.find((i) => i.uid === uid)) itemModal(uid, el.dataset.slot);
       else slotModal(el.dataset.slot);
       break;
     }
     case 'auto-equip': autoEquip(); break;
     case 'sell-n': {
-      const list = d.items.filter((it) => it.rarity === 'N' && !ownerOf(it.uid));
+      const list = d.items.filter((it) => it.rarity === 'N' && !equippedSlot(it.uid));
       if (!list.length) { toast('売却できるN装備がありません'); break; }
       const total = list.reduce((a, it) => a + D.salvageValue(it), 0);
       if (await confirmBox('まとめて売却', `装備していないN装備 ${list.length}個を ${total} ゴールドで売却しますか？`, '売却する', 'red')) {
@@ -1373,6 +1531,7 @@ async function onAction(act, el) {
         try { await enablePush(pwa.reg); d.settings.notify = true; commit(); toast('通知をオンにしました'); } catch (e) { toast(e.message); }
       }
       break;
+    case 'offline': sfx('click'); offlineModal(); break;
     case 'check-update':
       if (pendingUpdate) { showUpdatePopup(); break; }
       if (pwa.reg) {
@@ -1770,7 +1929,9 @@ async function enemyBook(opt = {}) {
   const s = seen();
   const order = D.BIOMES.map((b, i) => ({ b, i }));
   if (opt.biome) order.sort((x, y) => (y.b.id === opt.biome) - (x.b.id === opt.biome));
-  const known = (kind, id, b) => b.id === opt.biome || (kind === 'boss' ? s.b : s.m).includes(id);
+  // クリア済みのステージ・いま戦っているステージの敵は全部見られる
+  const cleared = (b) => D.BIOMES.indexOf(b) < data().maxStage;
+  const known = (kind, id, b) => b.id === opt.biome || cleared(b) || (kind === 'boss' ? s.b : s.m).includes(id);
   const tile = (kind, id, def, b) => {
     const k = known(kind, id, b);
     return `<button class="eb-tile ${kind === 'boss' ? 'boss' : ''} ${k ? '' : 'unk'}" data-eb="${kind}:${id}:${b.id}">
@@ -1780,7 +1941,7 @@ async function enemyBook(opt = {}) {
   const html = order.map(({ b, i }) => {
     const mobs = [...b.mobs, b.elite];
     total += mobs.length + 1;
-    got += mobs.filter((id) => s.m.includes(id)).length + (s.b.includes(b.boss) ? 1 : 0);
+    got += mobs.filter((id) => known('mob', id, b)).length + (known('boss', b.boss, b) ? 1 : 0);
     return `<div class="eb-sec"><div class="eb-h">STAGE ${i + 1}　${b.name}${b.id === opt.biome ? '<span class="eb-now">いまここ</span>' : ''}</div>
       <div class="eb-grid">${mobs.map((id) => tile('mob', id, EN.MOBS[id], b)).join('')}${tile('boss', b.boss, EN.BOSSES[b.boss], b)}</div></div>`;
   }).join('');
@@ -1788,7 +1949,7 @@ async function enemyBook(opt = {}) {
     cls: 'ebook',
     title: 'てき図鑑',
     sound: 'panel2',
-    body: `<p class="muted" style="margin-top:0">敵をタップすると、攻撃パターン・よけ方・弱点が見られます。（出会った敵 ${got} / ${total}）</p>${html}`,
+    body: `<p class="muted" style="margin-top:0">敵をタップすると、攻撃パターン・よけ方・弱点が見られます。クリアしたステージの敵は全部見られます。（${got} / ${total}）</p>${html}`,
     buttons: [{ label: '閉じる', value: null }],
     onMount: (ov, close) => ov.querySelectorAll('[data-eb]').forEach((el) => el.addEventListener('click', () => close(el.dataset.eb))),
   });
@@ -1809,7 +1970,7 @@ async function endBattle(res) {
   let gold, ticket = 0, item = null, first = false;
   if (res.cleared) {
     first = n > d.maxStage;
-    gold = rw.gold + res.gold + res.kills * 3;
+    gold = rw.gold + res.gold + res.kills * 8;
     ticket = first ? rw.firstTicket : 0;
     M.track('boss');
     d.stats.bossKills = (d.stats.bossKills || 0) + 1;
@@ -1819,7 +1980,7 @@ async function endBattle(res) {
     if (first) { d.maxStage = n; setTimeout(warmPlayable, 3000); }
     d.stats.clears++;
   } else {
-    gold = Math.round(res.gold + res.kills * 2 + (res.room - 1) / D.ROOMS_PER_STAGE * rw.gold * 0.6);
+    gold = Math.round(res.gold + res.kills * 5 + (res.room - 1) / D.ROOMS_PER_STAGE * rw.gold * 0.6);
   }
   d.gold += gold;
   d.ticketsChar += ticket;

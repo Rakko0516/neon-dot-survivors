@@ -52,6 +52,7 @@ for (const kind of ['bgm', 'se']) {
     writeFileSync(join(outDir, `${name}.bin`), out);
     // 中身の指紋（中身が変わったときだけ変わる）。ゲームはこれを付けて読み込むので、差し替えた音が古いキャッシュのまま鳴ることがない
     s.v = createHash('sha256').update(out).digest('hex').slice(0, 10);
+    s.size = out.length; // 設定画面の「オフライン用の保存」で容量を表示する
     ok++;
   }
 }
