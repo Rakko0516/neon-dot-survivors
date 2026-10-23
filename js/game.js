@@ -216,8 +216,15 @@ export class Game {
     this.camY += (target - this.camY) * Math.min(1, dt * 6);
     this.camY = Math.max(0, Math.min(M.h - this.vh, this.camY));
 
-    if (P.hp <= 0 && !this.ended) this.finish(false);
-    if (this.pendingLv > 0 && !this.ended) this.triggerLevelUp();
+    if (this.clearing) {
+      this.clearT += dt;
+      const left = this.gems.length + this.pickups.filter((p) => p.kind === 'coin').length;
+      if (!this.ended && ((left === 0 && this.clearT > 1.2) || this.clearT > 6)) this.finish(true);
+    } else {
+      if (P.hp <= 0 && !this.ended) this.finish(false);
+      // クリアが決まった後はスキル選択を出さない
+      if (this.pendingLv > 0 && !this.ended) this.triggerLevelUp();
+    }
     this.updateHud();
   }
 
@@ -239,7 +246,7 @@ export class Game {
         for (const e of this.enemies) if (!e.boss) { e.dead = true; this.puff(e.x, e.y); }
       }
     }
-    if (!this.roomActive) return;
+    if (!this.roomActive || this.clearing) return;
     const k = this.room;
     if (isBoss) {
       if (!this.boss && this.roomT > 1.2) this.spawnBoss();
@@ -396,7 +403,7 @@ export class Game {
 
   hurtPlayer(dmg, hazard = false) {
     const P = this.player;
-    if (this.ended || this.superT > 0) return;
+    if (this.ended || this.clearing || this.superT > 0) return;
     if (!hazard && P.iframe > 0) return;
     const real = Math.max(1, dmg * (1 - this.rs.armor) * (100 / (100 + this.rs.def * 4)));
     P.hp -= real;
@@ -435,8 +442,14 @@ export class Game {
     if (e.boss) {
       this.shake = 0.7;
       for (let i = 0; i < 20; i++) this.dropGem(e.x + rand(-24, 24), e.y + rand(-24, 24), 20);
+      for (let i = 0; i < 6; i++) this.pickups.push({ kind: 'coin', x: e.x + rand(-28, 28), y: e.y + rand(-28, 28), v: 15 + this.stage.n * 3 });
       this.gold += 100;
-      setTimeout(() => this.finish(true), 1300);
+      // ステージクリアが決まったら：残りの敵と弾を消し、落ちている経験値とコインを集めきってから終わる
+      this.clearing = true;
+      this.clearT = 0;
+      for (const o of this.enemies) if (!o.dead) { o.dead = true; this.puff(o.x, o.y); }
+      this.ebullets = [];
+      this.banner('STAGE CLEAR!');
       return;
     }
     if (e.elite) {
@@ -818,14 +831,26 @@ export class Game {
       gm.age = (gm.age || 0) + dt;
       if (gm.age > 0.25) {
         const d = Math.sqrt(dist2(gm, P)) || 1;
-        gm.sp = (gm.sp || 40) + dt * 420;
-        gm.x += ((P.x - gm.x) / d) * gm.sp * dt;
-        gm.y += ((P.y - gm.y) / d) * gm.sp * dt;
+        gm.sp = (gm.sp || 40) + dt * (this.clearing ? 900 : 420);
+        const step = Math.min(d, gm.sp * dt); // 速くなっても通り過ぎない
+        gm.x += ((P.x - gm.x) / d) * step;
+        gm.y += ((P.y - gm.y) / d) * step;
         if (d < 7) { gm.dead = true; this.gainExp(gm.v); }
       }
     }
     this.gems = this.gems.filter((g) => !g.dead);
     for (const p of this.pickups) {
+      // コインも経験値と同じように自動でプレイヤーに集まる（回復ハートは近づいて取る）
+      if (p.kind === 'coin') {
+        p.age = (p.age || 0) + dt;
+        if (p.age > 0.35) {
+          const d = Math.sqrt(dist2(p, P)) || 1;
+          p.sp = (p.sp || 40) + dt * (this.clearing ? 900 : 380);
+          const step = Math.min(d, p.sp * dt);
+          p.x += ((P.x - p.x) / d) * step;
+          p.y += ((P.y - p.y) / d) * step;
+        }
+      }
       if (dist2(p, P) < 120) {
         p.dead = true;
         if (p.kind === 'heart') { P.hp = Math.min(P.maxHp, P.hp + P.maxHp * 0.3); sfx('heal'); }

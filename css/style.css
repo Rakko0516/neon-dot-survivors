@@ -281,8 +281,11 @@ img.px, canvas { image-rendering: pixelated; image-rendering: crisp-edges; }
 .round-btn {
   pointer-events: auto; position: absolute; top: calc(20px + var(--safe-t)); right: 8px; width: 58px; height: 58px; border-radius: 50%;
   background: radial-gradient(circle at 40% 35%, #5a4a40, #2a1c16); border: 3px solid #f4e8c8; box-shadow: 0 0 0 3px var(--ink), 0 3px 0 3px var(--ink);
-  color: #fff; font-size: 11px; line-height: 1.2;
+  color: #fff; font-size: 11px; line-height: 1.2; display: flex; align-items: center; justify-content: center;
 }
+/* 一時停止マーク（縦棒2本） */
+.pause-ic { display: block; width: 22px; height: 24px; background: linear-gradient(90deg, #fff 0 7px, transparent 7px 15px, #fff 15px 22px);
+  filter: drop-shadow(0 2px 0 var(--ink)); }
 .hud-left { position: absolute; left: 0; top: calc(86px + var(--safe-t)); display: flex; flex-direction: column; gap: 6px; }
 .hbar {
   display: flex; align-items: center; gap: 6px; min-width: 150px; height: 30px; padding: 0 12px 0 8px; justify-content: space-between;
