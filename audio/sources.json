@@ -628,6 +628,62 @@
       "by": "提供音源",
       "v": "1870bbd492",
       "size": 14676
+    },
+    "e_icicle": {
+      "file": "se_e_icicle.mp3",
+      "orig": "つらら.mp3",
+      "use": "敵：つらら落とし",
+      "by": "提供音源（OtoLogic / Springin）",
+      "v": "8c1b8ae8ac",
+      "size": 10497
+    },
+    "e_bone": {
+      "file": "se_e_bone.mp3",
+      "orig": "骨が回る.mp3",
+      "use": "敵：ホネブーメラン（先頭1.2秒）",
+      "by": "提供音源（OtoLogic / Springin）",
+      "v": "ef0619a284",
+      "size": 20191
+    },
+    "e_bubble": {
+      "file": "se_e_bubble.mp3",
+      "orig": "泡.mp3",
+      "use": "敵：あわ（先頭1.2秒）",
+      "by": "提供音源（OtoLogic / Springin）",
+      "v": "738eb07810",
+      "size": 20110
+    },
+    "e_dark": {
+      "file": "se_e_dark.mp3",
+      "orig": "暗い魔法.mp3",
+      "use": "敵：やみの玉",
+      "by": "提供音源（OtoLogic / Springin）",
+      "v": "c7dd4e5263",
+      "size": 29723
+    },
+    "e_poison": {
+      "file": "se_e_poison.mp3",
+      "orig": "毒.mp3",
+      "use": "敵：毒液・胞子・毒の雨",
+      "by": "提供音源（OtoLogic / Springin）",
+      "v": "dc8142fba9",
+      "size": 17184
+    },
+    "e_pinch": {
+      "file": "se_e_pinch.mp3",
+      "orig": "ハサミ.mp3",
+      "use": "敵：ハサミ",
+      "by": "提供音源（OtoLogic / Springin）",
+      "v": "344b15382b",
+      "size": 16766
+    },
+    "e_vine": {
+      "file": "se_e_vine.mp3",
+      "orig": "ツタ.mp3",
+      "use": "敵：しなるツタ・四方ツタ",
+      "by": "提供音源（OtoLogic / Springin）",
+      "v": "10f1d4d383",
+      "size": 10497
     }
   }
 }

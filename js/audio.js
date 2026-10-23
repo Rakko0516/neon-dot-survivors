@@ -195,9 +195,9 @@ function loadSe(name, urgent) {
 }
 
 // 同じ音が短時間に重なりすぎないための間隔（ミリ秒）
-const GAP = { heart: 250, talisman: 160, yarn: 160, drone: 110, barrier: 1400, holy: 300, hit: 70, kill: 60, gem: 45, shoot: 80, shoot2: 110, reel: 60, slash: 90, boom: 120, zap: 110, coin: 220, click: 40, hurt: 200, fire: 450, ice: 150, arrow: 90, missile: 150, heal: 250, spike: 300 };
+const GAP = { e_icicle: 150, e_bone: 350, e_bubble: 350, e_dark: 300, e_poison: 300, e_pinch: 200, e_vine: 150, heart: 250, talisman: 160, yarn: 160, drone: 110, barrier: 1400, holy: 300, hit: 70, kill: 60, gem: 45, shoot: 80, shoot2: 110, reel: 60, slash: 90, boom: 120, zap: 110, coin: 220, click: 40, hurt: 200, fire: 450, ice: 150, arrow: 90, missile: 150, heal: 250, spike: 300 };
 // よく鳴る音は小さめに（音源の大きさはそろえてあるので、ここは鳴る回数に合わせた調整）
-const SE_VOL = { heart: 0.55, talisman: 0.5, yarn: 0.55, drone: 0.38, barrier: 0.4, holy: 0.55, gem: 0.35, hit: 0.35, kill: 0.5, shoot: 0.45, reel: 0.45, shoot2: 0.5, fire: 0.35, coin: 0.55, slash: 0.7, ice: 0.6, arrow: 0.6, missile: 0.6, click: 0.8 };
+const SE_VOL = { e_icicle: 0.55, e_bone: 0.5, e_bubble: 0.5, e_dark: 0.5, e_poison: 0.55, e_pinch: 0.6, e_vine: 0.6, heart: 0.55, talisman: 0.5, yarn: 0.55, drone: 0.38, barrier: 0.4, holy: 0.55, gem: 0.35, hit: 0.35, kill: 0.5, shoot: 0.45, reel: 0.45, shoot2: 0.5, fire: 0.35, coin: 0.55, slash: 0.7, ice: 0.6, arrow: 0.6, missile: 0.6, click: 0.8 };
 
 /** その名前の効果音が用意されているか（敵の攻撃の専用音など） */
 export const hasSe = (name) => !!sources?.se?.[name];

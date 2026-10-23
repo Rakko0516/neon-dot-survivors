@@ -11,7 +11,9 @@ const ENEMY_SE = {
   leaf: 'arrow', needle: 'arrow', snowball: 'ice', fireball: 'fire', bubble: 'shoot2', crystal: 'ice', bone: 'slash', dark: 'shoot2', star: 'shoot',
   spore: 'spike', poison: 'spike', flame: 'fire', vine: 'slash', pinch: 'slash', beam: 'missile', icicle: 'ice', bolt: 'zap',
 };
-const sfxE = (k) => { const own = 'e_' + k; sfx(hasSe(own) ? own : ENEMY_SE[k] || 'shoot2'); };
+// 胞子は毒と同じ音
+const SE_SAME = { spore: 'poison' };
+const sfxE = (k) => { const own = 'e_' + (SE_SAME[k] || k); sfx(hasSe(own) ? own : ENEMY_SE[k] || 'shoot2'); };
 
 const TAU = Math.PI * 2;
 const rand = (a, b) => a + Math.random() * (b - a);
@@ -568,7 +570,7 @@ export class Game {
     this.fx.push({ kind: 'warn', x, y, R, life: 0.9, max: 0.9 });
     this.later(0.9, () => {
       this.zones.push({ kind: kind === 'poison' ? 'puddle' : 'cloud', x, y, R, life: kind === 'poison' ? 3.5 : 2.6, max: kind === 'poison' ? 3.5 : 2.6, every: 0.5, tick: 0, dmg: dmg * 0.4 });
-      sfx('spike');
+      sfxE(kind);
     });
   }
   /** 上から落ちてくる（つらら・カミナリ） */

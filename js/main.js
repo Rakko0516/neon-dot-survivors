@@ -1430,7 +1430,7 @@ function settingsHTML() {
   </div>
   <div class="panel">
     <h3>クレジット</h3>
-    <div class="muted" style="line-height:1.9">音楽：魔王魂 ／ なぐもりずの音楽室 ／ MusMus ／ マツヤマ マキ ／ Tak_mfk<br>効果音：効果音ラボ</div>
+    <div class="muted" style="line-height:1.9">音楽：魔王魂 ／ なぐもりずの音楽室 ／ MusMus ／ マツヤマ マキ ／ Tak_mfk<br>効果音：効果音ラボ ／ OtoLogic ／ Springin</div>
   </div>
   <div class="panel"><h3>データ</h3><button class="btn small dark" data-act="reset">セーブデータを削除して最初から</button></div>
   <p class="muted" style="text-align:center">v${APP_VERSION}</p>`;
