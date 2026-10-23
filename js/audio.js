@@ -76,8 +76,9 @@ async function loadSe(name) {
 }
 
 // 同じ音が短時間に重なりすぎないための間隔（ミリ秒）
-const GAP = { hit: 45, kill: 50, gem: 40, shoot: 70, shoot2: 90, reel: 60, slash: 80, boom: 80, zap: 100, coin: 60, click: 40, hurt: 150 };
-const SE_VOL = { gem: 0.5, hit: 0.45, kill: 0.6, shoot: 0.5, reel: 0.6, shoot2: 0.55 };
+const GAP = { hit: 70, kill: 60, gem: 45, shoot: 80, shoot2: 110, reel: 60, slash: 90, boom: 120, zap: 110, coin: 220, click: 40, hurt: 200, fire: 450, ice: 150, arrow: 90, missile: 150, heal: 250, spike: 300 };
+// よく鳴る音は小さめに（音源の大きさはそろえてあるので、ここは鳴る回数に合わせた調整）
+const SE_VOL = { gem: 0.35, hit: 0.35, kill: 0.5, shoot: 0.45, reel: 0.45, shoot2: 0.5, fire: 0.35, coin: 0.55, slash: 0.7, ice: 0.6, arrow: 0.6, missile: 0.6, click: 0.8 };
 
 export function sfx(name) {
   if (!ctx || vol.se === 0) return;

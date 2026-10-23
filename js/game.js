@@ -493,6 +493,7 @@ export class Game {
             if ((e.hits.fox || 0) > this.t) continue;
             e.hits.fox = this.t + 0.4;
             this.damage(e, dmg, { kx: Math.cos(a), ky: Math.sin(a) });
+            sfx('fire');
           }
         }
         continue;

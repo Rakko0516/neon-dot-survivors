@@ -692,7 +692,7 @@ function gachaHTML() {
 
 async function doGacha(n, by) {
   const type = gachaType;
-  if (!M.payGacha(type, n, by)) { toast(by === 'ticket' ? 'チケットが足りません' : 'コインが足りません'); return; }
+  if (!M.payGacha(type, n, by)) { sfx('error'); toast(by === 'ticket' ? 'チケットが足りません' : 'コインが足りません'); return; }
   const STAR_R = { 3: 'R', 4: 'SR', 5: 'SSR' };
   if (type === 'char') {
     const res = M.pullChars(n);
@@ -974,7 +974,7 @@ function settingsHTML() {
   </div>
   <div class="panel">
     <h3>クレジット</h3>
-    <div class="muted" style="line-height:1.9">音楽：魔王魂<br>音楽：OpenTracks（Hupple／もっぴーさうんど／Maniira）<br>効果音：効果音ラボ</div>
+    <div class="muted" style="line-height:1.9">音楽：魔王魂<br>効果音：効果音ラボ</div>
   </div>
   <div class="panel"><h3>データ</h3><button class="btn small dark" data-act="reset">セーブデータを削除して最初から</button></div>
   <p class="muted" style="text-align:center">v${APP_VERSION}</p>`;
