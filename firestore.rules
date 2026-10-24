@@ -2,6 +2,7 @@ rules_version = '2';
 // Firestore のセキュリティルール（Firebaseコンソール → Firestore Database → ルール に全文を貼り付けて「公開」）
 // ・本人のセーブ（saves/自分のuid）だけ読み書きできる。他人のデータは1件も見えない・書けない
 // ・決められた項目・大きさ以外は書き込めない（大量データの押し付けや別用途への悪用を防ぐ）
+// ・シークレットコード（codes）と個別プレゼント（grants）は、コード／ユーザーIDを知っている場合だけ1件読める（書き込みは運営ツールのみ）
 // ・それ以外の場所はすべて禁止
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -26,6 +27,20 @@ service cloud.firestore {
       allow list: if false;
       allow create, update: if isOwner(uid) && validSave();
       allow delete: if isOwner(uid);
+    }
+
+    // シークレットコード（運営が GitHub Actions の「運営ツール」で追加）
+    // コードを知っている人だけが1件読める。一覧の取得・書き込みは誰にもできない（コードを探し出せない）
+    match /codes/{code} {
+      allow get: if code.size() >= 4 && code.size() <= 32;
+      allow list, create, update, delete: if false;
+    }
+
+    // ユーザーID宛ての個別プレゼント（運営が「運営ツール」で追加）
+    // ユーザーID（推測できないランダムな文字）を知っている本人のゲームだけが読める。一覧・書き込みは禁止
+    match /grants/{pid} {
+      allow get: if pid.matches('^DR-[0-9A-HJKMNP-TV-Z]{5}-[0-9A-HJKMNP-TV-Z]{5}$');
+      allow list, create, update, delete: if false;
     }
 
     match /{document=**} {

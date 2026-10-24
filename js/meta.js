@@ -1,6 +1,7 @@
 // 遊びの外側の仕組み：ガチャ・ミッション・ログインボーナス・プレゼントボックス
 // 毎日0時（端末の時刻）でデイリーとログインボーナスが更新、毎週月曜0時でウィークリーが更新されます。
 import { store, commit, cleanReward } from './save.js';
+import { getDoc, normCode } from './server.js';
 import { CHARACTERS, GACHAS, AWAKEN_MAX, DUPE_DIAMONDS, CHAR_PRICE, EQUIP, SLOT_TYPE_NAMES, rollRarity, randomEquipBase } from './data.js';
 
 const data = () => store.save.data;
@@ -90,6 +91,66 @@ export async function syncGifts() {
   }
   if (added) commit();
   return added;
+}
+
+// ===================== シークレットコード =====================
+// 運営が Firestore の codes/{コード} に { title, reward, from, until } を置くと、ゲームを更新しなくても使えるようになる
+const today = () => dayKey();
+let codeFails = [];
+/**
+ * コードを使う。成功：{ ok:true, title, reward } / 失敗：{ ok:false, msg }
+ */
+export async function redeemCode(input) {
+  const d = data();
+  const code = normCode(input);
+  if (code.length < 4) return { ok: false, msg: 'コードは4文字以上で入力してください' };
+  // 何度もまちがえたら少し待ってもらう（総当たり対策）
+  const now = Date.now();
+  codeFails = codeFails.filter((t) => now - t < 60000);
+  if (codeFails.length >= 5) return { ok: false, msg: '入力が多すぎます。1分ほど待ってからもう一度どうぞ' };
+  if (d.usedCodes.includes(code)) return { ok: false, msg: 'このコードはもう使いました' };
+  const r = await getDoc('codes/' + code);
+  if (!r.ok) {
+    if (r.reason === 'notfound') { codeFails.push(now); return { ok: false, msg: 'コードがちがいます' }; }
+    if (r.reason === 'offline') return { ok: false, msg: 'インターネットにつながっていません' };
+    if (r.reason === 'denied') return { ok: false, msg: 'シークレットコードはまだ準備中です' };
+    return { ok: false, msg: '確認できませんでした。時間をおいてもう一度どうぞ' };
+  }
+  const c = r.data;
+  if (c.active === false) return { ok: false, msg: 'このコードは使えません' };
+  if (c.from && String(c.from) > today()) return { ok: false, msg: 'このコードはまだ使えません' };
+  if (c.until && String(c.until) < today()) return { ok: false, msg: 'このコードは期限が切れています' };
+  const reward = cleanReward(c.reward || {});
+  if (!Object.keys(reward).length) return { ok: false, msg: 'このコードは使えません' };
+  grant(reward);
+  d.usedCodes.push(code);
+  commit();
+  const title = String(c.title || 'シークレットコード').replace(/[<>"'`&\u0000-\u001f]/g, '').slice(0, 40);
+  return { ok: true, title, reward };
+}
+
+// ===================== 運営からの個別プレゼント（ユーザーID宛て） =====================
+// 運営が Firestore の grants/{ユーザーID} に { items:[{ id, title, reward }] } を置くと、その人のプレゼントボックスに届く
+let grantsBusy = false;
+export async function syncGrants() {
+  const d = data();
+  if (grantsBusy || !d.playerId) return 0;
+  grantsBusy = true;
+  try {
+    const r = await getDoc('grants/' + d.playerId);
+    if (!r.ok) return 0;
+    let added = 0;
+    for (const g of (Array.isArray(r.data.items) ? r.data.items : []).slice(0, 200)) {
+      const id = 'grant:' + String(g?.id || '').replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 30);
+      if (id === 'grant:' || d.receivedGifts.includes(id)) continue;
+      const title = String(g.title || '運営からのプレゼント').replace(/[<>"'`&\u0000-\u001f]/g, '').slice(0, 40);
+      addPresent(title, g.reward || {}, 'gift');
+      d.receivedGifts.push(id);
+      added++;
+    }
+    if (added) commit();
+    return added;
+  } finally { grantsBusy = false; }
 }
 
 // ===================== ログインボーナス（7日周期） =====================

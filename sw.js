@@ -1,6 +1,6 @@
 // Service Worker：オフライン対応・アップデート配信・プッシュ通知
 // VERSION を変えると全プレイヤーに「アップデートがあります」が表示されます（tools/bump-version.mjs が自動で変更）
-const VERSION = '0.5.4';
+const VERSION = '1.0.0';
 // 更新履歴を作り直してバージョン番号を戻したため、古いキャッシュと名前がかぶらないよう r4 を付ける
 // BUILD：更新履歴に載せない小さな修正を配信するときに上げる（バージョン番号はそのまま）
 const BUILD = 11;
@@ -29,6 +29,7 @@ const ASSETS = [
   './js/profile.js',
   './js/pwa.js',
   './js/save.js',
+  './js/server.js',
   './js/stage.js',
   './js/title-movie.js',
   './js/ui.js',

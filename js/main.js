@@ -367,12 +367,15 @@ async function handleMove() {
   return true;
 }
 
+let lastGrantCheck = Date.now();
 /** 起動後：ログインボーナス → 運営プレゼント → お知らせ */
 async function afterBoot() {
   if (await handleMove()) return;
   const forgot = M.checkMissionReset();
   const idx = M.checkLoginBonus();
   await M.syncGifts();
+  const granted = await M.syncGrants().catch(() => 0);
+  if (granted) toast(`運営からのプレゼントが ${granted}件 届きました`);
   render();
   if (forgot) toast(`受け取り忘れのミッション報酬（${forgot}件）をプレゼントボックスに送りました`);
   if (idx !== null) await loginModal(idx);
@@ -383,6 +386,11 @@ async function afterBoot() {
     if (inBattle || document.querySelector('.overlay')) return;
     const forgot = M.checkMissionReset();
     if (forgot) { render(); toast(`受け取り忘れのミッション報酬（${forgot}件）をプレゼントボックスに送りました`); }
+    if (Date.now() - lastGrantCheck > 5 * 60 * 1000) {
+      lastGrantCheck = Date.now();
+      const n = await M.syncGrants().catch(() => 0);
+      if (n) { render(); toast(`運営からのプレゼントが ${n}件 届きました`); }
+    }
     const i = M.checkLoginBonus();
     if (i !== null) { render(); await loginModal(i); }
   };
@@ -1293,6 +1301,7 @@ function gachaHTML() {
   const t = gachaType === 'char' ? d.ticketsChar : d.ticketsEquip;
   const tName = gachaType === 'char' ? 'キャラガチャチケット' : '装備ガチャチケット';
   const tCol = M.TICKET_COLOR[gachaType];
+  const ratesBtn = '<button class="rates-btn" data-act="gacha-rates" aria-label="排出率を見る"><i>%</i>排出率</button>';
   let banner;
   if (gachaType === 'char') {
     const feat = Object.values(D.CHARACTERS).filter((c) => c.gacha && c.stars === 5);
@@ -1300,16 +1309,15 @@ function gachaHTML() {
       <div class="gb-chars">${feat.map((c) => `<img class="px" data-char="${c.id}" alt="${c.name}">`).join('')}</div>
       <div class="gb-title ol">ガチャ限定 ★5 登場！</div>
       <div class="gb-names ol">${feat.map((c) => c.name).join('・')}</div>
+      ${ratesBtn}
     </div>`;
   } else {
     banner = `<div class="gbanner equip">
       <div class="gb-items">${['sword', 'armor', 'ring', 'helmet', 'staff'].map((ic, i) => `<img class="px" data-icon="${ic}" data-color="${['#ffcc33', '#c45cff', '#4aa8ff', '#9aa3b8', '#ffd23a'][i]}" alt="">`).join('')}</div>
       <div class="gb-title ol">装備ガチャ</div>
+      ${ratesBtn}
     </div>`;
   }
-  const rates = gachaType === 'char'
-    ? Object.entries(g.rates).sort((a, b) => b[0] - a[0]).map(([s, r]) => `<span>★${s} ${r}%</span>`).join('')
-    : D.RARITY_ORDER.map((k) => `<span style="color:${D.RARITIES[k].color}">${k} ${D.RARITIES[k].rate}%</span>`).join('');
   return `
   <div class="subtabs">
     <button class="btn ${gachaType === 'char' ? 'active' : ''}" data-act="gacha-type" data-t="char">キャラガチャ</button>
@@ -1329,7 +1337,6 @@ function gachaHTML() {
       <button class="btn red" data-act="gacha" data-n="10" data-by="gold" ${d.gold < g.coin10 ? 'disabled' : ''}>10連<small>${g.coin10.toLocaleString()}コイン</small></button>
     </div>
     <p class="muted" style="text-align:center;margin:8px 0 0">10連は${gachaType === 'char' ? '★4以上' : 'R以上'}が1つ確定</p>
-    <div class="rates">${rates}</div>
   </div>`;
 }
 
@@ -1377,6 +1384,90 @@ async function doGacha(n, by) {
   render();
 }
 
+// ----- シークレットコード・ユーザーID -----
+async function copyPlayerId() {
+  const id = data().playerId;
+  try { await navigator.clipboard.writeText(id); toast('ユーザーIDをコピーしました'); }
+  catch { toast('ユーザーID：' + id); }
+  sfx('click');
+}
+function secretCodeModal() {
+  sfx('click');
+  let busy = false;
+  modal({
+    title: 'シークレットコード',
+    sound: 'panel2',
+    body: `<div class="code-box">
+      <img class="px code-ic" data-icon="gift" data-color="#ff6a8a" alt="">
+      <p class="muted">コードを入力して「受け取る」を押してください。<br>大文字・小文字はどちらでも大丈夫です。</p>
+      <input id="code-in" class="code-in" maxlength="32" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="例：DOTRUSH2026" inputmode="latin">
+      <div class="code-msg" id="code-msg" role="status"></div>
+    </div>`,
+    buttons: [{ label: '閉じる', value: null }, { label: '受け取る', value: 'go', cls: 'gold', keep: true }],
+    onMount: (ov, close) => {
+      hydrate(ov);
+      const inp = ov.querySelector('#code-in'), msg = ov.querySelector('#code-msg');
+      const okBtn = ov.querySelector('.mbtns [data-i="1"]');
+      const submit = async (e) => {
+        e?.stopPropagation(); e?.preventDefault();
+        if (busy) return;
+        busy = true; okBtn.disabled = true; okBtn.textContent = '確認中…';
+        msg.className = 'code-msg'; msg.textContent = '';
+        const r = await M.redeemCode(inp.value);
+        busy = false; okBtn.disabled = false; okBtn.textContent = '受け取る';
+        if (!r.ok) {
+          sfx('error'); msg.className = 'code-msg ng'; msg.textContent = r.msg;
+          inp.classList.remove('shake'); void inp.offsetWidth; inp.classList.add('shake');
+          return;
+        }
+        close();
+        sfx('coin');
+        await modal({
+          cls: 'rankup',
+          sound: 'panel',
+          body: `<div class="ru-burst"></div>
+            <div class="ru-title ol">GET!</div>
+            <p class="code-got-t">${esc(r.title)}</p>
+            <div class="ru-rewards">${Object.entries(r.reward).map(([k, v]) => { const [ic, col] = M.REWARD_ICON[k] || ['star', '#ffd23a']; return `<div class="reward ${k === 'diamond' ? 'dia' : ''}"><img class="px" data-icon="${ic}" data-color="${col}" alt="">×${v.toLocaleString()}</div>`; }).join('')}</div>`,
+          buttons: [{ label: 'OK', value: true, cls: 'teal' }],
+          onMount: hydrate,
+        });
+        render();
+      };
+      // 「受け取る」は押しても閉じない（結果をこの画面に出す）
+      okBtn.addEventListener('click', submit, true);
+      inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') submit(e); });
+      inp.addEventListener('input', () => { const v = inp.value.toUpperCase(); if (v !== inp.value) inp.value = v; });
+      setTimeout(() => inp.focus(), 60);
+    },
+  });
+}
+
+/** ガチャの排出率（各ガチャ画面の小さいボタンから） */
+function gachaRatesModal() {
+  sfx('click');
+  const g = D.GACHAS[gachaType];
+  let body;
+  if (gachaType === 'char') {
+    const rows = Object.entries(g.rates).sort((a, b) => b[0] - a[0]).map(([s, r]) => {
+      const pool = Object.values(D.CHARACTERS).filter((c) => c.stars === +s);
+      const each = pool.length ? (r / pool.length) : 0;
+      return `<div class="rt-sec"><div class="rt-h"><b>${'★'.repeat(+s)}</b><span>${r}%</span></div>
+        <div class="rt-list">${pool.map((c) => `<div class="rt-i"><img class="px" data-portrait="${c.id}" alt=""><span>${c.name}${c.gacha ? '<i class="rt-lim">限定</i>' : ''}</span><b>${each.toFixed(3).replace(/\.?0+$/, '')}%</b></div>`).join('')}</div></div>`;
+    }).join('');
+    body = `<p class="muted">キャラガチャで出るキャラと確率です。同じ★のキャラはすべて同じ確率です。</p>${rows}
+      <p class="muted rt-note">・10連の10体目は、それまでに★4以上が出ていなければ★4以上が確定します<br>・持っているキャラが出ると覚醒（+5まで）。覚醒+5のあとはダイヤに変わります</p>`;
+  } else {
+    const types = Object.entries(D.SLOT_TYPE_NAMES).map(([t, nm]) => [nm, Object.values(D.EQUIP).filter((e) => e.type === t).length]).filter(([, n]) => n);
+    const rows = D.RARITY_ORDER.map((k) => `<div class="rt-h"><b style="color:${D.RARITIES[k].color}">${k}</b><span>${D.RARITIES[k].rate}%</span></div>`).join('');
+    body = `<p class="muted">装備ガチャで出るレア度の確率です。</p><div class="rt-sec">${rows}</div>
+      <div class="rt-sec"><div class="rt-h"><b>装備の種類</b><span>${Object.keys(D.EQUIP).length}種類</span></div>
+      <p class="muted" style="margin:4px 0 0">${types.map(([nm, n]) => `${nm} ${n}種`).join('・')}。どの装備も同じ確率で出ます</p></div>
+      <p class="muted rt-note">・10連の10体目は、それまでにR以上が出ていなければR以上が確定します</p>`;
+  }
+  modal({ title: `${g.name}の排出率`, sound: 'panel2', body: `<div class="rates-box">${body}</div>`, buttons: [{ label: '閉じる', value: null }], onMount: hydrate });
+}
+
 // ----- プロフィール -----
 let profTab = 'icon';
 function profileModal() {
@@ -1403,6 +1494,7 @@ function profileModal() {
         ${avatarHTML(d.profile.icon, d.profile.frame, 84)}
         <div class="prof-info">
           <div class="prof-name">${esc(d.profile.name)}</div>
+          <button class="prof-id" data-copy-id>ID：${esc(d.playerId)}<i>コピー</i></button>
           <div class="prof-rank">Rank <b>${d.rank.lv}</b></div>
           <div class="mbar"><div style="width:${(d.rank.exp / need) * 100}%"></div><span>${d.rank.exp} / ${need}</span></div>
           <div class="muted">次のランク報酬：${nextTxt}</div>
@@ -1425,6 +1517,7 @@ function profileModal() {
       if (nx) strip.scrollLeft = Math.max(0, nx.offsetLeft - strip.offsetLeft - 64);
       strip.addEventListener('wheel', (e) => { if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) { strip.scrollLeft += e.deltaY; e.preventDefault(); } }, { passive: false });
       const reopen = () => { close(); profileModal(); };
+      ov.querySelector('[data-copy-id]').addEventListener('click', (e) => { e.stopPropagation(); copyPlayerId(); });
       ov.querySelector('#pf-save').addEventListener('click', (e) => {
         e.stopPropagation();
         if (PF.setName(ov.querySelector('#pf-name').value)) { sfx('equip'); toast('ユーザー名を変更しました'); reopen(); }
@@ -1611,6 +1704,13 @@ function settingsHTML() {
     : !cloud.enabled ? 'クラウド機能の準備ができると使えます'
     : !cloud.user ? 'Googleログインが必要です' : 'アップデートやお知らせを端末に通知します';
   return `
+  <div class="panel code-panel">
+    <h3>シークレットコード</h3>
+    <p class="muted">お知らせやイベントで配られたコードを入力すると、アイテムがもらえます。</p>
+    <button class="btn gold block code-open" data-act="secret-code"><img class="px" data-icon="gift" data-color="#ff6a8a" alt="">コードを入力する</button>
+    <div class="pid-row"><span class="pid-l">ユーザーID</span><b class="pid">${esc(d.playerId)}</b><button class="btn small" data-act="copy-id">コピー</button></div>
+    <p class="muted" style="margin:4px 0 0">お問い合わせのときはこのIDを伝えてください。運営からのプレゼントもこのIDに届きます。</p>
+  </div>
   <div class="panel"><h3>アカウント・クラウドセーブ</h3>${account}</div>
   <div class="panel">
     <h3>端末バックアップ（ファイル）</h3>
@@ -1768,6 +1868,9 @@ async function onAction(act, el) {
       break;
     }
     case 'stage-list': stageListModal(); break;
+    case 'secret-code': secretCodeModal(); break;
+    case 'copy-id': copyPlayerId(); break;
+    case 'gacha-rates': gachaRatesModal(); break;
     case 'party-tab': partyTab = el.dataset.t; sfx('click'); render(); break;
     case 'inv-filter': invFilter = el.dataset.f; sfx('click'); render(); break;
     case 'view-char': viewChar = el.dataset.id; sfx('click'); render(); break;

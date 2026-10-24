@@ -1244,3 +1244,39 @@ html.wide .tab-party.sub-equip .equip-stage { max-width: none; }
 #levelup.lv-wait { background: rgba(255, 240, 160, .18); pointer-events: none; }
 #levelup.lv-wait > * { opacity: 0; }
 #levelup > * { transition: opacity .2s; }
+
+/* ===== シークレットコード・ユーザーID ===== */
+.code-panel .code-open { display: flex; align-items: center; justify-content: center; gap: 8px; }
+.code-panel .code-open img { width: 24px; height: 24px; }
+.pid-row { display: flex; align-items: center; gap: 8px; margin-top: 10px; padding: 6px 8px; background: #0003; border: 2px solid #ffffff22; border-radius: 8px; }
+.pid-l { font-size: 12px; opacity: .8; white-space: nowrap; }
+.pid { flex: 1; font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace; font-weight: 800; font-size: 11px; letter-spacing: 1px; color: #ffe27a; user-select: all; -webkit-user-select: all; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.prof-id { display: inline-flex; align-items: center; gap: 6px; margin: 2px 0; padding: 2px 8px; border: 2px solid var(--ink); border-radius: 10px; background: #fff8; font-size: 11px; font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace; font-weight: 800; color: var(--ink); }
+.prof-id i { font-style: normal; font-family: inherit; font-size: 9px; padding: 1px 4px; border-radius: 4px; background: var(--ink); color: #fff; font-family: "M PLUS Rounded 1c", sans-serif; }
+.code-box { display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; }
+.code-ic { width: 56px; height: 56px; animation: bcFloat 2.4s ease-in-out infinite; }
+.code-in { width: 100%; font-size: 20px; padding: 10px 12px; text-align: center; letter-spacing: 3px; font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace; font-weight: 800; text-transform: uppercase;
+  border: 3px solid var(--ink); border-radius: 10px; background: #fffdf4; color: var(--ink); box-shadow: inset 0 3px 0 #0001; }
+.code-in:focus { outline: none; box-shadow: 0 0 0 3px #ffd23a, inset 0 3px 0 #0001; }
+.code-in::placeholder { color: #b8ab90; letter-spacing: 1px; font-size: 14px; }
+.code-in.shake { animation: tileShake .4s; }
+.code-msg { min-height: 20px; font-size: 13px; font-weight: 800; }
+.code-msg.ng { color: var(--red); }
+.code-got-t { text-align: center; font-weight: 800; margin: 4px 0 8px; }
+
+/* ===== ガチャの排出率 ===== */
+.gbanner { position: relative; }
+.rates-btn { position: absolute; right: 6px; bottom: 6px; z-index: 2; display: inline-flex; align-items: center; gap: 3px; padding: 2px 8px 2px 3px;
+  font-size: 11px; font-weight: 800; color: var(--ink); background: #fffdf4e8; border: 2px solid var(--ink); border-radius: 12px; box-shadow: 0 2px 0 var(--ink); }
+.rates-btn i { display: inline-grid; place-items: center; width: 16px; height: 16px; border-radius: 50%; background: var(--ink); color: #fff; font-style: normal; font-size: 10px; }
+.rates-btn:active { transform: translateY(2px); box-shadow: none; }
+.rates-box .rt-sec { margin: 8px 0; padding: 6px 8px; border: 2px solid #0002; border-radius: 8px; background: #fff6; }
+.rates-box .rt-h { display: flex; justify-content: space-between; align-items: center; font-size: 14px; padding: 2px 0; }
+.rates-box .rt-h b { color: #e0a822; text-shadow: 0 1px 0 #0003; }
+.rates-box .rt-list { display: grid; grid-template-columns: 1fr 1fr; gap: 3px 8px; margin-top: 4px; }
+.rates-box .rt-i { display: flex; align-items: center; gap: 4px; font-size: 12px; }
+.rates-box .rt-i img { width: 22px; height: 22px; border-radius: 4px; background: #0001; }
+.rates-box .rt-i span { flex: 1; min-width: 0; }
+.rates-box .rt-i b { font-size: 11px; }
+.rates-box .rt-lim { font-style: normal; font-size: 9px; margin-left: 3px; padding: 0 3px; border-radius: 3px; background: var(--red); color: #fff; }
+.rates-box .rt-note { font-size: 11px; line-height: 1.6; }

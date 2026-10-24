@@ -1,0 +1,63 @@
+name: 運営ツール（シークレットコード・個別プレゼント）
+run-name: 運営ツール
+
+# 使い方：GitHub の「Actions」→ 左の「運営ツール」→ 右の「Run workflow」で、操作を選んで入力 →「Run workflow」
+# ・コードを追加：コード・タイトル・もらえる物（コイン/チケット/ダイヤ）・期限（任意）
+# ・コードを止める：コード
+# ・コードの一覧：入力なし（結果は実行結果の画面に表示。コードは伏せ字）
+# ・ユーザーにプレゼント：ユーザーID・タイトル・送る物
+# ・ルールを反映：firestore.rules を Firebase に反映（初回に1回）
+# ゲームの更新は不要です。実行するとすぐにゲームに反映されます。
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: '操作'
+        type: choice
+        required: true
+        options: ['コードを追加', 'コードを止める', 'コードの一覧', 'ユーザーにプレゼント', 'ルールを反映']
+      code:
+        description: 'シークレットコード（英数字と - _、4〜32文字）'
+        required: false
+      user_id:
+        description: 'ユーザーID（DR-XXXXX-XXXXX）'
+        required: false
+      title:
+        description: 'タイトル（プレゼントボックスや受け取り画面に表示）'
+        required: false
+      gold:
+        description: 'コイン'
+        required: false
+      cticket:
+        description: 'キャラガチャチケット'
+        required: false
+      eticket:
+        description: '装備ガチャチケット'
+        required: false
+      diamond:
+        description: 'ダイヤ'
+        required: false
+      until:
+        description: 'コードの期限（例 2026-12-31。空なら無期限）'
+        required: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: admin-tool
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm install --no-save --silent firebase-admin@12
+      # 入力した値は env に書かない（公開ログに表示されてしまうため）。スクリプトがイベント情報から直接読む
+      - run: node tools/admin.mjs
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}

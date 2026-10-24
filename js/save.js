@@ -18,6 +18,17 @@ export const store = { save: null };
 export function onChange(fn) { listeners.add(fn); return () => listeners.delete(fn); }
 function emit() { for (const fn of listeners) fn(store.save); }
 
+// ===== ユーザーID（運営からの個別プレゼント・問い合わせ用） =====
+// 「DR-XXXXX-XXXXX」の形。見まちがえやすい文字（I・L・O・U）は使わない。約50ビットのランダムで、他の人には推測できない
+const ID_CHARS = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
+export const PLAYER_ID_RE = /^DR-[0-9A-HJKMNP-TV-Z]{5}-[0-9A-HJKMNP-TV-Z]{5}$/;
+export function newPlayerId() {
+  const r = new Uint8Array(10);
+  crypto.getRandomValues(r);
+  const s = [...r].map((b) => ID_CHARS[b % 32]).join('');
+  return `DR-${s.slice(0, 5)}-${s.slice(5)}`;
+}
+
 export function defaultData() {
   const chars = {};
   for (const [id, c] of Object.entries(CHARACTERS)) {
@@ -30,6 +41,8 @@ export function defaultData() {
     ticketsChar: 5,   // キャラガチャチケット
     ticketsEquip: 5,  // 装備ガチャチケット
     diamonds: 0,      // ダイヤ（覚醒MAXのキャラが被ったとき・ランク報酬など）
+    playerId: newPlayerId(), // ユーザーID
+    usedCodes: [],    // 使ったシークレットコード
     maxStage: 0,      // クリアしたステージの数（表示用。進み具合は prog）
     selectedStage: 1, // 通し番号（1-1＝1 〜 12-10＝120）
     prog: new Array(12).fill(0), // ワールドごとに何番までクリアしたか
@@ -175,6 +188,8 @@ function sanitize(d) {
   d.ticketsChar = num(d.ticketsChar, 0, 1e7);
   d.ticketsEquip = num(d.ticketsEquip, 0, 1e7);
   d.diamonds = num(d.diamonds, 0, 1e9);
+  if (!PLAYER_ID_RE.test(String(d.playerId || ''))) d.playerId = newPlayerId();
+  d.usedCodes = (Array.isArray(d.usedCodes) ? d.usedCodes : []).map((x) => String(x).toUpperCase().replace(/[^A-Z0-9_-]/g, '').slice(0, 32)).filter(Boolean).slice(-300);
   delete d.tickets;
   d.prog = Array.from({ length: 12 }, (_, i) => num(Array.isArray(d.prog) ? d.prog[i] : 0, 0, LEVELS_PER_WORLD));
   d.maxStage = clearedCount(d);
