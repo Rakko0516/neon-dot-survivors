@@ -1,6 +1,6 @@
 // セーブデータ管理（端末内オートセーブ / JSONバックアップ / マイグレーション）
 import { APP_VERSION, SCHEMA_VERSION } from './version.js';
-import { CHARACTERS, SLOTS, EQUIP, RARITIES } from './data.js';
+import { CHARACTERS, SLOTS, EQUIP, RARITIES, stageOpen, nextStage, clearedCount, STAGE_COUNT, LEVELS_PER_WORLD } from './data.js';
 
 export function emptyEquip() {
   const e = {};
@@ -29,8 +29,9 @@ export function defaultData() {
     gold: 1500,
     ticketsChar: 5,   // キャラガチャチケット
     ticketsEquip: 5,  // 装備ガチャチケット
-    maxStage: 0,
-    selectedStage: 1,
+    maxStage: 0,      // クリアしたステージの数（表示用。進み具合は prog）
+    selectedStage: 1, // 通し番号（1-1＝1 〜 12-10＝120）
+    prog: new Array(12).fill(0), // ワールドごとに何番までクリアしたか
     selectedChar: 'neo',
     chars,
     items: [
@@ -92,6 +93,14 @@ const MIGRATIONS = {
   // v3 → v4：ランクを「クリアしたステージ数」から「ランク経験値」方式へ（今のランクは引き継ぐ）
   4: (d) => {
     d.rank = { lv: Math.max(1, (d.maxStage || 0) + 1), exp: 0 };
+    return d;
+  },
+  // v6 → v7：ステージを「12ワールド×10」に。以前クリアしたステージは、そのワールドの 〇-1 をクリアしたことにする
+  7: (d) => {
+    const old = d.maxStage || 0;
+    d.prog = Array.from({ length: 12 }, (_, i) => (old >= i + 1 ? 1 : 0));
+    const w = (((d.selectedStage || 1) - 1) % 12) + 1;
+    d.selectedStage = (w - 1) * LEVELS_PER_WORLD + 1;
     return d;
   },
   // v5 → v6：装備をキャラごとから全キャラ共通に（いま出撃しているキャラの装備を共通の装備にする）
@@ -164,8 +173,10 @@ function sanitize(d) {
   d.ticketsChar = num(d.ticketsChar, 0, 1e7);
   d.ticketsEquip = num(d.ticketsEquip, 0, 1e7);
   delete d.tickets;
-  d.maxStage = num(d.maxStage, 0, 9999);
-  d.selectedStage = num(d.selectedStage, 1, 9999, 1);
+  d.prog = Array.from({ length: 12 }, (_, i) => num(Array.isArray(d.prog) ? d.prog[i] : 0, 0, LEVELS_PER_WORLD));
+  d.maxStage = clearedCount(d);
+  d.selectedStage = num(d.selectedStage, 1, STAGE_COUNT, 1);
+  if (!stageOpen(d, d.selectedStage)) d.selectedStage = nextStage(d);
   d.nextUid = num(d.nextUid, 1, 1e9, 1);
   if (!CHARACTERS[d.selectedChar]) d.selectedChar = 'neo';
   // キャラ：知らないキャラは捨てる

@@ -160,7 +160,8 @@ export const MISSIONS = {
   // 常時（一度だけ）：stat は累計の値
   perm: [
     { id: 'p_google', name: 'Google連携をしよう', stat: 'google', goal: 1, reward: { cticket: 3, eticket: 3, gold: 3000 } },
-    ...[1, 2, 3, 5, 8, 10, 15, 20, 25, 30].map((n) => ({ id: `p_stage${n}`, name: `STAGE ${n} をクリア`, stat: 'maxStage', goal: n, reward: n >= 10 ? { cticket: 3, eticket: 3 } : n >= 3 ? { cticket: 1, eticket: 1, gold: 1000 } : { gold: 1000 } })),
+    ...[1, 2, 3, 5, 8, 10, 15, 20, 25, 30, 50, 80, 100].map((n) => ({ id: `p_stage${n}`, name: `ステージを ${n} 個クリア`, stat: 'maxStage', goal: n, reward: n >= 50 ? { cticket: 10, eticket: 10, gold: 30000 } : n >= 10 ? { cticket: 3, eticket: 3 } : n >= 3 ? { cticket: 1, eticket: 1, gold: 1000 } : { gold: 1000 } })),
+    ...[1, 3, 6, 12].map((n, i) => ({ id: `p_world${n}`, name: n === 12 ? '全ワールドの〇-10までクリアする' : `ワールドを ${n} つ、〇-10までクリアする`, stat: 'worldsDone', goal: n, reward: [{ cticket: 5, eticket: 5 }, { cticket: 10, eticket: 10 }, { cticket: 20, eticket: 20, gold: 50000 }, { cticket: 50, eticket: 50, gold: 200000 }][i] })),
     ...[300, 1000, 3000, 10000, 30000].map((n, i) => ({ id: `p_kill${n}`, name: `敵を累計 ${n.toLocaleString()} 体倒す`, stat: 'kills', goal: n, reward: i >= 2 ? { eticket: 3 } : { gold: 2000 } })),
     ...[4, 6, 8, 10, 12].map((n) => ({ id: `p_chars${n}`, name: `キャラを ${n} 人そろえる`, stat: 'chars', goal: n, reward: { cticket: 2 } })),
     ...[10, 50, 100, 300].map((n) => ({ id: `p_gacha${n}`, name: `ガチャを累計 ${n} 回引く`, stat: 'gachaTotal', goal: n, reward: n >= 100 ? { cticket: 3, eticket: 3 } : { cticket: 1, eticket: 1 } })),
@@ -169,7 +170,7 @@ export const MISSIONS = {
     ...[10, 50, 200, 500].map((n, i) => ({ id: `p_elite${n}`, name: `エリートを累計 ${n} 体倒す`, stat: 'elites', goal: n, reward: [{ gold: 2000 }, { eticket: 3 }, { eticket: 8, gold: 10000 }, { cticket: 10, eticket: 10 }][i] })),
     ...[10, 50, 100, 300].map((n, i) => ({ id: `p_runs${n}`, name: `ステージを累計 ${n} 回プレイする`, stat: 'runs', goal: n, reward: [{ gold: 2000 }, { cticket: 3, eticket: 3 }, { cticket: 5, eticket: 5 }, { cticket: 15, eticket: 15 }][i] })),
     ...[10, 50, 200].map((n, i) => ({ id: `p_clears${n}`, name: `ステージを累計 ${n} 回クリアする`, stat: 'clears', goal: n, reward: [{ gold: 3000 }, { cticket: 5 }, { cticket: 15, eticket: 15 }][i] })),
-    { id: 'p_allstage', name: '全12ステージをクリアする', stat: 'maxStage', goal: 12, reward: { cticket: 30, eticket: 30, gold: 100000 } },
+    { id: 'p_all120', name: '全120ステージをクリアする', stat: 'maxStage', goal: 120, reward: { cticket: 100, eticket: 100, gold: 300000 } },
     ...[100, 300, 500].map((n, i) => ({ id: `p_bestkill${n}`, name: `1回のプレイで敵を ${n} 体倒す`, stat: 'bestKills', goal: n, reward: [{ gold: 3000 }, { eticket: 5 }, { cticket: 5, eticket: 5 }][i] })),
     ...[15, 25, 35].map((n, i) => ({ id: `p_bestlv${n}`, name: `1回のプレイでLv${n}になる`, stat: 'bestLv', goal: n, reward: [{ gold: 3000 }, { cticket: 3 }, { cticket: 8, eticket: 8 }][i] })),
     ...[100, 1000, 5000].map((n, i) => ({ id: `p_weak${n}`, name: `弱点の属性で ${n.toLocaleString()} 回攻撃する`, stat: 'weakHits', goal: n, reward: [{ gold: 2000 }, { eticket: 5 }, { cticket: 10, eticket: 10 }][i] })),
@@ -221,7 +222,8 @@ export function track(ev, n = 1) {
 
 function statValue(stat) {
   const d = data();
-  if (stat === 'maxStage') return d.maxStage;
+  if (stat === 'maxStage') return (d.prog || []).reduce((a, x) => a + (x || 0), 0); // クリアしたステージの数
+  if (stat === 'worldsDone') return (d.prog || []).filter((x) => x >= 10).length;
   if (stat === 'kills') return d.stats.kills;
   if (stat === 'chars') return Object.values(d.chars).filter((c) => c.unlocked).length;
   if (stat === 'gachaTotal') return d.stats.gachaTotal || 0;

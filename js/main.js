@@ -161,9 +161,8 @@ function warmPlayable() {
   setAudioKeep(st.offlineAuto);
   if (!st.offlineAuto) return;
   const skip = new Set(st.offlineSkip);
-  const n = Math.min(D.BIOMES.length, data().maxStage + 1);
   const keys = skip.has('base') ? [] : [...BASE_BGM];
-  for (const b of D.BIOMES.slice(0, n)) if (!skip.has('st:' + b.id)) keys.push(...stageBgm(b));
+  D.BIOMES.forEach((b, i) => { if (D.worldOpen(data(), i + 1) && !skip.has('st:' + b.id)) keys.push(...stageBgm(b)); });
   warmAudio(keys, !skip.has('base'));
 }
 const BASE_BGM = ['home', 'menu', 'gacha', 'boss', 'clear', 'gameover'];
@@ -505,8 +504,14 @@ function homeIcon(act, ic, color, label, badge) {
   return `<button class="hicon" data-act="${act}"><img class="px" data-icon="${ic}" data-color="${color}" alt=""><span class="ol">${label}</span>${badge ? `<i class="hbadge">${badge}</i>` : ''}</button>`;
 }
 /** 先のステージも見えるように、クリア済み+6（最低30）まで表示 */
-const stageViewMax = () => Math.max(30, data().maxStage + 6);
-const isLocked = (n) => n > data().maxStage + 1;
+const stageViewMax = () => D.STAGE_COUNT;
+const isLocked = (n) => !D.stageOpen(data(), n);
+/** ロック中のステージを開くには、どこをクリアすればいいか */
+function unlockHint(n) {
+  const { w, L } = D.stageInfo(n);
+  if (L > 1) return `STAGE ${w}-${L - 1} をクリアで解放`;
+  return `STAGE ${w - 1}-${D.LEVELS_PER_WORLD} をクリアで解放`;
+}
 
 function homeHTML() {
   const d = data();
@@ -515,7 +520,7 @@ function homeHTML() {
   const n = d.selectedStage;
   const info = D.stageInfo(n);
   const locked = isLocked(n);
-  const cleared = n <= d.maxStage;
+  const cleared = D.stageCleared(d, n);
   const rooms = Array.from({ length: D.ROOMS_PER_STAGE }, (_, i) => `<i class="${i === D.ROOMS_PER_STAGE - 1 ? 'boss' : ''}"></i>`).join('<span class="arrow">›</span>');
   return `
   <div class="home-icons">
@@ -535,7 +540,7 @@ function homeHTML() {
     <div class="stage-view">
       <button class="stage-arrow l" data-act="stage-prev" ${n <= 1 ? 'disabled' : ''}>◀</button>
       <canvas id="stage-preview"></canvas>
-      ${locked ? `<div class="stage-lock"><img class="px" data-icon="lock" data-color="#ffd23a" alt=""><span class="ol">STAGE ${n - 1} をクリアで解放</span></div>` : ''}
+      ${locked ? `<div class="stage-lock"><img class="px" data-icon="lock" data-color="#ffd23a" alt=""><span class="ol">${unlockHint(n)}</span></div>` : ''}
       <button class="stage-arrow r" data-act="stage-next" ${n >= stageViewMax() ? 'disabled' : ''}>▶</button>
     </div>
     <div class="rooms"><span class="muted">部屋</span>${rooms}<span class="muted">BOSS</span></div>
@@ -553,19 +558,23 @@ function homeHTML() {
 
 function stageListModal() {
   const d = data();
-  const max = stageViewMax();
-  const cells = [];
-  for (let n = 1; n <= max; n++) {
-    const info = D.stageInfo(n);
-    const st = n <= d.maxStage ? 'clear' : isLocked(n) ? 'lock' : 'open';
-    cells.push(`<button class="stile ${st} ${n === d.selectedStage ? 'sel' : ''}" data-n="${n}" style="--bc:${info.biome.floor[0]};--bd:${info.biome.side}">
-      <span class="sn ol">${n}</span><span class="sb">${info.biome.name}</span>
-      ${st === 'lock' ? '<img class="px lk" data-icon="lock" data-color="#ffd23a" alt="">' : st === 'clear' ? '<span class="ck ol">✓</span>' : ''}
-    </button>`);
-  }
+  const worlds = D.BIOMES.map((b, wi) => {
+    const w = wi + 1;
+    const cells = [];
+    for (let L = 1; L <= D.LEVELS_PER_WORLD; L++) {
+      const n = D.stageNo(w, L);
+      const st = D.stageCleared(d, n) ? 'clear' : isLocked(n) ? 'lock' : 'open';
+      cells.push(`<button class="stile ${st} ${n === d.selectedStage ? 'sel' : ''}" data-n="${n}" style="--bc:${b.floor[0]};--bd:${b.side}">
+        <span class="sn ol">${w}-${L}</span><span class="sb">${D.STRUCT_NAMES[L - 1]}</span>
+        ${st === 'lock' ? '<img class="px lk" data-icon="lock" data-color="#ffd23a" alt="">' : st === 'clear' ? '<span class="ck ol">✓</span>' : ''}
+      </button>`);
+    }
+    const done = D.worldCleared(d, w);
+    return `<div class="sw-h"><b>ワールド${w}　${b.name}</b><span>${done} / ${D.LEVELS_PER_WORLD}</span></div><div class="stage-grid">${cells.join('')}</div>`;
+  }).join('');
   modal({
     title: 'ステージ一覧',
-    body: `<p class="muted" style="margin-top:0">ステージをクリアすると次が解放されます。ロック中のステージも中身を見られます。</p><div class="stage-grid">${cells.join('')}</div>`,
+    body: `<p class="muted" style="margin-top:0">ステージは各ワールド10個（〇-1〜〇-10）。〇-10をクリアすると次のワールドが開放されます。ロック中のステージも中身を見られます。</p>${worlds}`,
     buttons: [{ label: '閉じる', value: null }],
     onMount: (ov, close) => {
       hydrate(ov);
@@ -770,14 +779,14 @@ function charsHTML() {
     const s = d.chars[cid];
     return `<button class="ctile ${cid === id ? 'active' : ''} ${s.unlocked ? '' : 'locked'}" style="--cbg:${cc.bg}" data-act="view-char" data-id="${cid}">
       <img data-portrait="${cid}" alt="${cc.name}">
-      ${s.unlocked ? `<span class="lvl ol">Lv${s.level}</span>${s.awaken ? `<span class="pct ol">+${s.awaken}</span>` : ''}` : `<span class="lockic ol"><img class="px" data-icon="lock" data-color="#ffd23a" alt="">${cc.unlock.gacha ? 'ガチャ' : 'STAGE' + cc.unlock.stage}</span>`}
+      ${s.unlocked ? `<span class="lvl ol">Lv${s.level}</span>${s.awaken ? `<span class="pct ol">+${s.awaken}</span>` : ''}` : `<span class="lockic ol"><img class="px" data-icon="lock" data-color="#ffd23a" alt="">${cc.unlock.gacha ? 'ガチャ' : 'STAGE' + cc.unlock.stage + '-1'}</span>`}
       ${cc.stars === 5 ? '<span class="star5"></span>' : ''}
       ${cid === d.selectedChar ? '<span class="using ol">出撃</span>' : ''}
     </button>`;
   }).join('');
   let actions;
   if (!cs.unlocked) {
-    actions = `<div class="muted" style="text-align:center;margin-bottom:6px">${c.unlock.gacha ? 'キャラガチャで手に入ります（ガチャ限定）' : `STAGE ${c.unlock.stage} をクリアすると仲間になります（キャラガチャでも出ます）`}</div>
+    actions = `<div class="muted" style="text-align:center;margin-bottom:6px">${c.unlock.gacha ? 'キャラガチャで手に入ります（ガチャ限定）' : `STAGE ${c.unlock.stage}-1 をクリアすると仲間になります（キャラガチャでも出ます）`}</div>
       <button class="btn red block" data-act="goto-gacha">キャラガチャへ</button>`;
   } else {
     actions = `<div class="btn-grid">
@@ -2024,7 +2033,7 @@ async function enemyBook(opt = {}) {
   const order = D.BIOMES.map((b, i) => ({ b, i }));
   if (opt.biome) order.sort((x, y) => (y.b.id === opt.biome) - (x.b.id === opt.biome));
   // クリア済みのステージ・いま戦っているステージの敵は全部見られる
-  const cleared = (b) => D.BIOMES.indexOf(b) < data().maxStage;
+  const cleared = (b) => D.worldCleared(data(), D.BIOMES.indexOf(b) + 1) >= 1;
   const known = (kind, id, b) => b.id === opt.biome || cleared(b) || (kind === 'boss' ? s.b : s.m).includes(id);
   const tile = (kind, id, def, b) => {
     const k = known(kind, id, b);
@@ -2060,18 +2069,22 @@ async function endBattle(res) {
   const d = data();
   const n = d.selectedStage;
   const info = D.stageInfo(n);
-  const rw = D.clearReward(n);
+  const rw = D.clearReward(info.n);
   let gold, ticket = 0, item = null, first = false;
   if (res.cleared) {
-    first = n > d.maxStage;
+    first = !D.stageCleared(d, n);
     gold = rw.gold + res.gold + res.kills * 8;
     ticket = first ? rw.firstTicket : 0;
     M.track('boss');
     d.stats.bossKills = (d.stats.bossKills || 0) + 1;
-    let rar = D.rollRarity(Math.floor(n / 2));
+    let rar = D.rollRarity(Math.floor(info.D / 2));
     if (first && rar === 'N') rar = 'R';
     item = addItem(D.randomEquipBase(), rar);
-    if (first) { d.maxStage = n; setTimeout(warmPlayable, 3000); }
+    if (first) {
+      d.prog[info.w - 1] = Math.max(d.prog[info.w - 1] || 0, info.L);
+      d.maxStage = D.clearedCount(d);
+      setTimeout(warmPlayable, 3000);
+    }
     d.stats.clears++;
   } else {
     gold = Math.round(res.gold + res.kills * 5 + (res.room - 1) / D.ROOMS_PER_STAGE * rw.gold * 0.6);
@@ -2102,10 +2115,13 @@ async function endBattle(res) {
   ST.bestLv = Math.max(ST.bestLv || 0, res.level);
   const unlocked = [];
   for (const [id, c] of Object.entries(D.CHARACTERS)) {
-    if (c.unlock && c.unlock.stage && !d.chars[id].unlocked && d.maxStage >= c.unlock.stage) { d.chars[id].unlocked = true; unlocked.push(c.name); }
+    if (c.unlock && c.unlock.stage && !d.chars[id].unlocked && D.worldCleared(d, c.unlock.stage) >= 1) { d.chars[id].unlocked = true; unlocked.push(c.name); }
   }
-  if (first) d.selectedStage = n + 1;
-  const rankExp = PF.battleRankExp(res, n);
+  // 次のステージ（1-10 のあとは 2-1）
+  const nextN = n < D.STAGE_COUNT && D.stageOpen(d, n + 1) ? n + 1 : null;
+  if (first && nextN) d.selectedStage = nextN;
+  const newWorld = first && info.L === D.LEVELS_PER_WORLD && n < D.STAGE_COUNT;
+  const rankExp = PF.battleRankExp(res, info.n);
   const ups = PF.gainRankExp(rankExp);
   commit();
   autoBackup(true);
@@ -2127,15 +2143,17 @@ async function endBattle(res) {
         ${ticket ? `<div class="reward"><img class="px" data-icon="ticket" data-color="${M.TICKET_COLOR.char}" alt="">×${ticket}（初回クリア）</div>` : ''}
       </div>
       ${item ? `<div style="display:flex;gap:10px;align-items:center;justify-content:center;margin-top:10px"><div style="width:64px">${itemTile(item, { act: 'none', noOwner: true })}</div><div>${D.EQUIP[item.base].name}<br><span class="muted">を手に入れた！</span></div></div>` : ''}
-      ${unlocked.length ? `<p style="text-align:center;color:#c4103c">${unlocked.join('、')} が仲間になった！</p>${presetNote(unlocked.length)}` : ''}`,
-    buttons: res.cleared
+      ${unlocked.length ? `<p style="text-align:center;color:#c4103c">${unlocked.join('、')} が仲間になった！</p>${presetNote(unlocked.length)}` : ''}
+      ${newWorld ? `<p class="new-world">ワールド${info.w + 1}「${D.BIOMES[info.w].name}」が開放されました！</p>` : ''}`,
+    buttons: res.cleared && nextN
       ? [{ label: 'ホームへ', value: 'home' }, { label: '次のステージへ', value: 'next', cls: 'red' }]
+      : res.cleared ? [{ label: 'ホームへ', value: 'home' }]
       : [{ label: 'ホームへ', value: 'home' }, { label: 'もう一度', value: 'retry', cls: 'red' }],
     onMount: hydrate,
   });
   leaveBattle();
   if (ups.length) await rankUpModal(ups);
-  if (v === 'next') { data().selectedStage = Math.min(data().maxStage + 1, n + 1); commit(); startBattle(); }
+  if (v === 'next' && nextN) { data().selectedStage = nextN; commit(); startBattle(); }
   else if (v === 'retry') startBattle();
   else if (pendingUpdate) showUpdatePopup();
 }

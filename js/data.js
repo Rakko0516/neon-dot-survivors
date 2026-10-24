@@ -311,24 +311,52 @@ export const BIOMES = [
 
 export const ROOMS_PER_STAGE = 5;
 
-export function stageInfo(n) {
-  const biome = BIOMES[(n - 1) % BIOMES.length];
-  const loop = Math.floor((n - 1) / BIOMES.length);
+// ===== ステージ：12ワールド × 10ステージ（1-1 〜 12-10） =====
+// ステージは通し番号 s（1〜120）で扱う。s = (ワールド-1)×10 + 番号
+export const LEVELS_PER_WORLD = 10;
+export const STAGE_COUNT = 12 * LEVELS_PER_WORLD;
+// 〇-1 〜 〇-10 の地形の種類（stage.js の STRUCTURES と同じ順番）
+export const STRUCT_NAMES = ['広場', '岩の迷路', 'トゲの道', '水路', '柱の間', '一本道', 'ジグザグ', '中央の島', '混合', '決戦'];
+export const stageNo = (w, L) => (w - 1) * LEVELS_PER_WORLD + L;
+export function stageInfo(s) {
+  s = Math.max(1, Math.min(STAGE_COUNT, Math.round(s) || 1));
+  const w = Math.ceil(s / LEVELS_PER_WORLD), L = (s - 1) % LEVELS_PER_WORLD + 1;
+  const biome = BIOMES[w - 1];
+  // 難しさ：ワールドが進むと大きく、同じワールドの中では少しずつ上がる（〇-1 は以前の「STAGE 〇」と同じ強さ）
+  const D = w + (L - 1) * 0.15;
   return {
-    n, biome, loop,
-    name: `STAGE ${n}`,
-    sub: biome.name + (loop ? ` ${'★'.repeat(Math.min(loop, 5))}` : ''),
-    hpMul: 1 + (n - 1) * 0.6 + Math.max(0, n - 8) * 0.35,
-    dmgMul: 1 + (n - 1) * 0.2,
-    recommended: Math.round(260 + (n - 1) * 150 + (n - 1) * (n - 1) * 14),
+    id: s, w, L, n: Math.round(D), D, biome, loop: 0,
+    name: `STAGE ${w}-${L}`,
+    sub: `${biome.name}・${STRUCT_NAMES[L - 1]}`,
+    hpMul: 1 + (D - 1) * 0.6 + Math.max(0, D - 8) * 0.35,
+    dmgMul: 1 + (D - 1) * 0.2,
+    recommended: Math.round(260 + (D - 1) * 150 + (D - 1) * (D - 1) * 14),
   };
+}
+/** 進み具合：prog[ワールド-1] ＝ そのワールドで何番までクリアしたか（0〜10） */
+const progOf = (d) => d.prog || [];
+export const worldCleared = (d, w) => progOf(d)[w - 1] || 0;
+/** ワールドが遊べるか：1は最初から。前のワールドの10をクリアすると開放（以前のデータで 〇-1 をクリア済みのワールドも開放） */
+export const worldOpen = (d, w) => w === 1 || worldCleared(d, w - 1) >= LEVELS_PER_WORLD || worldCleared(d, w) >= 1;
+export function stageOpen(d, s) {
+  const { w, L } = stageInfo(s);
+  return worldOpen(d, w) && L <= worldCleared(d, w) + 1;
+}
+export const stageCleared = (d, s) => { const { w, L } = stageInfo(s); return L <= worldCleared(d, w); };
+/** クリアしたステージの数 */
+export const clearedCount = (d) => progOf(d).reduce((a, n) => a + (n || 0), 0);
+/** まだクリアしていない遊べるステージのうち、いちばん先のもの */
+export function nextStage(d) {
+  let best = 1;
+  for (let s = 1; s <= STAGE_COUNT; s++) if (stageOpen(d, s)) best = s;
+  return best;
 }
 
 export function expNeed(lv) {
   return Math.floor(5 + lv * 4 + lv * lv * 0.55);
 }
 export function clearReward(n) {
-  return { gold: 400 + n * 150, firstTicket: 1 };
+  return { gold: Math.round(400 + n * 150), firstTicket: 1 };
 }
 export function rollRarity(bonus = 0) {
   const rates = { N: 58 - bonus * 2, R: 30, SR: 10 + bonus * 1.4, SSR: 2 + bonus * 0.6 };
