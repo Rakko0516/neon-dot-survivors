@@ -43,6 +43,18 @@ service cloud.firestore {
       allow list, create, update, delete: if false;
     }
 
+    // プッシュ通知の受け取り先（ユーザーIDごとに1件）。ゲームから「通知を受け取る」を押すと保存される
+    // 書けるのは決まった形（token と updatedAt だけ）のときだけ。読み出し・一覧は誰にもできない（運営ツールだけが使う）
+    match /pushTokens/{pid} {
+      allow create, update: if pid.matches('^DR-[0-9A-HJKMNP-TV-Z]{5}-[0-9A-HJKMNP-TV-Z]{5}$')
+        && request.resource.data.keys().hasOnly(['token', 'updatedAt'])
+        && request.resource.data.token is string
+        && request.resource.data.token.size() > 20 && request.resource.data.token.size() < 4096
+        && request.resource.data.updatedAt == request.time;
+      allow delete: if pid.matches('^DR-[0-9A-HJKMNP-TV-Z]{5}-[0-9A-HJKMNP-TV-Z]{5}$');
+      allow get, list: if false;
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }

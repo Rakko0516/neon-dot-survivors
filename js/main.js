@@ -7,7 +7,7 @@ import {
 } from './save.js';
 import {
   cloud, initCloud, onCloud, signIn, signOut, upload, restoreFromCloud, setSyncHandlers,
-  enablePush, disablePush, autoBackup,
+  enablePush, disablePush, pushSupported, autoBackup,
 } from './cloud.js';
 import { pwa, initPWA, applyUpdate, fetchChangelog, isStandalone, isIOS, warmAudio } from './pwa.js';
 import { APP_VERSION } from './version.js';
@@ -373,6 +373,36 @@ async function handleMove() {
 }
 
 let lastGrantCheck = Date.now();
+/**
+ * ホーム画面に追加したアプリで初めて開いたとき：お知らせ通知を受け取るか聞く（1回だけ）
+ * すでに許可済みなら、受け取り先（トークン）を静かに更新する
+ */
+async function askPushOnce() {
+  const d = data();
+  if (!pushSupported() || !cloud.enabled) return;
+  if (Notification.permission === 'granted') {
+    if (d.settings.notify) enablePush(pwa.reg, d.playerId, true).catch(() => {});
+    return;
+  }
+  if (!isStandalone() || d.settings.notifyAsked || Notification.permission !== 'default') return;
+  d.settings.notifyAsked = true; commit();
+  await modal({
+    title: 'お知らせ通知',
+    sound: 'panel2',
+    body: `<div class="push-ask"><img class="px" data-icon="megaphone" data-color="#ff7a3a" alt="">
+      <p>アップデートやイベント、プレゼントのお知らせを通知で受け取りますか？</p>
+      <p class="muted">あとから設定画面でオン・オフできます</p></div>`,
+    buttons: [{ label: 'あとで', value: null }, { label: '受け取る', value: 'yes', cls: 'teal' }],
+    onMount: (ov) => {
+      hydrate(ov);
+      // iPhone はタップした瞬間に許可を求める必要があるので、ボタンのクリックで直接呼ぶ
+      ov.querySelector('.mbtns [data-i="1"]').addEventListener('click', () => {
+        enablePush(pwa.reg, d.playerId).then(() => { d.settings.notify = true; commit(); toast('通知をオンにしました'); render(); })
+          .catch((e) => toast(e.message));
+      }, true);
+    },
+  });
+}
 /** 起動後：ログインボーナス → 運営プレゼント → お知らせ */
 async function afterBoot() {
   if (await handleMove()) return;
@@ -385,6 +415,7 @@ async function afterBoot() {
   if (forgot) toast(`受け取り忘れのミッション報酬（${forgot}件）をプレゼントボックスに送りました`);
   if (idx !== null) await loginModal(idx);
   if (pendingUpdate) await showUpdatePopup();
+  await askPushOnce();
   showNewsIfUnread();
   // 0時をまたいで開きっぱなしでも受け取れるように
   const recheck = async () => {
@@ -1382,8 +1413,11 @@ function gcarGo(i, smooth = true) {
   const track = $('#gcar-track');
   if (!track) return;
   i = Math.max(0, Math.min(D.CHAR_BANNERS.length - 1, i));
-  const sl = track.children[i];
-  track.scrollTo({ left: sl.offsetLeft - (track.clientWidth - sl.clientWidth) / 2, behavior: smooth ? 'smooth' : 'auto' });
+  const sl = track.querySelectorAll('.gcar-slide')[i];
+  if (!sl) return;
+  // スライドの中心をトラックの中心へ（画面上の位置で計算するので、端のガチャもずれない）
+  const tr = track.getBoundingClientRect(), r = sl.getBoundingClientRect();
+  track.scrollTo({ left: track.scrollLeft + (r.left + r.width / 2) - (tr.left + tr.width / 2), behavior: smooth ? 'smooth' : 'auto' });
   gcarSet(i);
 }
 function gcarSet(i) {
@@ -1409,9 +1443,9 @@ function setupCarousel() {
   track.addEventListener('scroll', () => {
     clearTimeout(t);
     // 真ん中にいちばん近いスライドを「選択中」に
-    const mid = track.scrollLeft + track.clientWidth / 2;
+    const tr = track.getBoundingClientRect(), mid = tr.left + tr.width / 2;
     let best = 0, bd = 1e9;
-    [...track.children].forEach((sl, k) => { const d = Math.abs(sl.offsetLeft + sl.clientWidth / 2 - mid); if (d < bd) { bd = d; best = k; } });
+    [...track.querySelectorAll('.gcar-slide')].forEach((sl, k) => { const r = sl.getBoundingClientRect(); const d = Math.abs(r.left + r.width / 2 - mid); if (d < bd) { bd = d; best = k; } });
     t = setTimeout(() => gcarSet(best), 60);
   }, { passive: true });
 }
@@ -1782,8 +1816,7 @@ function settingsHTML() {
   }
   const s = summary(store.save);
   const notifyNote = isIOS() && !isStandalone() ? 'iPhone/iPadは「ホーム画面に追加」したアプリから開くと通知を受け取れます'
-    : !cloud.enabled ? 'クラウド機能の準備ができると使えます'
-    : !cloud.user ? 'Googleログインが必要です' : 'アップデートやお知らせを端末に通知します';
+    : !cloud.enabled ? 'クラウド機能の準備ができると使えます' : 'アップデートやイベントのお知らせを端末に通知します';
   return `
   <div class="panel"><h3>アカウント・クラウドセーブ</h3>${account}</div>
   <div class="panel">
@@ -2038,9 +2071,9 @@ async function onAction(act, el) {
       break;
     case 'toggle-enemy-help': d.settings.enemyHelp = !d.settings.enemyHelp; sfx('click'); commit(); toast(d.settings.enemyHelp ? '初めての敵の説明：オン' : '初めての敵の説明：オフ（図鑑からいつでも見られます）'); break;
     case 'toggle-notify':
-      if (d.settings.notify) { await disablePush().catch(() => {}); d.settings.notify = false; commit(); toast('通知をオフにしました'); }
+      if (d.settings.notify) { await disablePush(d.playerId).catch(() => {}); d.settings.notify = false; commit(); toast('通知をオフにしました'); }
       else {
-        try { await enablePush(pwa.reg); d.settings.notify = true; commit(); toast('通知をオンにしました'); } catch (e) { toast(e.message); }
+        try { await enablePush(pwa.reg, d.playerId); d.settings.notify = true; d.settings.notifyAsked = true; commit(); toast('通知をオンにしました'); } catch (e) { toast(e.message); }
       }
       break;
     case 'offline': sfx('click'); offlineModal(); break;

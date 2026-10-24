@@ -22,6 +22,7 @@ const userId = env('USER_ID').toUpperCase();
 if (userId) console.log('::add-mask::' + userId);
 const maskedId = (id) => id.slice(0, 5) + '***-***' + id.slice(-2);
 const title = env('TITLE').replace(/[<>"'`&\u0000-\u001f]/g, '').slice(0, 40);
+const body = env('BODY').replace(/[<>"'`&\u0000-\u0009\u000b-\u001f]/g, '').slice(0, 180);
 const until = env('UNTIL');
 const n = (k, max) => {
   const v = env(k);
@@ -93,6 +94,47 @@ if (action === 'コードを追加') {
     tx.set(ref, { items, updatedAt: FieldValue.serverTimestamp() });
   });
   summary(`✅ ${maskedId(userId)} にプレゼントを送りました（公開ログのためIDは伏せ字）\n\n- タイトル：${item.title}\n- 送った物：${rewardText(reward)}\n\n相手が次にゲームを開いたとき（開いたままなら5分以内）にプレゼントボックスに届きます。`);
+} else if (action === 'お知らせ通知を送る') {
+  // タイトルと本文を決めて、通知をオンにしている人へプッシュ通知を送る（ユーザーIDを入れるとその人だけ）
+  if (!title) fail('通知のタイトルを入力してください');
+  if (!body) fail('通知の本文を入力してください');
+  const { getMessaging } = await import('firebase-admin/messaging');
+  const targets = []; // { token, ref, field }
+  if (userId) {
+    if (!/^DR-[0-9A-HJKMNP-TV-Z]{5}-[0-9A-HJKMNP-TV-Z]{5}$/.test(userId)) fail('ユーザーIDは DR-XXXXX-XXXXX の形で入力してください');
+    const doc = await db.doc('pushTokens/' + userId).get();
+    if (!doc.exists || !doc.get('token')) fail('このユーザーは通知をオンにしていません');
+    targets.push({ token: doc.get('token'), ref: doc.ref, del: true });
+  } else {
+    const seen = new Set();
+    for (const d of (await db.collection('pushTokens').get()).docs) {
+      const t = d.get('token'); if (t && !seen.has(t)) { seen.add(t); targets.push({ token: t, ref: d.ref, del: true }); }
+    }
+    // 以前の方式（Googleログインした人のセーブに保存した受け取り先）
+    for (const d of (await db.collection('saves').where('fcmToken', '!=', null).select('fcmToken').get()).docs) {
+      const t = d.get('fcmToken'); if (t && !seen.has(t)) { seen.add(t); targets.push({ token: t, ref: d.ref, del: false }); }
+    }
+  }
+  let ok = 0, removed = 0;
+  for (let i = 0; i < targets.length; i += 500) {
+    const chunk = targets.slice(i, i + 500);
+    const res = await getMessaging().sendEachForMulticast({
+      tokens: chunk.map((t) => t.token),
+      data: { title, body, url: './', tag: 'info-' + Date.now().toString(36) },
+      webpush: { headers: { Urgency: 'high', TTL: String(60 * 60 * 24 * 3) } },
+    });
+    ok += res.successCount;
+    const batch = db.batch();
+    res.responses.forEach((r, j) => {
+      const code = r.error?.code || '';
+      if (code.includes('registration-token-not-registered') || code.includes('invalid-argument') || code.includes('invalid-registration-token')) {
+        if (chunk[j].del) batch.delete(chunk[j].ref); else batch.update(chunk[j].ref, { fcmToken: FieldValue.delete() });
+        removed++;
+      }
+    });
+    await batch.commit();
+  }
+  summary(`✅ 通知を送りました\n\n- タイトル：${title}\n- 本文：${body}\n- 送信先：${userId ? '指定したユーザー（公開ログのためIDは伏せ字）' : '通知をオンにしている全員'}\n- 届いた数：${ok} / ${targets.length}${removed ? `（使われなくなった受け取り先 ${removed} 件を削除）` : ''}`);
 } else if (action === 'ルールを反映') {
   const { getSecurityRules } = await import('firebase-admin/security-rules');
   await getSecurityRules().releaseFirestoreRulesetFromSource(readFileSync('firestore.rules', 'utf8'));

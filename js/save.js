@@ -56,7 +56,7 @@ export function defaultData() {
     ],
     nextUid: 5,
     // offlineAuto：遊べるステージの曲を自動で端末に保存する / offlineSkip：自分で削除したもの（自動保存しない）
-    settings: { bgmVol: 60, seVol: 80, notify: false, offlineAuto: true, offlineSkip: [], enemyHelp: true },
+    settings: { bgmVol: 60, seVol: 80, notify: false, notifyAsked: false, offlineAuto: true, offlineSkip: [], enemyHelp: true },
     stats: { runs: 0, kills: 0, clears: 0, gachaTotal: 0, bossKills: 0, googleLinked: 0, elites: 0, supers: 0, skills: 0, weakHits: 0, coinEarned: 0, playSec: 0, bestKills: 0, bestLv: 0, merges: 0, charsBought: 0 },
     // streak：いま何日連続でログインしているか / best：いちばん長く続いた連続日数
     login: { lastDay: '', count: 0, total: 0, streak: 0, best: 0 },
@@ -257,7 +257,7 @@ function sanitize(d) {
     equip: Object.fromEntries(Object.keys(emptyEquip()).map((k) => [k, Number.isFinite(p.equip?.[k]) ? num(p.equip[k], 1, 1e9) : null])),
   } : null));
   d.settings = {
-    bgmVol: num(d.settings?.bgmVol, 0, 100, 60), seVol: num(d.settings?.seVol, 0, 100, 80), notify: !!d.settings?.notify,
+    bgmVol: num(d.settings?.bgmVol, 0, 100, 60), seVol: num(d.settings?.seVol, 0, 100, 80), notify: !!d.settings?.notify, notifyAsked: !!d.settings?.notifyAsked,
     offlineAuto: d.settings?.offlineAuto !== false,
     enemyHelp: d.settings?.enemyHelp !== false,
     offlineSkip: (Array.isArray(d.settings?.offlineSkip) ? d.settings.offlineSkip : []).map((x) => safeId(x, 30)).filter(Boolean).slice(0, 40),

@@ -33,7 +33,11 @@ const { getMessaging } = await import('firebase-admin/messaging');
 initializeApp({ credential: cert(JSON.parse(sa)) });
 const db = getFirestore();
 const snap = await db.collection('saves').where('fcmToken', '!=', null).select('fcmToken').get();
-const docs = snap.docs.filter((d) => d.get('fcmToken'));
+// 受け取り先：pushTokens（ユーザーIDごと）＋以前の方式（セーブの fcmToken）。同じものは1回だけ
+const seen = new Set();
+const docs = [];
+for (const d of (await db.collection('pushTokens').get()).docs) { const t = d.get('token'); if (t && !seen.has(t)) { seen.add(t); docs.push({ token: t, ref: d.ref, del: true }); } }
+for (const d of snap.docs) { const t = d.get('fcmToken'); if (t && !seen.has(t)) { seen.add(t); docs.push({ token: t, ref: d.ref, del: false }); } }
 console.log(`送信対象: ${docs.length} 人`);
 
 const title = latest.version ? `アップデート v${latest.version}` : 'お知らせ';
@@ -43,7 +47,7 @@ let ok = 0, removed = 0;
 for (let i = 0; i < docs.length; i += 500) {
   const chunk = docs.slice(i, i + 500);
   const res = await getMessaging().sendEachForMulticast({
-    tokens: chunk.map((d) => d.get('fcmToken')),
+    tokens: chunk.map((d) => d.token),
     data: { title, body: body.slice(0, 180), url: './', tag: 'news' },
     webpush: { headers: { Urgency: 'normal', TTL: String(60 * 60 * 24 * 3) } },
   });
@@ -53,7 +57,7 @@ for (let i = 0; i < docs.length; i += 500) {
   res.responses.forEach((r, j) => {
     const code = r.error?.code || '';
     if (code.includes('registration-token-not-registered') || code.includes('invalid-argument') || code.includes('invalid-registration-token')) {
-      batch.update(chunk[j].ref, { fcmToken: FieldValue.delete() });
+      if (chunk[j].del) batch.delete(chunk[j].ref); else batch.update(chunk[j].ref, { fcmToken: FieldValue.delete() });
       removed++;
     }
   });

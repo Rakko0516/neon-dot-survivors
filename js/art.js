@@ -934,15 +934,22 @@ const ICON_PAL = {
   gachapon: { K: '#ec4a62', D: '#9a2a40', g: '#cdeeff', w: '#ffffff', c: '#f6f2ea', R: '#ff4a5a', Y: '#ffc82a', B: '#3a9cff', P: '#b86aff', G: '#ffcf3a', p: '#3a2030' },
 };
 
-/** 絵を左右の真ん中に寄せる（右側だけ空いている絵が左にずれて見えないように。幅は変えない） */
+/** 絵を上下左右の真ん中に寄せる（片側だけ空いている絵がずれて見えないように。大きさは変えない） */
 function centerRows(rows) {
-  const w = Math.max(...rows.map((r) => r.length));
-  let lo = w, hi = -1;
-  for (const r of rows) for (let x = 0; x < r.length; x++) if (r[x] !== '.' && r[x] !== ' ') { lo = Math.min(lo, x); hi = Math.max(hi, x); }
+  const w = Math.max(...rows.map((r) => r.length)), h = rows.length;
+  const filled = (ch) => ch && ch !== '.' && ch !== ' ';
+  let lo = w, hi = -1, top = h, bot = -1;
+  rows.forEach((r, y) => { for (let x = 0; x < r.length; x++) if (filled(r[x])) { lo = Math.min(lo, x); hi = Math.max(hi, x); top = Math.min(top, y); bot = Math.max(bot, y); } });
   if (hi < 0) return rows;
-  const left = Math.floor((w - (hi - lo + 1)) / 2), dx = left - lo;
-  if (!dx) return rows;
-  return rows.map((r) => (dx > 0 ? '.'.repeat(dx) + r.padEnd(w, '.').slice(0, w - dx) : r.padEnd(w, '.').slice(-dx) + '.'.repeat(-dx)));
+  const dx = Math.floor((w - (hi - lo + 1)) / 2) - lo, dy = Math.floor((h - (bot - top + 1)) / 2) - top;
+  if (!dx && !dy) return rows;
+  const blank = '.'.repeat(w);
+  const out = [];
+  for (let y = 0; y < h; y++) {
+    const r = (rows[y - dy] ?? blank).padEnd(w, '.');
+    out.push(dx > 0 ? '.'.repeat(dx) + r.slice(0, w - dx) : dx < 0 ? r.slice(-dx) + '.'.repeat(-dx) : r);
+  }
+  return out;
 }
 const iconCache = new Map();
 /** @param {string} name @param {string} color メイン色 @param {string} [color2] 柄など */

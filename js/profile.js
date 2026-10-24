@@ -80,11 +80,11 @@ export function rankReward(lv) {
     if (lv % 2 === 0) r.eticket = 1;
     if (lv % 5 === 0) r.cticket = 2;
   } else {
-    r = { gold: 30000 + (lv - 100) * 200, diamond: 3 };
+    r = { gold: 30000 + (lv - 100) * 200, diamond: 1 };
     if (lv % 2 === 0) r.eticket = 2;
-    if (lv % 5 === 0) { r.cticket = 3; r.diamond = 10; }
-    if (lv % 10 === 0) { r.cticket = 5; r.eticket = 5; r.diamond = 20; }
-    if (lv % 50 === 0) { r.cticket = 10; r.eticket = 10; r.diamond = 50; }
+    if (lv % 5 === 0) { r.cticket = 3; r.diamond = 3; }
+    if (lv % 10 === 0) { r.cticket = 5; r.eticket = 5; r.diamond = 5; }
+    if (lv % 50 === 0) { r.cticket = 10; r.eticket = 10; r.diamond = 15; }
   }
   const icons = SPECIAL_ICONS.filter((i) => i.rank === lv);
   const frames = FRAMES.filter((f) => f.rank === lv);

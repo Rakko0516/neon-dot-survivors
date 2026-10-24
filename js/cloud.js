@@ -212,26 +212,46 @@ export async function restoreFromCloud() {
 }
 
 // ===== プッシュ通知（FCM） =====
-export async function enablePush(swReg) {
-  if (!fb) throw new Error('クラウド機能が未設定です');
-  if (!cloud.user) throw new Error('先にGoogleログインしてください');
+// 通知の受け取り先（トークン）は pushTokens/{ユーザーID} に保存する（Googleログインしていなくても受け取れる）
+// ※ iPhone は「タップした直後」でないと許可の確認を出せないので、最初に許可を求めてから準備をする
+export function pushSupported() {
+  return typeof window !== 'undefined' && 'Notification' in window && 'serviceWorker' in navigator && 'PushManager' in window;
+}
+async function waitReady(ms = 10000) {
+  const t0 = Date.now();
+  while (!fb && Date.now() - t0 < ms) await new Promise((r) => setTimeout(r, 200));
+  if (!fb) throw new Error('通信の準備ができませんでした。時間をおいてもう一度どうぞ');
+}
+/**
+ * 通知をオンにする（ボタンを押したときに呼ぶ）
+ * @param {ServiceWorkerRegistration} swReg
+ * @param {string} playerId ユーザーID
+ * @param {boolean} quiet すでに許可済みのとき、確認を出さずにトークンだけ更新する
+ */
+export async function enablePush(swReg, playerId, quiet = false) {
+  if (!pushSupported()) throw new Error('このブラウザはプッシュ通知に対応していません（iPhoneはホーム画面に追加してから開いてください）');
+  // ① 許可の確認（ここは await より前に呼ぶ＝タップの直後）
+  const perm = Notification.permission === 'granted' ? 'granted' : quiet ? Notification.permission : await Notification.requestPermission();
+  if (perm !== 'granted') throw new Error('通知が許可されませんでした（端末の設定から許可できます）');
+  if (!cloud.enabled) throw new Error('クラウド機能が未設定です');
   if (!VAPID_KEY) throw new Error('VAPIDキーが未設定です');
+  await waitReady();
   const msgM = await import(`${FIREBASE_SDK}/firebase-messaging.js`);
-  if (!(await msgM.isSupported())) throw new Error('このブラウザはプッシュ通知に対応していません（iPhoneはホーム画面に追加してから開いてください）');
-  const perm = await Notification.requestPermission();
-  if (perm !== 'granted') throw new Error('通知が許可されませんでした');
+  if (!(await msgM.isSupported())) throw new Error('このブラウザはプッシュ通知に対応していません');
   const messaging = msgM.getMessaging(fb.app);
-  const token = await msgM.getToken(messaging, { vapidKey: VAPID_KEY, serviceWorkerRegistration: swReg });
-  await fb.fsM.setDoc(docRef(), { fcmToken: token, fcmUpdated: fb.fsM.serverTimestamp() }, { merge: true });
+  const reg = swReg || (await navigator.serviceWorker.ready);
+  const token = await msgM.getToken(messaging, { vapidKey: VAPID_KEY, serviceWorkerRegistration: reg });
+  await fb.fsM.setDoc(fb.fsM.doc(fb.db, 'pushTokens', playerId), { token, updatedAt: fb.fsM.serverTimestamp() });
   return token;
 }
 
-export async function disablePush() {
-  if (!fb || !cloud.user) return;
+export async function disablePush(playerId) {
+  if (!fb) return;
   try {
     const msgM = await import(`${FIREBASE_SDK}/firebase-messaging.js`);
     const messaging = msgM.getMessaging(fb.app);
     await msgM.deleteToken(messaging).catch(() => {});
   } catch {}
-  await fb.fsM.setDoc(docRef(), { fcmToken: fb.fsM.deleteField() }, { merge: true });
+  if (playerId) await fb.fsM.deleteDoc(fb.fsM.doc(fb.db, 'pushTokens', playerId)).catch(() => {});
+  if (cloud.user) await fb.fsM.setDoc(docRef(), { fcmToken: fb.fsM.deleteField() }, { merge: true }).catch(() => {});
 }

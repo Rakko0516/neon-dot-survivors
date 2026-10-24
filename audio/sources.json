@@ -711,6 +711,94 @@
       "by": "提供音源",
       "v": "45aac7aa37",
       "size": 38918
+    },
+    "w_moonring": {
+      "file": "se_w_moonring.mp3",
+      "orig": "ムーンリング.mp3",
+      "use": "ルナ：ムーンリング",
+      "by": "提供音源",
+      "v": "9bd2ae135d",
+      "size": 20110
+    },
+    "w_flamewave": {
+      "file": "se_w_flamewave.mp3",
+      "orig": "フレイムウェーブ.mp3",
+      "use": "ブレイズ：フレイムウェーブ",
+      "by": "提供音源",
+      "v": "1ff760bde4",
+      "size": 19046
+    },
+    "w_bubble": {
+      "file": "se_w_bubble.mp3",
+      "orig": "バブルソング.mp3",
+      "use": "マリン：シャボン玉を出す",
+      "by": "提供音源",
+      "v": "7697a2c5d5",
+      "size": 3391
+    },
+    "w_bubblePop": {
+      "file": "se_w_bubblePop.mp3",
+      "orig": "シャボン玉.mp3",
+      "use": "マリン：シャボン玉がはじける",
+      "by": "提供音源",
+      "v": "6fe892e706",
+      "size": 14258
+    },
+    "w_shuriken": {
+      "file": "se_w_shuriken.mp3",
+      "orig": "手裏剣.mp3",
+      "use": "ハヤテ：影手裏剣",
+      "by": "提供音源",
+      "v": "b570dc7f22",
+      "size": 15512
+    },
+    "w_turret": {
+      "file": "se_w_turret.mp3",
+      "orig": "タレット設置.mp3",
+      "use": "ピコ：タレット設置",
+      "by": "提供音源",
+      "v": "8aa7a84515",
+      "size": 17184
+    },
+    "w_darkorb": {
+      "file": "se_w_darkorb.mp3",
+      "orig": "ナイトメアオーブ.mp3",
+      "use": "リリス：ナイトメアオーブ",
+      "by": "提供音源",
+      "v": "eb23510f49",
+      "size": 21781
+    },
+    "w_gemrain": {
+      "file": "se_w_gemrain.mp3",
+      "orig": "ジュエルレイン.mp3",
+      "use": "ティア：ジュエルレイン",
+      "by": "提供音源",
+      "v": "b79a796da7",
+      "size": 23453
+    },
+    "w_shotgun": {
+      "file": "se_w_shotgun.mp3",
+      "orig": "クロウショット.mp3",
+      "use": "クロウ：クロウショット",
+      "by": "提供音源",
+      "v": "277190450b",
+      "size": 9995
+    },
+    "w_fist": {
+      "file": "se_w_fist.mp3",
+      "orig": "白虎拳.mp3",
+      "use": "ハク：白虎拳",
+      "by": "提供音源",
+      "v": "c9bd506bdc",
+      "size": 10407
+    },
+    "w_meteor": {
+      "file": "se_w_meteor.mp3",
+      "orig": "流星群.mp3",
+      "use": "エクリプス：流星群",
+      "by": "提供音源",
+      "v": "e5d95e2d18",
+      "size": 26987
     }
   }
 }
