@@ -1038,8 +1038,9 @@ html.wide .tab-gacha .gb-items img:nth-child(3) { max-width: 124px; }
 html.wide .tab-gacha .gb-title { font-size: 28px; }
 html.wide .tab-gacha > .panel { grid-area: panel; }
 /* 設定：2列に並べる */
-html.wide .tab-settings { columns: 2; column-gap: 18px; }
-html.wide .tab-settings > * { break-inside: avoid; }
+/* 段組み（columns）だと高さが決まった枠では右へはみ出して見えなくなるので、2列のグリッドにする */
+html.wide .tab-settings { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: 18px; row-gap: 12px; align-items: start; align-content: start; }
+html.wide .tab-settings > * { break-inside: avoid; min-width: 0; }
 html.wide .tab-settings > .panel { margin-top: 0; }
 /* 戦闘：レベルアップのカードを横に3枚並べる */
 html.wide .lv-cards { flex-direction: row; max-width: 980px; }

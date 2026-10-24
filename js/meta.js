@@ -121,12 +121,22 @@ export async function redeemCode(input) {
   if (c.from && String(c.from) > today()) return { ok: false, msg: 'このコードはまだ使えません' };
   if (c.until && String(c.until) < today()) return { ok: false, msg: 'このコードは期限が切れています' };
   const reward = cleanReward(c.reward || {});
-  if (!Object.keys(reward).length) return { ok: false, msg: 'このコードは使えません' };
-  grant(reward);
+  // キャラがもらえるコード（隠しキャラ用）。char にキャラの id が入っている
+  const charId = typeof c.char === 'string' && /^[a-z0-9_]{2,20}$/.test(c.char) ? c.char : '';
+  let newChar = '', alreadyChar = '';
+  if (charId) {
+    // まだこのバージョンにいないキャラ（次のアップデートで追加される予定）は、使った扱いにしない
+    if (!CHARACTERS[charId] || !d.chars[charId]) return { ok: false, msg: 'このコードは、ゲームを最新版にすると使えるようになります' };
+    if (d.chars[charId].unlocked) alreadyChar = charId;
+    else newChar = charId;
+  }
+  if (!Object.keys(reward).length && !newChar && !alreadyChar) return { ok: false, msg: 'このコードは使えません' };
+  if (Object.keys(reward).length) grant(reward);
+  if (newChar) d.chars[newChar].unlocked = true;
   d.usedCodes.push(code);
   commit();
   const title = String(c.title || 'シークレットコード').replace(/[<>"'`&\u0000-\u001f]/g, '').slice(0, 40);
-  return { ok: true, title, reward };
+  return { ok: true, title, reward, newChar, alreadyChar };
 }
 
 // ===================== 運営からの個別プレゼント（ユーザーID宛て） =====================
@@ -437,7 +447,7 @@ function pickStar(rates) {
 /** 持っていないキャラをダイヤで仲間にする。成功すれば true */
 export const charPrice = (id) => CHARACTERS[id]?.unlock?.diamond || CHAR_PRICE[CHARACTERS[id]?.stars] || CHAR_PRICE[5];
 /** ダイヤで仲間にできるキャラか（ランク報酬のキャラはできない） */
-export const canBuyChar = (id) => !CHARACTERS[id]?.unlock?.rank;
+export const canBuyChar = (id) => !CHARACTERS[id]?.unlock?.rank && !CHARACTERS[id]?.unlock?.code;
 export function buyChar(id) {
   const d = data();
   const cs = d.chars[id];

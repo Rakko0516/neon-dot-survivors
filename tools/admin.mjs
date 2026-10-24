@@ -24,6 +24,10 @@ const maskedId = (id) => id.slice(0, 5) + '***-***' + id.slice(-2);
 const title = env('TITLE').replace(/[<>"'`&\u0000-\u001f]/g, '').slice(0, 40);
 const body = env('BODY').replace(/[<>"'`&\u0000-\u0009\u000b-\u001f]/g, '').slice(0, 180);
 const until = env('UNTIL');
+// 隠しキャラのID（シークレットコードでだけ仲間になるキャラ）。公開ログでは伏せる
+const charId = env('CHAR').toLowerCase();
+if (charId && !/^[a-z0-9_]{2,20}$/.test(charId)) fail('キャラIDは英小文字・数字・_ の2〜20文字で入力してください');
+if (charId) console.log('::add-mask::' + charId);
 const n = (k, max) => {
   const v = env(k);
   if (!v) return 0;
@@ -67,11 +71,11 @@ const db = getFirestore();
 
 if (action === 'コードを追加') {
   if (!/^[A-Z0-9_-]{4,32}$/.test(code)) fail('コードは英数字と - _ だけで4〜32文字にしてください（大文字・小文字は区別しません）');
-  if (!Object.keys(reward).length) fail('もらえる物（コイン・チケット・ダイヤ）を1つ以上入力してください');
+  if (!Object.keys(reward).length && !charId) fail('もらえる物（コイン・チケット・ダイヤ・キャラ）を1つ以上入力してください');
   if (until && !/^\d{4}-\d{2}-\d{2}$/.test(until)) fail('期限は 2026-12-31 の形で入力してください');
-  await db.doc('codes/' + code).set({ title: title || 'シークレットコード', reward, until: until || null, active: true, createdAt: FieldValue.serverTimestamp() });
-  console.log(`追加しました：${masked(code)}（${rewardText(reward)}）`);
-  summary(`✅ シークレットコード ${masked(code)} を追加しました\n\n- タイトル：${title || 'シークレットコード'}\n- もらえる物：${rewardText(reward)}\n- 期限：${until || 'なし'}`);
+  await db.doc('codes/' + code).set({ title: title || 'シークレットコード', reward, ...(charId ? { char: charId } : {}), until: until || null, active: true, createdAt: FieldValue.serverTimestamp() });
+  console.log(`追加しました：${masked(code)}（${rewardText(reward)}${charId ? '・キャラあり' : ''}）`);
+  summary(`✅ シークレットコード ${masked(code)} を追加しました\n\n- タイトル：${title || 'シークレットコード'}\n- もらえる物：${rewardText(reward)}\n- キャラ：${charId ? 'あり（IDは伏せ字）' : 'なし'}\n- 期限：${until || 'なし'}\n\n※ キャラ付きのコードは、そのキャラが入った版のゲームでだけ使えます（古い版では「最新版にすると使えるようになります」と表示され、使った扱いにはなりません）。`);
 } else if (action === 'コードを止める') {
   if (!code) fail('止めるコードを入力してください');
   const ref = db.doc('codes/' + code);
@@ -80,8 +84,8 @@ if (action === 'コードを追加') {
   summary(`✅ シークレットコード ${masked(code)} を止めました（もう使えません）`);
 } else if (action === 'コードの一覧') {
   const snap = await db.collection('codes').get();
-  const rows = snap.docs.map((d) => `| ${masked(d.id)} | ${d.get('title') || ''} | ${rewardText(d.get('reward') || {})} | ${d.get('until') || 'なし'} |`);
-  summary(`### シークレットコード（${snap.size}件）\n公開ログのため、コードは伏せ字です。全文は Firebase コンソールの Firestore「codes」で確認できます。\n\n| コード | タイトル | もらえる物 | 期限 |\n|---|---|---|---|\n${rows.join('\n')}`);
+  const rows = snap.docs.map((d) => `| ${masked(d.id)} | ${d.get('title') || ''} | ${rewardText(d.get('reward') || {})} | ${d.get('char') ? 'あり' : '-'} | ${d.get('until') || 'なし'} |`);
+  summary(`### シークレットコード（${snap.size}件）\n公開ログのため、コードとキャラIDは伏せています。全文は Firebase コンソールの Firestore「codes」で確認できます。\n\n| コード | タイトル | もらえる物 | キャラ | 期限 |\n|---|---|---|---|---|\n${rows.join('\n')}`);
   console.log(`${snap.size} 件`);
 } else if (action === 'ユーザーにプレゼント') {
   if (!/^DR-[0-9A-HJKMNP-TV-Z]{5}-[0-9A-HJKMNP-TV-Z]{5}$/.test(userId)) fail('ユーザーIDは DR-XXXXX-XXXXX の形で入力してください（ゲームの設定画面に表示されています）');

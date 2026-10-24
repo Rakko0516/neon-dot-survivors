@@ -875,7 +875,7 @@ function presetRow(p, i, slots) {
 async function presetModal() {
   const d = data();
   const slots = presetSlots();
-  const total = Object.keys(D.CHARACTERS).length;
+  const total = D.visibleCharIds(d).length;
   const v = await modal({
     title: 'プリセット',
     body: `<p class="muted" style="margin-top:0">いまのキャラと装備の組み合わせを保存して、ボタン1つで呼び出せます。仲間のキャラが増えるたびに、使える枠が1つ増えます（${slots} / ${total}枠）。</p>
@@ -979,7 +979,7 @@ function unlockLabel(c) {
 }
 function charsHTML() {
   const d = data();
-  if (!viewChar || !D.CHARACTERS[viewChar]) viewChar = d.selectedChar;
+  if (!viewChar || !D.charVisible(d, viewChar)) viewChar = d.selectedChar;
   const id = viewChar;
   const c = D.CHARACTERS[id];
   const cs = d.chars[id];
@@ -987,7 +987,8 @@ function charsHTML() {
   const W = D.SKILLS[c.weapon];
   const cost = D.charUpgradeCost(cs.level);
   const maxed = cs.level >= D.CHAR_MAX_LV;
-  const tiles = Object.entries(D.CHARACTERS).map(([cid, cc]) => {
+  // 隠しキャラは、仲間になるまで一覧に出さない（シルエットも出さない）
+  const tiles = Object.entries(D.CHARACTERS).filter(([cid]) => D.charVisible(d, cid)).map(([cid, cc]) => {
     const s = d.chars[cid];
     return `<button class="ctile ${cid === id ? 'active' : ''} ${s.unlocked ? '' : 'locked'}" style="--cbg:${cc.bg}" data-act="view-char" data-id="${cid}">
       <img data-portrait="${cid}" alt="${cc.name}">
@@ -1539,7 +1540,8 @@ function secretCodeModal() {
           body: `<div class="ru-burst"></div>
             <div class="ru-title ol">GET!</div>
             <p class="code-got-t">${esc(r.title)}</p>
-            <div class="ru-rewards">${Object.entries(r.reward).map(([k, v]) => { const [ic, col] = M.REWARD_ICON[k] || ['star', '#ffd23a']; return `<div class="reward ${k === 'diamond' ? 'dia' : ''}"><img class="px" data-icon="${ic}" data-color="${col}" alt="">×${v.toLocaleString()}</div>`; }).join('')}</div>`,
+            <div class="ru-rewards">${r.newChar ? `<div class="reward new char"><img class="px" data-portrait="${r.newChar}" alt="" style="width:40px;height:40px"><span>NEWキャラ<br>${esc(D.CHARACTERS[r.newChar].name)}</span></div>` : ''}${Object.entries(r.reward).map(([k, v]) => { const [ic, col] = M.REWARD_ICON[k] || ['star', '#ffd23a']; return `<div class="reward ${k === 'diamond' ? 'dia' : ''}"><img class="px" data-icon="${ic}" data-color="${col}" alt="">×${v.toLocaleString()}</div>`; }).join('')}</div>
+            ${r.alreadyChar ? `<p class="muted" style="margin:8px 0 0">${esc(D.CHARACTERS[r.alreadyChar].name)}はもう仲間です</p>` : ''}`,
           buttons: [{ label: 'OK', value: true, cls: 'teal' }],
           onMount: hydrate,
         });
@@ -2220,7 +2222,7 @@ function showLoading(text = 'Now Loading...') {
   const cv = $('#load-cv');
   const g = cv.getContext('2d');
   g.imageSmoothingEnabled = false;
-  const ids = Object.keys(D.CHARACTERS);
+  const ids = Object.keys(D.CHARACTERS).filter((id) => !D.isSecretChar(D.CHARACTERS[id]));
   let cid = 'neo';
   try { cid = store.save ? data().selectedChar : ids[Math.floor(Math.random() * ids.length)]; } catch {}
   const def = D.CHARACTERS[cid];

@@ -140,7 +140,7 @@ export function sprite(rows, pal, opt = {}) {
   paint(grid, rows, map, 'main');
   return renderGrid(grid, opt);
 }
-const FLAT = new Set(['e', 'p', 'w', 'm', 'L', 'E', 'b', 'x']);
+const FLAT = new Set(['e', 'p', 'w', 'm', 'L', 'E', 'b', 'x', 'Z', 'z']);
 
 // ===================== キャラクター =====================
 // 20x24 のパーツを合成する。顔5〜12行目、体13〜19行目、足20〜23行目
@@ -179,6 +179,38 @@ const LEGS = {
 };
 
 const HAIR = {
+  // ぼさぼさの短い髪（目にかからないよう、前髪のすき間を目の上にあける）
+  messy: {
+    front: [
+      '......H.HH..H.......',
+      '....HHHHHHHHHHH.....',
+      '...HHHHHHHHHHHHHH...',
+      '..HHHHHHHHHHHHHHHH..',
+      '..HHHHHHHHHHHHHHHH..',
+      '..HHHHHHHHHHHHHHHH..',
+      '..HHH.HHHH.HHH.HHH..',
+      '..HH....H..H....HH..',
+      '..HH............HH..',
+      '..H..............H..',
+    ],
+  },
+  // ぼさぼさ＋アホ毛（頭のてっぺんにくるんと1本）
+  messyAhoge: {
+    front: [
+      '........HHH.........',
+      '........H.H.........',
+      '.....HHHHHHHHH......',
+      '....HHHHHHHHHHHH....',
+      '...HHHHHHHHHHHHHH...',
+      '...HHHHHHHHHHHHHH...',
+      '...HHHHHHHHHHHHHH...',
+      '...HHH.HHH.HHH.HH...',
+      '...HH....H.....HH...',
+      '...HH....H.....HH...',
+      '...H............H...',
+      '...H............H...',
+    ],
+  },
   short: {
     front: [
       '......HHHHHHHH......',
@@ -321,6 +353,23 @@ const HAIR = {
 };
 
 const ACC = {
+  // 大きめのねこ耳（内側は acc1）
+  catEarsBig: { layer: 'front', y: 0, rows: ['..H..............H..', '..HH............HH..', '..HYH..........HYH..', '..HYYH........HYYH..'], map: { H: 'hair', Y: 'acc1' } },
+  // ねこのしっぽ（体のうしろ・右側からくるんと上へ）
+  tail: {
+    layer: 'back', y: 11,
+    rows: [
+      '.................tt.',
+      '.................TTt',
+      '..................TT',
+      '..................TT',
+      '.................TT.',
+      '................TT..',
+      '...............TT...',
+      '..............TT....',
+    ],
+    map: { T: 'acc2', t: '#e8eef8' },
+  },
   visor: { layer: 'front', y: 8, rows: ['....VVVVVVVVVVVV....', '...VVwVVVVVVVVwVV...'], map: { V: 'acc1', w: '#ffffff' }, flatKeys: ['w'] },
   foxEars: { layer: 'front', y: 0, rows: ['..HH............HH..', '..HYH..........HYH..', '...HH..........HH...'], map: { H: 'hair', Y: 'acc1' } },
   catEars: { layer: 'front', y: 0, rows: ['...H............H...', '..HYH..........HYH..', '..HHH..........HHH..'], map: { H: 'hair', Y: 'acc1' } },
@@ -391,6 +440,46 @@ const FACE_BLINK = FACE.map((r, i) => (i === 3 ? '....ssssssssssss....' : i === 
 const FACE_WINK = FACE.map((r, i) => (i === 3 ? '....ssLLssssssss....' : i === 4 ? '....ssEwssssLLss....' : i === 5 ? '....sbEessssssbs....' : r));
 // 腕を外した胴体（腕はポーズごとに別に描く）
 const TORSO_TOP = ['......TTTTTTTT......', '......TTTCCTTT......', '......TTTTTTTT......', '......TTTTTTTT......'];
+// ===== 服のバリエーション（look.outfit） =====
+// suit：ジャケット（T）＋白いシャツの襟（C）＋チェックのネクタイ（X・Y）。下はジャケットのすそ→ズボン
+// shirtTie：シャツ（T）＋ネクタイ（X・Y）
+const OUTFITS = {
+  suit: {
+    top: ['......TTCXYCTT......', '......TTCYXCTT......', '......TTTXYTTT......', '......TTTYXTTT......'],
+    low: ['.....TTTTXYTTTT.....', '......KKKKKKKK......', '......KKKKKKKK......'],
+  },
+  shirtTie: {
+    top: ['......TCCCCCCT......', '......TTTXXTTT......', '......TTTXYTTT......', '......TTTTXTTT......'],
+    low: ['.....BBBBXBBBBB.....', '......KKKKKKKK......', '......KKKKKKKK......'],
+  },
+};
+// ===== 顔のバリエーション（look.faceStyle） =====
+// round：大きな丸い目（白目＋茶色のひとみ）と赤い笑顔
+const FACE_ROUND = [
+  '....ssssssssssss....',
+  '....ssssssssssss....',
+  '....sswwsssswwss....',
+  '....swEEwsswEEws....',
+  '....swEEwsswEEws....',
+  '....sswwsssswwss....',
+  '....sssmssssmsss....',
+  '.....sssmmmmsss.....',
+];
+const FACE_ROUND_BLINK = FACE_ROUND.map((r, i) => (i >= 2 && i <= 5 ? (i === 4 ? '....sLLLLssLLLLs....' : '....ssssssssssss....') : r));
+
+// cat：左右で色がちがう目（E と Z）、八重歯の見える口、ほっぺの赤み
+const FACE_CAT = [
+  '....ssssssssssss....',
+  '....ssssssssssss....',
+  '....ssssssssssss....',
+  '....ssLLssssLLss....',
+  '....ssEwssssZwss....',
+  '....sbEessssZzbs....',
+  '....sssmmwmmssss....',
+  '.....sssssmssss.....',
+];
+const FACE_CAT_BLINK = FACE_CAT.map((r, i) => (i === 3 ? '....ssssssssssss....' : i === 4 ? '....ssLLssssLLss....' : i === 5 ? '....sbssssssssbs....' : r));
+const FACE_CAT_WINK = FACE_CAT.map((r, i) => (i === 3 ? '....ssLLssssssss....' : i === 4 ? '....ssEwssssLLss....' : i === 5 ? '....sbEessssssbs....' : r));
 // 前の腕（右側＝向いている側）の形。[x, y, 'A'袖 or 's'手]。後ろの腕は左右反転して使う
 const ARMS = {
   rest: [[14, 14, 'A'], [14, 15, 'A'], [15, 15, 'A'], [14, 16, 'A'], [15, 16, 's']],
@@ -503,7 +592,7 @@ function dots(grid, list, colorOf, layer, dx = 0) {
   for (const [x0, y, k] of list) {
     const x = x0 + dx;
     if (y < 0 || y >= grid.length || x < 0 || x >= grid[0].length) continue;
-    const c = colorOf(k);
+    const c = colorOf(k, y);
     if (c) grid[y][x] = { ...(typeof c === 'string' ? { c } : c), layer };
   }
 }
@@ -521,8 +610,9 @@ export function charSprite(def, frame = 'idle', pose = '') {
   const L = def.look;
   const P = {
     s: L.skin || '#ffdcc4', H: L.hair, E: L.eye, e: light(L.eye, 0.45), L: dark(L.eye, 0.75), w: '#ffffff',
-    b: '#ff9aa8', m: '#c4405a', T: L.top, C: L.collar, A: L.sleeve || L.top, B: L.belt, K: L.bottom,
+    b: '#ff9aa8', m: L.mouth || '#c4405a', T: L.top, C: L.collar, A: L.sleeve || L.top, B: L.belt, K: L.bottom,
     g: L.legs, F: L.shoes, Q: L.acc1 || '#ffffff',
+    Z: L.eye2 || L.eye, z: light(L.eye2 || L.eye, 0.45), X: L.tie1 || L.collar, Y: L.tie2 || L.tie1 || L.collar,
   };
   const flatMap = (keys) => {
     const m = {};
@@ -544,19 +634,24 @@ export function charSprite(def, frame = 'idle', pose = '') {
   const hy = P2 ? P2.hy || 0 : pose.includes('b') ? 1 : 0;
   const hx = P2?.hx || 0, bx = P2?.bx || 0;
   const eye = P2 ? P2.eye || '' : pose.includes('k') ? 'k' : '';
-  const face = eye === 'k' ? FACE_BLINK : eye === 'w' ? FACE_WINK : FACE;
+  const fs = L.faceStyle;
+  const face = fs === 'round' ? (eye ? FACE_ROUND_BLINK : FACE_ROUND)
+    : fs === 'cat' ? (eye === 'k' ? FACE_CAT_BLINK : eye === 'w' ? FACE_CAT_WINK : FACE_CAT)
+      : eye === 'k' ? FACE_BLINK : eye === 'w' ? FACE_WINK : FACE;
   for (const a of accs) if (a.layer === 'back') paint(grid, shiftX(a.rows, a.y >= 11 ? bx : hx), accMap(a), 'acc', a.y + (a.y >= 11 ? 0 : hy));
   if (hair.back) paint(grid, shiftX(hair.back, hx), { H: P.H, Q: P.Q }, 'hairB', hy);
   paint(grid, LEGS[frame] || LEGS.idle, flatMap(['g', 'F']), 'legs', 20);
   const body = L.pants ? BODY_PANTS : BODY;
-  paint(grid, shiftX([...TORSO_TOP, ...body.slice(4)], bx), flatMap(['T', 'C', 'A', 'B', 'K', 's']), 'body', 13);
+  const of = OUTFITS[L.outfit];
+  paint(grid, shiftX(of ? [...of.top, ...of.low] : [...TORSO_TOP, ...body.slice(4)], bx), flatMap(['T', 'C', 'A', 'B', 'K', 's', 'X', 'Y']), 'body', 13);
   // 腕：下ろしている腕は顔より先に、上げている腕・持ち物は髪より後に描く（隠れないように）
-  const armCol = (k) => (k === 's' ? P.s : P.A);
+  // 半そで（look.shortSleeve）は、肩から下の腕を肌の色に
+  const armCol = (k, y) => (k === 's' || (L.shortSleeve && y >= 15) ? P.s : P.A);
   const front = ARMS[P2?.arm || 'rest'], back = mirror(ARMS[P2?.back || 'rest']);
   const isUp = (n) => n === 'up' || n === 'high';
   if (!isUp(P2?.arm)) dots(grid, front, armCol, 'body', bx);
   if (!isUp(P2?.back)) dots(grid, back, armCol, 'body', bx);
-  paint(grid, shiftX(face, hx), flatMap(['s', 'L', 'E', 'e', 'w', 'b', 'm']), 'face', 5 + hy);
+  paint(grid, shiftX(face, hx), flatMap(['s', 'L', 'E', 'e', 'w', 'b', 'm', 'Z', 'z']), 'face', 5 + hy);
   paint(grid, shiftX(hair.front, hx), { H: { c: P.H, cast: true } }, 'hair', hy);
   for (const a of accs) if (a.layer === 'front') paint(grid, shiftX(a.rows, hx), accMap(a), 'acc', a.y + hy);
   if (isUp(P2?.arm)) dots(grid, front, armCol, 'arm', bx);

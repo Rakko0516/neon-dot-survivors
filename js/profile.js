@@ -1,6 +1,6 @@
 // プロフィール（名前・アイコン・アイコンフレーム）とランク
 import { store, commit } from './save.js';
-import { CHARACTERS, RANK_MAX as RMAX } from './data.js';
+import { CHARACTERS, RANK_MAX as RMAX, isSecretChar } from './data.js';
 import { grant } from './meta.js';
 
 const data = () => store.save.data;
@@ -56,7 +56,11 @@ export const SPECIAL_ICONS = [
 ];
 
 export function allIcons() {
-  const chars = Object.values(CHARACTERS).map((c) => ({ id: 'char:' + c.id, name: c.name, char: c.id, bg: c.bg, rank: 1 }));
+  // 隠しキャラのアイコンは、そのキャラが仲間になっている人にだけ出す
+  let d = null;
+  try { d = data(); } catch {}
+  const chars = Object.values(CHARACTERS).filter((c) => !isSecretChar(c) || d?.chars?.[c.id]?.unlocked)
+    .map((c) => ({ id: 'char:' + c.id, name: c.name, char: c.id, bg: c.bg, rank: 1 }));
   return [...chars, ...SPECIAL_ICONS];
 }
 export function iconDef(id) {

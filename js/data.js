@@ -147,9 +147,48 @@ Object.assign(CHARACTERS, {
     unlock: { rank: 200 }, bg: '#2a2a6a',
   },
 });
-/** どのガチャにも出ないキャラ（ダイヤ・ランクで仲間になる） */
-export const notInGacha = (c) => !!(c.unlock && (c.unlock.diamond || c.unlock.rank));
+/** どのガチャにも出ないキャラ（ダイヤ・ランク・シークレットコードで仲間になる） */
+export const notInGacha = (c) => !!(c.unlock && (c.unlock.diamond || c.unlock.rank || c.unlock.code));
+/**
+ * 隠しキャラ（シークレットコードでだけ仲間になる）。
+ * unlock: { code: true } のキャラは、持っていない人には一覧にもシルエットにも出ない。
+ */
+export const isSecretChar = (c) => !!(c && c.unlock && c.unlock.code);
+/** そのセーブで見せてよいキャラか（隠しキャラは仲間になっている人にだけ見える） */
+export const charVisible = (d, id) => !!CHARACTERS[id] && (!isSecretChar(CHARACTERS[id]) || !!d?.chars?.[id]?.unlocked);
+/** 見せてよいキャラの id 一覧 */
+export const visibleCharIds = (d) => Object.keys(CHARACTERS).filter((id) => charVisible(d, id));
 for (const [id, c] of Object.entries(CHARACTERS)) c.id = id;
+
+/**
+ * 隠しキャラの下書き（まだゲームには出ない）。
+ * 実装するときは、名前・能力・武器を決めて CHARACTERS へ移す。
+ * 見た目（look）はイラストをもとにしたドット絵の設定。
+ */
+export const SECRET_CHAR_DRAFTS = Object.freeze({
+  hidden1: {
+    name: '（仮）スーツの青年', stars: 5, role: '（未定）', hp: 120, atk: 14, spd: 62, crit: 0.08,
+    weapon: 'plasma', trait: { name: '（未定）', desc: '（未定）' },
+    look: {
+      hairStyle: 'messy', hair: '#6e4424', faceStyle: 'round', eye: '#7a5420', mouth: '#d83a2a', skin: '#f6d0a8',
+      outfit: 'suit', top: '#8c5630', collar: '#ffffff', sleeve: '#8c5630', tie1: '#c8a040', tie2: '#5a3a18',
+      belt: '#4e3020', bottom: '#4e3020', legs: '#4e3020', shoes: '#f0c020', pants: true,
+    },
+    unlock: { code: true }, secret: true, bg: '#8a5a33',
+  },
+  hidden2: {
+    name: '（仮）ねこ耳の少年', stars: 5, role: '（未定）', hp: 110, atk: 14, spd: 66, crit: 0.1,
+    weapon: 'plasma', trait: { name: '（未定）', desc: '（未定）' },
+    look: {
+      hairStyle: 'messyAhoge', hair: '#a8c4d6', faceStyle: 'cat', eye: '#d4a020', eye2: '#30b8b0', mouth: '#c0304a', skin: '#ffe2d0',
+      outfit: 'shirtTie', top: '#eef6fa', collar: '#ffffff', sleeve: '#eef6fa', shortSleeve: true,
+      tie1: '#b03a3a', tie2: '#8a2a2a', belt: '#3a2a24', bottom: '#2a2e3a', legs: '#2a2e3a', shoes: '#9aa0aa', pants: true,
+      acc: ['catEarsBig', 'tail'], acc1: '#ffc8d8', acc2: '#8eaac0',
+    },
+    unlock: { code: true }, secret: true, bg: '#5a7aa8',
+  },
+});
+for (const [id, c] of Object.entries(SECRET_CHAR_DRAFTS)) c.id = id;
 export const AWAKEN_MAX = 5; // 覚醒（ガチャで同じキャラが出たとき）の上限。それより後に被ったらダイヤ
 /** 覚醒+5のキャラがまた出たときにもらえるダイヤ（★の数で変わる） */
 export const DUPE_DIAMONDS = { 3: 5, 4: 10, 5: 20 };
