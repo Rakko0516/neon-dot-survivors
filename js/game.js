@@ -93,7 +93,8 @@ export class Game {
     this.exp = 0;
     this.need = expNeed(1);
     this.pendingLv = 0;
-    this.player = { x: sp.x, y: sp.y, hp: b.hp, maxHp: b.hp, iframe: 0, face: 1, mx: 0, my: -1, moving: false, anim: 0, hazardT: 0 };
+    this.player = { x: sp.x, y: sp.y, hp: b.hp, maxHp: b.hp, iframe: 0, face: 1, mx: 0, my: -1, moving: false, anim: 0, hazardT: 0, healT: 0, healAcc: 0, healSp: 0 };
+    this.healParts = []; // 回復エフェクト（緑の＋と光の粒）
     this.enemies = [];
     this.spawns = [];
     this.bullets = [];
@@ -224,7 +225,8 @@ export class Game {
       if (under === TILE.SPIKE) { this.hurtPlayer(P.maxHp * 0.07, true); P.hazardT = 0.6; sfx('spike'); }
       else if (under === TILE.POOL && this.biome.pool.effect === 'hurt') { this.hurtPlayer(P.maxHp * 0.04, true); P.hazardT = 0.5; }
     }
-    if (this.rs.regen) P.hp = Math.min(P.maxHp, P.hp + P.maxHp * 0.004 * this.rs.regen * dt);
+    if (this.rs.regen) this.heal(P.maxHp * 0.004 * this.rs.regen * dt);
+    this.updateHealFx(dt);
 
     this.updateRoom(dt);
     this.buildGrid();
@@ -874,7 +876,7 @@ export class Game {
     this.kills++;
     if (!e.boss) this.roomKills++;
     sfx('kill');
-    if (this.rs.lifesteal) this.player.hp = Math.min(this.player.maxHp, this.player.hp + this.rs.lifesteal + this.player.maxHp * 0.004);
+    if (this.rs.lifesteal) this.heal(this.rs.lifesteal + this.player.maxHp * 0.004);
     for (let i = 0; i < (e.boss ? 40 : 6); i++) {
       this.fx.push({ kind: 'spark', x: e.x, y: e.y, vx: rand(-70, 70), vy: rand(-70, 70), life: rand(0.2, 0.5), color: e.boss ? '#ffd23a' : light(e.pal.A || '#ffffff', 0.4) });
     }
@@ -1112,9 +1114,12 @@ export class Game {
       case 'talisman': {
         w.t = this.cd(0.85, lv, 0.06);
         const n = 1 + Math.floor((lv + 1) / 2) + rs.multi;
+        // 近くの敵の方向へ扇形に放つ（いなければ前＝上へ）。上でも下でも同じ速さで届く
+        const tgt = this.nearest(180);
+        const base = tgt ? Math.atan2(tgt.y - sy, tgt.x - P.x) : -Math.PI / 2;
         for (let i = 0; i < n; i++) {
-          const a = -Math.PI / 2 + (i - (n - 1) / 2) * 0.5;
-          this.bullets.push({ kind: 'talisman', x: P.x, y: sy, vx: Math.cos(a) * 90, vy: Math.sin(a) * 90, life: 2.2, dmg: rs.atk * 0.95 * (1 + 0.16 * (lv - 1)), pierce: 1 + Math.floor(lv / 3), r: 3, hit: new Set() });
+          const a = base + (i - (n - 1) / 2) * 0.5;
+          this.bullets.push({ kind: 'talisman', x: P.x, y: sy, vx: Math.cos(a) * 90, vy: Math.sin(a) * 90, spd: 90, life: 2.2, dmg: rs.atk * 0.95 * (1 + 0.16 * (lv - 1)), pierce: 1 + Math.floor(lv / 3), r: 3, hit: new Set() });
         }
         sfx('talisman');
         break;
@@ -1244,12 +1249,18 @@ export class Game {
       }
       if (b.kind === 'talisman') {
         if (!b.target || b.target.dead) b.target = this.nearest(180);
+        // 速さは向きと関係なく一定に上げていき、向きだけを敵の方へ回す（下の敵へ折り返しても遅くならない）
+        b.spd = Math.min(200, (b.spd || 90) + dt * 200);
+        let cur = Math.atan2(b.vy, b.vx);
         if (b.target) {
-          const a = Math.atan2(b.target.y - b.y, b.target.x - b.x);
-          const sp = Math.min(200, Math.hypot(b.vx, b.vy) + dt * 200);
-          b.vx += (Math.cos(a) * sp - b.vx) * Math.min(1, dt * 5);
-          b.vy += (Math.sin(a) * sp - b.vy) * Math.min(1, dt * 5);
+          const want = Math.atan2(b.target.y - b.y, b.target.x - b.x);
+          let diff = want - cur;
+          diff = Math.atan2(Math.sin(diff), Math.cos(diff));
+          const turn = 9 * dt;
+          cur += Math.max(-turn, Math.min(turn, diff));
         }
+        b.vx = Math.cos(cur) * b.spd;
+        b.vy = Math.sin(cur) * b.spd;
       }
       if (b.kind === 'yarn') {
         // 壁で跳ね返る
@@ -1346,7 +1357,7 @@ export class Game {
       }
       if (dist2(p, P) < 120) {
         p.dead = true;
-        if (p.kind === 'heart') { P.hp = Math.min(P.maxHp, P.hp + P.maxHp * 0.3); sfx('heal'); }
+        if (p.kind === 'heart') { this.heal(P.maxHp * 0.3, 1.3); sfx('heal'); }
         else if (p.kind === 'coin') { this.gold += p.v || 10; sfx('coin'); }
       }
     }
@@ -1418,12 +1429,105 @@ export class Game {
       this.passives[c.id] = (this.passives[c.id] || 0) + 1;
       this.recalc();
     } else if (c.id === 'super') { this.supers++; this.superT = 10; this.banner('スーパーモードっ！'); sfx('super'); }
-    else if (c.id === 'heal') { P.hp = P.maxHp; sfx('heal'); }
+    else if (c.id === 'heal') { this.heal(P.maxHp, 1.8); sfx('heal'); }
     else if (c.id === 'nuke') {
       this.flash = 0.4; this.shake = 0.5;
       for (const e of this.enemies.slice()) if (Math.abs(e.y - P.y) < this.vh * 0.6) this.damage(e, this.rs.atk * 25);
       sfx('boom');
     }
+  }
+
+  /**
+   * HPを回復する。show（秒）を渡すと、その間キャラに回復エフェクトを出す。
+   * 少しずつの回復（自然回復・吸収）は、合計が最大HPの3%たまるたびに短く光る
+   */
+  heal(amount, show = 0) {
+    const P = this.player;
+    const got = Math.max(0, Math.min(P.maxHp - P.hp, amount));
+    P.hp += got;
+    if (show) { P.healT = Math.max(P.healT, show); P.healMax = Math.max(P.healT, P.healMax || 0); return got; }
+    P.healAcc += got;
+    if (P.healAcc >= P.maxHp * 0.03) { P.healAcc = 0; if (P.healT < 0.6) { P.healT = 0.6; P.healMax = 0.6; } }
+    return got;
+  }
+  updateHealFx(dt) {
+    const P = this.player;
+    if (P.healT > 0) {
+      P.healT -= dt;
+      P.healSp -= dt;
+      while (P.healSp <= 0) {
+        P.healSp += 0.05;
+        P.healN = (P.healN || 0) + 1;
+        // 下から上がる光の筋（毎回）と、緑の＋マーク（ときどき・左右交互にふわっと上へ）
+        this.healParts.push({ k: 'ray', x: P.x + rand(-9, 9), y: P.y + rand(-1, 3), vy: -rand(40, 60), vx: 0, life: rand(0.4, 0.6), max: 0.6, h: rand(5, 10) });
+        if (P.healN % 3 === 0) {
+          const side = (P.healN / 3) % 2 ? 1 : -1;
+          this.healParts.push({ k: 'plus', x: P.x + side * rand(6, 14), y: P.y - rand(4, 12), vy: -rand(18, 26), vx: side * rand(2, 6), life: rand(0.9, 1.2), max: 1.2, big: Math.random() < 0.4 });
+        }
+      }
+    } else P.healSp = 0;
+    for (const h of this.healParts) { h.life -= dt; h.x += h.vx * dt; h.y += h.vy * dt; h.vx *= 0.94; }
+    if (this.healParts.length) this.healParts = this.healParts.filter((h) => h.life > 0);
+  }
+  /** 回復中：足元から上がる緑の光（キャラの後ろに描く） */
+  drawHealBack(g, x, y) {
+    const P = this.player;
+    if (P.healT <= 0) return;
+    const k = Math.min(1, P.healT / 0.3); // 終わりぎわにふっと消える
+    const pulse = 0.5 + 0.5 * Math.sin(this.t * 10);
+    g.save();
+    g.globalAlpha = (0.45 + 0.2 * pulse) * k;
+    const gr = g.createLinearGradient(0, y + 2, 0, y - 30);
+    gr.addColorStop(0, 'rgba(90,255,130,0.9)');
+    gr.addColorStop(0.5, 'rgba(90,255,130,0.35)');
+    gr.addColorStop(1, 'rgba(90,255,130,0)');
+    g.fillStyle = gr;
+    g.fillRect(x - 11, y - 30, 22, 32);
+    g.globalAlpha = (0.7 + 0.3 * pulse) * k;
+    g.fillStyle = '#7aff9a';
+    g.beginPath(); g.ellipse(x, y + 1, 10 + pulse * 2, 3.2 + pulse, 0, 0, TAU); g.fill();
+    g.fillStyle = '#d8ffe0';
+    g.beginPath(); g.ellipse(x, y + 1, 6, 1.6, 0, 0, TAU); g.fill();
+    g.restore();
+  }
+  /** 回復中：キャラの前に描く粒（光の筋と＋マーク） */
+  drawHealFront(g) {
+    if (!this.healParts.length) return;
+    g.save();
+    for (const h of this.healParts) {
+      const a = Math.max(0, Math.min(1, h.life / (h.max * 0.5)));
+      const x = Math.round(h.x), y = Math.round(h.y);
+      if (h.k === 'ray') {
+        g.globalAlpha = a * 0.8;
+        g.fillStyle = '#9affb4'; g.fillRect(x, y - h.h, 1, h.h);
+        g.fillStyle = '#ffffff'; g.fillRect(x, y - h.h, 1, 2);
+      } else {
+        g.globalAlpha = a;
+        const r = h.big ? 3 : 2; // 腕の長さ（ドットの＋マーク：ふち取り → 緑 → 真ん中だけ白）
+        g.fillStyle = '#0e5a24';
+        g.fillRect(x - r - 1, y - 1, r * 2 + 3, 3); g.fillRect(x - 1, y - r - 1, 3, r * 2 + 3);
+        g.fillStyle = '#4af07a';
+        g.fillRect(x - r, y, r * 2 + 1, 1); g.fillRect(x, y - r, 1, r * 2 + 1);
+        g.fillStyle = '#eaffef'; g.fillRect(x, y, 1, 1);
+      }
+    }
+    g.restore();
+  }
+  /** 回復中：キャラの形を緑に光らせたもの */
+  healSprite(s) {
+    if (!this._hs || this._hs.width !== s.width || this._hs.height !== s.height) {
+      this._hs = document.createElement('canvas');
+      this._hs.width = s.width; this._hs.height = s.height;
+    }
+    const c = this._hs, g = c.getContext('2d');
+    g.clearRect(0, 0, c.width, c.height);
+    g.globalCompositeOperation = 'source-over';
+    g.drawImage(s, 0, 0);
+    g.globalCompositeOperation = 'source-in';
+    g.fillStyle = '#7aff9a';
+    g.fillRect(0, 0, c.width, c.height);
+    g.globalCompositeOperation = 'source-over';
+    return c;
   }
 
   updateFx(dt) {
@@ -1880,6 +1984,7 @@ export class Game {
     // 影
     g.fillStyle = 'rgba(30,10,30,0.35)';
     g.beginPath(); g.ellipse(x, y + 1, 7, 2.5, 0, 0, TAU); g.fill();
+    this.drawHealBack(g, x, y);
     // スーパーモードのオーラ
     if (this.superT > 0) {
       const fl = Math.floor(this.t * 14);
@@ -1906,8 +2011,15 @@ export class Game {
         g.drawImage(img, -Math.round(s.width / 2), 0);
       } else if (P.face < 0) { g.scale(-1, 1); g.drawImage(img, -Math.round(s.width / 2), 0); }
       else g.drawImage(img, -Math.round(s.width / 2), 0);
+      // 回復中は、キャラがやさしく緑に光る
+      if (P.healT > 0 && this.superT <= 0) {
+        g.globalAlpha = (0.16 + 0.12 * Math.sin(this.t * 12)) * Math.min(1, P.healT / 0.3);
+        g.drawImage(this.healSprite(s), -Math.round(s.width / 2), 0);
+        g.globalAlpha = 1;
+      }
       g.restore();
     }
+    this.drawHealFront(g);
     // 雪玉などで足が遅くなっている間は、足元に氷
     if (P.slowT > 0) {
       g.globalAlpha = 0.7; g.fillStyle = '#9fe6ff';
