@@ -374,24 +374,99 @@ const ACC = {
 };
 
 // ===== キャラのポーズ（待機・攻撃のアニメーション用） =====
-// 目を閉じた顔（まばたき）
+// 目を閉じた顔（まばたき）／前の目だけ閉じた顔（ウインク）
 const FACE_BLINK = FACE.map((r, i) => (i === 3 ? '....ssssssssssss....' : i === 4 ? '....ssLLssssLLss....' : i === 5 ? '....sbssssssssbs....' : r));
-// 体の上4行（腕）を差し替える。右側（＝向いている側）の腕だけ動かす
-const ARM = {
-  // ふりかぶり：前の腕を上げる
-  a1: ['......TTTTTTTT.s....', '.....ATTTCCTTTAA....', '....AATTTTTTTTA.....', '....sATTTTTTTT......'],
-  // こうげき：前の腕をまっすぐ突き出す
-  a2: ['......TTTTTTTT......', '.....ATTTCCTTTA.....', '....AATTTTTTTTAAAs..', '....sATTTTTTTT......'],
+const FACE_WINK = FACE.map((r, i) => (i === 3 ? '....ssLLssssssss....' : i === 4 ? '....ssEwssssLLss....' : i === 5 ? '....sbEessssssbs....' : r));
+// 腕を外した胴体（腕はポーズごとに別に描く）
+const TORSO_TOP = ['......TTTTTTTT......', '......TTTCCTTT......', '......TTTTTTTT......', '......TTTTTTTT......'];
+// 前の腕（右側＝向いている側）の形。[x, y, 'A'袖 or 's'手]。後ろの腕は左右反転して使う
+const ARMS = {
+  rest: [[14, 14, 'A'], [14, 15, 'A'], [15, 15, 'A'], [14, 16, 'A'], [15, 16, 's']],
+  fwd: [[14, 14, 'A'], [14, 15, 'A'], [15, 15, 'A'], [16, 15, 'A'], [17, 15, 's']],          // まっすぐ前へ
+  high: [[14, 14, 'A'], [15, 13, 'A'], [16, 13, 'A'], [17, 12, 'A'], [18, 11, 's']],         // ななめ上へ（頭の外側）
+  up: [[14, 14, 'A'], [15, 13, 'A'], [16, 13, 'A'], [17, 12, 'A'], [18, 11, 'A'], [18, 10, 'A'], [18, 9, 's']], // 上へ（頭の外側）
+  down: [[14, 14, 'A'], [14, 15, 'A'], [14, 16, 'A'], [15, 17, 'A'], [15, 18, 's']],        // 下へ（下手投げのため）
+  clasp: [[14, 14, 'A'], [14, 15, 'A'], [13, 16, 'A'], [12, 16, 'A'], [11, 16, 'A'], [10, 16, 's']], // 胸の前で手を合わせる
 };
-const withArm = (body, pose) => (ARM[pose] ? [...ARM[pose], ...body.slice(4)] : body);
+// 持ち物（ドット）。[x, y, 色キー]。色：G 銃 / c 光 / h ハート / W 木 / X 金属 / r 赤 / P 紙 / Y 金 / b 糸玉 / S 弦 / D 暗い刃
+const PROPS = {
+  gun: [[15, 14, 'G'], [16, 14, 'G'], [17, 14, 'G'], [18, 14, 'G'], [19, 14, 'c'], [16, 16, 'G']],
+  heart: [[17, 5, 'h'], [19, 5, 'h'], [17, 6, 'h'], [18, 6, 'h'], [19, 6, 'h'], [18, 7, 'h']],
+  axeUp: [[18, 8, 'W'], [18, 7, 'W'], [18, 6, 'W'], [18, 5, 'W'], [19, 4, 'X'], [19, 5, 'X'], [19, 6, 'X'], [17, 4, 'X'], [17, 5, 'X']],
+  bladeUp: [[17, 8, 'D'], [18, 8, 'D'], [19, 8, 'D'], ...[1, 2, 3, 4, 5, 6, 7].map((y) => [18, y, y % 2 ? 'c' : 'x'])],
+  wandUp: [[18, 8, 'W'], [18, 7, 'W'], [18, 6, 'W'], [18, 4, 'c'], [17, 5, 'c'], [19, 5, 'c'], [18, 5, 'x'], [18, 3, 'c']],
+  wandHigh: [[19, 10, 'W'], [19, 9, 'W'], [19, 8, 'c'], [18, 7, 'c'], [19, 7, 'x']],
+  scytheUp: [...[1, 2, 3, 4, 5, 6, 7, 8].map((y) => [18, y, 'W']), [17, 1, 'r'], [16, 1, 'r'], [15, 2, 'r'], [14, 2, 'r'], [14, 3, 'r'], [17, 2, 'D']],
+  bowDraw: [[18, 12, 'W'], [19, 13, 'W'], [19, 14, 'W'], [19, 15, 'W'], [19, 16, 'W'], [19, 17, 'W'], [18, 18, 'W'], [17, 13, 'S'], [16, 14, 'S'], [16, 16, 'S'], [17, 17, 'S'], [15, 15, 'X']],
+  bowRelease: [[18, 12, 'W'], [19, 13, 'W'], [19, 14, 'W'], [19, 15, 'W'], [19, 16, 'W'], [19, 17, 'W'], [18, 18, 'W'], [18, 13, 'S'], [18, 14, 'S'], [18, 15, 'S'], [18, 16, 'S'], [18, 17, 'S']],
+  paper: [[18, 8, 'P'], [19, 8, 'P'], [18, 9, 'r'], [19, 9, 'P'], [18, 10, 'P'], [19, 10, 'r']],
+  paperFwd: [[18, 14, 'P'], [19, 14, 'P'], [18, 15, 'r'], [19, 15, 'P']],
+  swordUp: [[17, 8, 'Y'], [18, 8, 'Y'], [19, 8, 'Y'], ...[0, 1, 2, 3, 4, 5, 6, 7].map((y) => [18, y, y < 2 ? 'x' : 'X'])],
+  yarnLow: [[15, 19, 'b'], [16, 19, 'b'], [16, 18, 'b']],
+  yarnHigh: [[18, 9, 'b'], [19, 9, 'b'], [18, 10, 'b'], [19, 10, 'b']],
+  foxFlame: [[9, 15, 'o'], [10, 15, 'o'], [9, 14, 'o'], [10, 14, 'y'], [10, 13, 'o'], [9, 13, 'y'], [9, 12, 'o']],
+  prayLight: [[9, 15, 'y'], [10, 15, 'y'], [9, 14, 'Y'], [10, 14, 'x']],
+  holyLight: [[18, 7, 'y'], [17, 8, 'y'], [19, 8, 'y'], [18, 8, 'x'], [1, 7, 'y'], [0, 8, 'y'], [2, 8, 'y'], [1, 8, 'x']],
+  idolSpark: [[19, 9, 'y'], [19, 11, 'y']],
+};
+/**
+ * 攻撃のポーズ。arm＝前の腕 / back＝後ろの腕 / prop＝持ち物 / eye＝k（目を閉じる）w（ウインク）
+ * hx・bx＝頭・体の傾き（＋が前） / hy＝頭の上下
+ */
+const POSES = {
+  gun1: { arm: 'fwd', prop: 'gun' },                              // ネオ：構える
+  gun2: { arm: 'fwd', prop: 'gun', hx: -1, bx: -1 },              // 　　　撃った反動
+  idol1: { arm: 'up', prop: 'heart', eye: 'w' },                 // ルル：手を上げてハート
+  idol2: { arm: 'fwd', eye: 'w', hx: 1, prop: 'idolSpark' },      // 　　　ウインクで指さし
+  axe1: { arm: 'up', prop: 'axeUp', hx: -1 },                     // ガルド：斧をふりかぶる
+  axe2: { arm: 'fwd', hx: 1, bx: 1 },                             // 　　　　投げる
+  blade1: { arm: 'up', prop: 'bladeUp', hx: -1 },                 // ゼロ：剣を振り上げる
+  blade2: { arm: 'fwd', hx: 1, bx: 1 },                           // 　　　斬りおろす
+  fox: { arm: 'clasp', back: 'clasp', eye: 'k', prop: 'foxFlame' }, // コン：手を合わせて狐火をよぶ
+  ice1: { arm: 'up', prop: 'wandUp' },                            // ミント：杖をかかげる
+  ice2: { arm: 'high', prop: 'wandHigh', hx: 1 },                 // 　　　　杖を敵へ向ける
+  scythe1: { arm: 'up', prop: 'scytheUp', hx: -1 },               // ノワ：鎌を振り上げる
+  scythe2: { arm: 'fwd', back: 'fwd', hx: 1, bx: 1 },             // 　　　回転斬り
+  bow1: { arm: 'fwd', prop: 'bowDraw', hx: -1 },                  // ソラ：弓を引く
+  bow2: { arm: 'fwd', prop: 'bowRelease' },                       // 　　　放つ
+  pray: { arm: 'clasp', back: 'clasp', eye: 'k', hy: 1, prop: 'prayLight' }, // セラ：祈る
+  holy: { arm: 'up', back: 'up', prop: 'holyLight' },             // 　　　両手を天へ
+  ofuda1: { arm: 'high', prop: 'paper', hx: -1 },                 // カグラ：お札を顔の前に
+  ofuda2: { arm: 'fwd', prop: 'paperFwd', hx: 1 },                // 　　　　投げる
+  raise: { arm: 'up', prop: 'swordUp' },                          // ヴォルト：剣を天にかかげる
+  toss1: { arm: 'down', prop: 'yarnLow', hy: 1 },                 // ミミ：下からふりかぶる
+  toss2: { arm: 'high', prop: 'yarnHigh', hx: 1 },                // 　　　投げる
+  // 共通（武器が固有でないとき）
+  a1: { arm: 'up', hx: -1 },
+  a2: { arm: 'fwd', hx: 1, bx: 1 },
+};
+/** ポーズの前の手の位置（grid の座標）。エフェクトを手元に出すため */
+const HAND = { rest: [15, 16], fwd: [17, 15], high: [18, 11], up: [18, 9], down: [15, 18], clasp: [9.5, 15] };
+export function poseHand(pose) {
+  const P2 = POSES[pose];
+  const h = HAND[P2?.arm || 'rest'];
+  return [h[0] + (P2?.bx || 0), h[1]];
+}
+const WEAPON_GLOW = { plasma: '#36f2ff', blade: '#ff5c7a', ice: '#9fe6ff', thunder: '#ffe14d', note: '#ff7ac8' };
+const PROP_COL = { o: '#ff8a2a', y: '#ffe14d', G: '#3a3f55', c: null, h: '#ff5aa8', W: '#8a5a2a', X: '#c8ccd8', r: '#d8203c', P: '#fff4d8', Y: '#ffd23a', b: '#ff8ad0', S: '#f4ecd8', D: '#2a1a2a', x: '#ffffff' };
 /** 文字の行を左右にずらす（体を前に傾ける） */
 const shiftX = (rows, dx) => (dx ? rows.map((r) => (dx > 0 ? '.'.repeat(dx) + r.slice(0, -dx) : r.slice(-dx) + '.'.repeat(-dx))) : rows);
+/** 点のリストを grid に描く */
+function dots(grid, list, colorOf, layer, dx = 0) {
+  for (const [x0, y, k] of list) {
+    const x = x0 + dx;
+    if (y < 0 || y >= grid.length || x < 0 || x >= grid[0].length) continue;
+    const c = colorOf(k);
+    if (c) grid[y][x] = { ...(typeof c === 'string' ? { c } : c), layer };
+  }
+}
+const mirror = (list) => list.map(([x, y, k]) => [19 - x, y, k]);
 
 const charCache = new Map();
 /**
  * @param {object} def CHARACTERS の look
  * @param {'idle'|'walk1'|'walk2'} frame 足の形
- * @param {string} pose 上半身：'' ふつう / 'b' 息を吐いて頭が少し下がる / 'k' まばたき（'bk' も可） / 'a1' ふりかぶり / 'a2' こうげき
+ * @param {string} pose 上半身：'' ふつう / 'b' 息を吐いて頭が少し下がる / 'k' まばたき（'bk' も可） / POSES のキー（攻撃のポーズ）
  */
 export function charSprite(def, frame = 'idle', pose = '') {
   const key = def.id + frame + '|' + pose;
@@ -418,18 +493,31 @@ export function charSprite(def, frame = 'idle', pose = '') {
     }
     return m;
   };
-  const atk = pose === 'a1' || pose === 'a2';
-  const hy = pose.includes('b') ? 1 : 0;              // 頭が下がる（呼吸）
-  const hx = pose === 'a2' ? 1 : pose === 'a1' ? -1 : 0; // 頭の傾き（ふりかぶりで後ろ、こうげきで前）
-  const bx = pose === 'a2' ? 1 : 0;                    // 体の傾き
-  const face = pose.includes('k') ? FACE_BLINK : FACE;
+  const P2 = POSES[pose];                                // 攻撃のポーズ（なければ待機：呼吸・まばたき）
+  const hy = P2 ? P2.hy || 0 : pose.includes('b') ? 1 : 0;
+  const hx = P2?.hx || 0, bx = P2?.bx || 0;
+  const eye = P2 ? P2.eye || '' : pose.includes('k') ? 'k' : '';
+  const face = eye === 'k' ? FACE_BLINK : eye === 'w' ? FACE_WINK : FACE;
   for (const a of accs) if (a.layer === 'back') paint(grid, shiftX(a.rows, a.y >= 11 ? bx : hx), accMap(a), 'acc', a.y + (a.y >= 11 ? 0 : hy));
   if (hair.back) paint(grid, shiftX(hair.back, hx), { H: P.H, Q: P.Q }, 'hairB', hy);
   paint(grid, LEGS[frame] || LEGS.idle, flatMap(['g', 'F']), 'legs', 20);
-  paint(grid, shiftX(withArm(L.pants ? BODY_PANTS : BODY, atk ? pose : ''), bx), flatMap(['T', 'C', 'A', 'B', 'K', 's']), 'body', 13);
+  const body = L.pants ? BODY_PANTS : BODY;
+  paint(grid, shiftX([...TORSO_TOP, ...body.slice(4)], bx), flatMap(['T', 'C', 'A', 'B', 'K', 's']), 'body', 13);
+  // 腕：下ろしている腕は顔より先に、上げている腕・持ち物は髪より後に描く（隠れないように）
+  const armCol = (k) => (k === 's' ? P.s : P.A);
+  const front = ARMS[P2?.arm || 'rest'], back = mirror(ARMS[P2?.back || 'rest']);
+  const isUp = (n) => n === 'up' || n === 'high';
+  if (!isUp(P2?.arm)) dots(grid, front, armCol, 'body', bx);
+  if (!isUp(P2?.back)) dots(grid, back, armCol, 'body', bx);
   paint(grid, shiftX(face, hx), flatMap(['s', 'L', 'E', 'e', 'w', 'b', 'm']), 'face', 5 + hy);
   paint(grid, shiftX(hair.front, hx), { H: { c: P.H, cast: true } }, 'hair', hy);
   for (const a of accs) if (a.layer === 'front') paint(grid, shiftX(a.rows, hx), accMap(a), 'acc', a.y + hy);
+  if (isUp(P2?.arm)) dots(grid, front, armCol, 'arm', bx);
+  if (isUp(P2?.back)) dots(grid, back, armCol, 'arm', bx);
+  if (P2?.prop) {
+    const glow = WEAPON_GLOW[def.weapon] || def.look.acc1 || '#ffffff';
+    dots(grid, PROPS[P2.prop], (k) => (k === 'c' ? { c: glow, flat: true } : { c: PROP_COL[k], flat: 'xSyo'.includes(k) }), 'prop');
+  }
   const cv = renderGrid(grid, { inner: true });
   charCache.set(key, cv);
   return cv;

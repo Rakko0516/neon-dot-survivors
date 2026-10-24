@@ -13,7 +13,7 @@ import { pwa, initPWA, applyUpdate, fetchChangelog, isStandalone, isIOS, warmAud
 import { APP_VERSION } from './version.js';
 import { initAudio, preloadAudio, sfx, setVolume, playBgm, stopBgm, bgmForBiome, setAudioKeep } from './audio.js';
 import { modal, toast, confirmBox, esc, closeAllModals } from './ui.js';
-import { Game } from './game.js';
+import { Game, ATK_ANIM, animStep } from './game.js';
 import * as M from './meta.js';
 import * as PF from './profile.js';
 import { playGacha } from './gachafx.js';
@@ -384,17 +384,14 @@ function stepCharAnim() {
     const def = D.CHARACTERS[img.dataset.char];
     if (!def) continue;
     let pose = '';
-    const at = +(img.dataset.atk || 0);
-    const since = t - at;
-    if (since >= 0 && since < 0.08) pose = 'a1';
-    else if (since >= 0 && since < 0.32) pose = 'a2';
+    // タップした時だけ、そのキャラの攻撃のポーズ（ゆっくりめに再生）。ふだんは自然に立っている
+    const anim = ATK_ANIM[def.weapon];
+    const st = anim && img.dataset.atk ? animStep(anim, (t - +img.dataset.atk) / 1.6) : null;
+    if (st) pose = st.pose;
     else {
       if (t % 1.6 >= 0.8) pose = 'b';
       const bt = (t + 0.4) % 3.6;
       if (bt < 0.12 || (bt > 0.3 && bt < 0.4 && Math.floor(t / 3.6) % 3 === 0)) pose += 'k';
-      // 5秒に1回くらい、自分から攻撃のポーズ
-      if (!img.dataset.next) img.dataset.next = t + 3 + Math.random() * 4;
-      if (t > +img.dataset.next) { img.dataset.atk = t; img.dataset.next = t + 4 + Math.random() * 4; }
     }
     if (img.dataset.pose === pose) continue;
     img.dataset.pose = pose;
