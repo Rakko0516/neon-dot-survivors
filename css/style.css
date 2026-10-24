@@ -1346,3 +1346,19 @@ img.px, img[data-icon] { object-fit: contain; object-position: center; }
 /* ダイヤで仲間にする：キャラの四角（ふわふわ浮く・光る）の上が切れないよう、上に余白 */
 .buy-char { padding-top: 14px; }
 .buy-char.got { padding-top: 18px; }
+
+/* ===== プロフィール：左右が切れない・ランク報酬をもっとコンパクトに ===== */
+.modal .mbody { padding-left: 6px; padding-right: 6px; }
+.prof-head > .av { margin: 4px 0 4px 3px; }
+.rr-strip { gap: 6px; padding: 6px 4px 8px; align-items: stretch;
+  -webkit-mask-image: linear-gradient(to right, #000 88%, transparent); mask-image: linear-gradient(to right, #000 88%, transparent); }
+.rr-card { flex: 0 0 78px; padding: 4px 3px 5px; justify-content: flex-start; }
+.rr-items { flex: 1; display: flex; flex-flow: row wrap; justify-content: center; align-content: flex-start; gap: 2px 5px; margin: 2px 0 3px; }
+.rr-i { gap: 1px; }
+.rr-i.sp { flex-direction: column; align-items: center; gap: 0; margin-top: 2px; }
+.rr-i.sp .av { margin: 2px; }
+.rr-i.sp small { margin-top: 2px; line-height: 1; white-space: nowrap; }
+.rr-st { margin-top: auto; }
+.rr-card { flex-basis: 86px; }
+.rr-items { gap: 2px 3px; }
+.rr-strip { align-items: flex-start; }

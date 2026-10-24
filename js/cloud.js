@@ -22,6 +22,8 @@ export function onCloud(fn) { listeners.add(fn); return () => listeners.delete(f
 function emit() { for (const fn of listeners) fn(cloud); }
 
 let conflictHandler = null; // (local, remote) => Promise<'local'|'remote'>
+let syncGate = () => true; // 戦闘中などは取り込まない
+export function setSyncGate(fn) { syncGate = fn; }
 let applyRemote = null; // (save) => void
 export function setSyncHandlers({ onConflict, onApplyRemote }) {
   conflictHandler = onConflict;
@@ -66,6 +68,8 @@ export async function initCloud() {
     // アプリを閉じる・別アプリに切り替えるときは、直前にバックアップしていても変更があれば必ず送る
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'hidden') autoBackup(true);
+      // 戻ってきたとき：ほかの端末で遊んだ分があれば取り込む
+      else if (cloud.user && !loginSyncing && syncGate()) syncOnLogin().catch(() => {});
     });
     window.addEventListener('online', () => autoBackup());
   } catch (e) {
@@ -111,10 +115,23 @@ export async function download() {
   return r.ok ? r.save : null;
 }
 
-export async function upload(force = false) {
+export async function upload(force = false, skipCheck = false) {
   if (!fb || !cloud.user) return false;
   const now = Date.now();
   if (!force && now - cloud.lastSync < MIN_GAP) return false;
+  // 別の端末（同じGoogleアカウント）が先に保存していたら、上書きせずに同期をやり直す
+  // （PCとスマホで交互に遊んでも、新しい方のデータが消えないように）
+  if (!skipCheck && !loginSyncing) {
+    try {
+      const snap = await fb.fsM.getDoc(docRef());
+      const remoteAt = snap.exists() ? snap.data().updatedAt : null;
+      const meta = getMeta();
+      if (remoteAt && !(meta.uid === cloud.user.uid && meta.lastSyncedAt === remoteAt) && remoteAt !== store.save.updatedAt) {
+        if (syncGate()) await syncOnLogin();
+        return false;
+      }
+    } catch (e) { console.warn('remote check failed', e); }
+  }
   const save = store.save;
   cloud.status = 'syncing';
   emit();
@@ -180,7 +197,7 @@ async function syncOnLoginInner() {
     const local = store.save;
     const meta = getMeta();
     if (!remote) {
-      await upload(true);
+      await upload(true, true);
       return;
     }
     if (remote.updatedAt === local.updatedAt) {
@@ -201,7 +218,7 @@ async function syncOnLoginInner() {
       setMeta({ uid: cloud.user.uid, lastSyncedAt: remote.updatedAt });
       cloud.status = 'ok'; cloud.lastSync = Date.now(); emit();
     } else {
-      await upload(true);
+      await upload(true, true);
     }
   } catch (e) {
     cloud.status = 'error';

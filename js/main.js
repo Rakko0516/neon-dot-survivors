@@ -7,7 +7,7 @@ import {
 } from './save.js';
 import {
   cloud, initCloud, onCloud, signIn, signOut, upload, restoreFromCloud, setSyncHandlers,
-  enablePush, disablePush, pushSupported, autoBackup,
+  enablePush, disablePush, pushSupported, autoBackup, setSyncGate,
 } from './cloud.js';
 import { pwa, initPWA, applyUpdate, fetchChangelog, isStandalone, isIOS, warmAudio } from './pwa.js';
 import { APP_VERSION } from './version.js';
@@ -149,6 +149,7 @@ async function boot() {
     if (tab === 'settings' && !inBattle) render();
   });
   setSyncHandlers({ onConflict: askConflict, onApplyRemote: (save) => { replaceSave(save, true); toast('クラウドのセーブを読み込みました'); } });
+  setSyncGate(() => !inBattle && !titleOpen && !document.querySelector('.overlay'));
   setInterval(() => { if (document.visibilityState === 'visible') addPlayTime(15); }, 15000);
   window.addEventListener('offline', () => toast('オフラインになりました。このまま遊べます（データはこの端末に保存されます）'));
   window.addEventListener('online', () => toast('オンラインに戻りました'));
@@ -2046,7 +2047,11 @@ async function onAction(act, el) {
     case 'logout':
       if (await confirmBox('ログアウト', 'ログアウトしても端末内のセーブは残ります。', 'ログアウト', 'red')) { await signOut(); toast('ログアウトしました'); }
       break;
-    case 'backup-now': toast((await upload(true)) ? 'クラウドにバックアップしました' : 'バックアップに失敗しました'); break;
+    case 'backup-now': {
+      const ok = await upload(true);
+      toast(ok ? 'クラウドにバックアップしました' : cloud.status === 'ok' ? 'ほかの端末のデータと同期しました' : 'バックアップに失敗しました' + (cloud.error ? '：' + cloud.error : ''));
+      break;
+    }
     case 'cloud-restore': {
       const remote = await restoreFromCloud().catch(() => null);
       if (!remote) { toast('クラウドにセーブがありません'); break; }
