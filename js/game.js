@@ -16,6 +16,7 @@ const SE_SAME = { spore: 'poison' };
 const sfxE = (k) => { const own = 'e_' + (SE_SAME[k] || k); sfx(hasSe(own) ? own : ENEMY_SE[k] || 'shoot2'); };
 
 const TAU = Math.PI * 2;
+const ATK_DUR = 0.24; // 攻撃アニメーションの長さ（秒）
 const rand = (a, b) => a + Math.random() * (b - a);
 const dist2 = (a, b) => (a.x - b.x) ** 2 + (a.y - b.y) ** 2;
 
@@ -93,7 +94,7 @@ export class Game {
     this.exp = 0;
     this.need = expNeed(1);
     this.pendingLv = 0;
-    this.player = { x: sp.x, y: sp.y, hp: b.hp, maxHp: b.hp, iframe: 0, face: 1, mx: 0, my: -1, moving: false, anim: 0, hazardT: 0, healT: 0, healAcc: 0, healSp: 0 };
+    this.player = { x: sp.x, y: sp.y, hp: b.hp, maxHp: b.hp, iframe: 0, face: 1, mx: 0, my: -1, moving: false, anim: 0, hazardT: 0, healT: 0, healAcc: 0, healSp: 0, atkT: 0, atkCd: 0 };
     this.healParts = []; // 回復エフェクト（緑の＋と光の粒）
     this.enemies = [];
     this.spawns = [];
@@ -216,6 +217,8 @@ export class Game {
       P.anim += dt * 8;
     }
     if (P.iframe > 0) P.iframe -= dt;
+    if (P.atkT > 0) P.atkT -= dt;
+    if (P.atkCd > 0) P.atkCd -= dt;
     if (this.superT > 0) this.superT -= dt;
     if (this.flash > 0) this.flash -= dt;
 
@@ -995,10 +998,24 @@ export class Game {
       // 撃った弾や置いた爆弾に「どの武器か」を付けておく（弱点の判定用）
       const nb = this.bullets.length, nf = this.fx.length;
       this.fire(w);
+      if (this.bullets.length > nb || this.fx.length > nf || w.t > 0.15) this.attackPose(w.id);
       for (let i = nb; i < this.bullets.length; i++) this.bullets[i].src ||= w.id;
       for (let i = nf; i < this.fx.length; i++) this.fx[i].src ||= w.id;
     }
     this.curSrc = null;
+  }
+
+  /** 攻撃のアニメーション（ふりかぶり → 腕を突き出す）。止まっている時は敵の方を向く */
+  attackPose(wid) {
+    const P = this.player;
+    if (P.atkCd > 0) return;
+    P.atkT = ATK_DUR;
+    P.atkCd = 0.34;
+    P.atkColor = SKILLS[wid]?.color || '#ffffff';
+    if (!P.moving) {
+      const tg = this.nearest(200);
+      if (tg && Math.abs(tg.x - P.x) > 3) P.face = tg.x > P.x ? 1 : -1;
+    }
   }
 
   fire(w) {
@@ -1978,8 +1995,16 @@ export class Game {
   drawPlayer(g) {
     const P = this.player;
     const frame = P.moving ? (Math.floor(P.anim) % 2 ? 'walk1' : 'walk2') : 'idle';
-    const s = charSprite(this.char, frame);
-    const bob = P.moving ? (Math.floor(P.anim) % 2 ? -1 : 0) : Math.round(Math.sin(this.t * 3) * 0.5);
+    // 上半身のポーズ：攻撃中は ふりかぶり → 突き出し。それ以外は呼吸（止まっている時）とまばたき
+    let pose = '';
+    if (P.atkT > 0) pose = P.atkT > ATK_DUR - 0.07 ? 'a1' : 'a2';
+    else {
+      if (!P.moving && (this.t % 1.6) >= 0.8) pose = 'b';
+      const bt = (this.t + 0.4) % 3.6;
+      if (bt < 0.12 || (bt > 0.3 && bt < 0.4 && Math.floor(this.t / 3.6) % 3 === 0)) pose += 'k'; // ときどき2回まばたき
+    }
+    const s = charSprite(this.char, frame, pose);
+    const bob = P.moving ? (Math.floor(P.anim) % 2 ? -1 : 0) : 0;
     const x = Math.round(P.x), y = Math.round(P.y);
     // 影
     g.fillStyle = 'rgba(30,10,30,0.35)';
@@ -2000,7 +2025,7 @@ export class Game {
       // スーパーモード（無敵）中は虹色のグラデーションが流れるように光る
       const img = this.superT > 0 ? this.rainbowSprite(s) : s;
       g.save();
-      g.translate(x, y - s.height + 2 + bob);
+      g.translate(x + (pose === 'a2' ? P.face : pose === 'a1' ? -P.face : 0), y - s.height + 2 + bob); // 攻撃で前へ踏み込む
       if (this.superT > 0) {
         // 外側の光（色が変わる輪郭）
         const glow = this.rainbowGlow(s);
@@ -2020,6 +2045,22 @@ export class Game {
       g.restore();
     }
     this.drawHealFront(g);
+    // 攻撃した瞬間：前に突き出した手の先に、武器の色の光
+    if (P.atkT > 0 && P.atkT <= ATK_DUR - 0.07 && !blink) {
+      const k = P.atkT / (ATK_DUR - 0.07);
+      const hx = x + P.face * 9, hy = y - s.height + 2 + bob + 16;
+      g.save();
+      g.globalAlpha = Math.min(1, k * 1.6);
+      g.fillStyle = P.atkColor || '#ffffff';
+      const len = Math.round(3 + (1 - k) * 4);
+      g.fillRect(P.face > 0 ? hx : hx - len, hy - 1, len, 2);
+      g.fillStyle = '#ffffff';
+      g.fillRect(P.face > 0 ? hx : hx - 2, hy - 1, 2, 2);
+      g.globalAlpha = Math.min(1, k * 1.6) * 0.8;
+      g.fillStyle = P.atkColor || '#ffffff';
+      g.fillRect(hx + P.face * (len - 1) - 1, hy - 3, 1, 1); g.fillRect(hx + P.face * (len - 1) - 1, hy + 2, 1, 1);
+      g.restore();
+    }
     // 雪玉などで足が遅くなっている間は、足元に氷
     if (P.slowT > 0) {
       g.globalAlpha = 0.7; g.fillStyle = '#9fe6ff';

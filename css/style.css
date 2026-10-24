@@ -208,7 +208,7 @@ img.px, canvas { image-rendering: pixelated; image-rendering: crisp-edges; }
   background: radial-gradient(ellipse at 30% 60%, #fffbe8 0, var(--cbg) 70%);
   box-shadow: inset 0 0 0 3px #ffffff55;
 }
-.char-show .big { width: 100%; max-width: 180px; justify-self: center; animation: bob 1.4s steps(2) infinite; filter: drop-shadow(0 6px 0 #0003); }
+.char-show .big { width: 100%; max-width: 180px; justify-self: center; filter: drop-shadow(0 6px 0 #0003); }
 .char-info { color: #fff; }
 .char-info .nm { font-size: 20px; }
 .char-info .role { font-size: 11px; color: var(--muted); font-weight: 500; }
@@ -1218,3 +1218,8 @@ html.wide .tab-party.sub-equip .equip-stage { max-width: none; }
 .fr-legend { background: conic-gradient(from var(--a, 0deg), #ffe27a, #ff7a9a, #ffd23a, #6ae8ff, #c45cff, #ffe27a); box-shadow: 0 0 0 3px var(--ink), inset 0 0 0 2px #fff4c0, 0 0 16px #ffd23a, 0 0 24px #ff7a9a88; animation: frameSpin 2.4s linear infinite; }
 .fr-legend::before { width: 30%; height: 20%; top: -12%; left: 35%; background: linear-gradient(#fff4a8, #e0a822); border: 2px solid var(--ink); clip-path: polygon(0 100%, 0 20%, 25% 60%, 50% 0, 75% 60%, 100% 20%, 100% 100%); }
 .fr-legend::after { content: '★'; font-size: calc(var(--s) * .26); bottom: -12%; left: 50%; transform: translateX(-50%); color: #fff; text-shadow: 0 0 6px #ffd23a, 1px 1px 0 var(--ink); line-height: 1; }
+/* レベルアップの音が鳴っている間：画面をふわっと光らせてから、スキル選択を出す */
+#levelup { transition: background-color .25s; }
+#levelup.lv-wait { background: rgba(255, 240, 160, .18); pointer-events: none; }
+#levelup.lv-wait > * { opacity: 0; }
+#levelup > * { transition: opacity .2s; }

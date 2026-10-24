@@ -370,7 +370,42 @@ function hydrate(root) {
     img.src = toURL(charSprite(def, img.dataset.frame || 'idle'), 6, `c:${def.id}${img.dataset.frame || ''}`);
   });
   root.querySelectorAll('img[data-portrait]').forEach((img) => { img.src = portraitURL(img.dataset.portrait); });
+  root.querySelectorAll('img[data-char][data-anim]').forEach((img) => animChars.add(img));
+  if (animChars.size && !animTimer) animTimer = setInterval(stepCharAnim, 80);
 }
+
+// ===== メニューのキャラ：待機アニメーション（呼吸・まばたき）と、ときどき／タップで攻撃のポーズ =====
+const animChars = new Set();
+let animTimer = 0;
+function stepCharAnim() {
+  const t = performance.now() / 1000;
+  for (const img of animChars) {
+    if (!img.isConnected) { animChars.delete(img); continue; }
+    const def = D.CHARACTERS[img.dataset.char];
+    if (!def) continue;
+    let pose = '';
+    const at = +(img.dataset.atk || 0);
+    const since = t - at;
+    if (since >= 0 && since < 0.08) pose = 'a1';
+    else if (since >= 0 && since < 0.32) pose = 'a2';
+    else {
+      if (t % 1.6 >= 0.8) pose = 'b';
+      const bt = (t + 0.4) % 3.6;
+      if (bt < 0.12 || (bt > 0.3 && bt < 0.4 && Math.floor(t / 3.6) % 3 === 0)) pose += 'k';
+      // 5秒に1回くらい、自分から攻撃のポーズ
+      if (!img.dataset.next) img.dataset.next = t + 3 + Math.random() * 4;
+      if (t > +img.dataset.next) { img.dataset.atk = t; img.dataset.next = t + 4 + Math.random() * 4; }
+    }
+    if (img.dataset.pose === pose) continue;
+    img.dataset.pose = pose;
+    img.src = toURL(charSprite(def, 'idle', pose), 6, `c:${def.id}|${pose}`);
+  }
+  if (!animChars.size) { clearInterval(animTimer); animTimer = 0; }
+}
+document.addEventListener('pointerdown', (e) => {
+  const img = e.target.closest?.('img[data-char][data-anim]');
+  if (img) img.dataset.atk = performance.now() / 1000;
+});
 
 // ===== アイコン（プロフィール） =====
 function iconURL(id) {
@@ -874,7 +909,7 @@ function charsHTML() {
   }
   return `
   <div class="char-show" style="--cbg:${c.bg}">
-    <img class="big px" data-char="${id}" alt="${c.name}" ${cs.unlocked ? '' : 'style="filter:brightness(0) opacity(.5)"'}>
+    <img class="big px" data-char="${id}" data-anim alt="${c.name}" ${cs.unlocked ? '' : 'style="filter:brightness(0) opacity(.5)"'}>
     <div class="char-info darkf">
       <div class="nm ol">${c.name}</div>
       <div class="role">${c.role}</div>
@@ -902,7 +937,7 @@ async function buyCharModal(id) {
     title: 'ダイヤで仲間にする',
     sound: 'panel2',
     body: `<div class="buy-char">
-      <div class="bc-card s${c.stars}" style="--cbg:${c.bg}"><img class="px" data-char="${id}" alt="${c.name}"><i class="bc-shine"></i></div>
+      <div class="bc-card s${c.stars}" style="--cbg:${c.bg}"><img class="px" data-char="${id}" data-anim alt="${c.name}"><i class="bc-shine"></i></div>
       <div class="bc-name ol">${c.name}</div>
       <div class="bc-role">${c.role}</div>
       ${starsHTML(c.stars)}
@@ -921,7 +956,7 @@ async function buyCharModal(id) {
     sound: 'panel',
     body: `<div class="ru-burst"></div>
       <div class="ru-title ol">NEW!</div>
-      <div class="buy-char got"><div class="bc-card s${c.stars}" style="--cbg:${c.bg}"><img class="px" data-char="${id}" alt="${c.name}"><i class="bc-shine"></i></div>
+      <div class="buy-char got"><div class="bc-card s${c.stars}" style="--cbg:${c.bg}"><img class="px" data-char="${id}" data-anim alt="${c.name}"><i class="bc-shine"></i></div>
       <div class="bc-name ol">${c.name} が仲間になった！</div></div>
       ${presetNote(1)}`,
     buttons: [{ label: 'OK', value: true, cls: 'teal' }],
@@ -1660,7 +1695,7 @@ function bindGlobal() {
 async function onAction(act, el) {
   const d = data();
   switch (act) {
-    case 'start': if (!isLocked(d.selectedStage)) { sfx('click'); startBattle(); } break;
+    case 'start': if (!isLocked(d.selectedStage)) { sfx('start'); startBattle(); } break;
     case 'stage-prev': case 'stage-next': {
       const w = D.stageInfo(d.selectedStage).w + (act === 'stage-next' ? 1 : -1);
       if (w < 1 || w > D.BIOMES.length) break;
@@ -2038,8 +2073,12 @@ function showLevelUp(choices, done) {
     ...g.actives.map((a) => `<span><img class="px" src="${iconURL(D.SKILLS[a.id].icon, D.SKILLS[a.id].color)}" alt="">${a.lv}</span>`),
     ...Object.entries(g.passives).map(([id, lv]) => `<span><img class="px" src="${iconURL(D.SKILLS[id].icon, D.SKILLS[id].color)}" alt="">${lv}</span>`),
   ].join('');
+  // レベルアップの音のあと、少し間をおいてスキル選択画面を出す（音が重ならないように）
+  const SHOW_DELAY = 380;
   wrap.classList.remove('hidden');
-  [...cards.children].forEach((card, i) => setTimeout(() => card.classList.remove('pre'), 40 + i * 70));
+  wrap.classList.add('lv-wait');
+  setTimeout(() => { wrap.classList.remove('lv-wait'); sfx('skillShow'); }, SHOW_DELAY);
+  [...cards.children].forEach((card, i) => setTimeout(() => card.classList.remove('pre'), SHOW_DELAY + 40 + i * 70));
   let stopped = 0, finished = false;
   const timers = [];
   const reveal = (i) => {
@@ -2059,7 +2098,9 @@ function showLevelUp(choices, done) {
     stopped++;
   };
   // 回転させる（ブラウザの描画後に開始）
-  requestAnimationFrame(() => requestAnimationFrame(() => {
+  let tickN = 0, ticker = 0;
+  timers.push(setTimeout(() => requestAnimationFrame(() => requestAnimationFrame(() => {
+    if (finished) return;
     [...cards.children].forEach((card, i) => {
       const strip = card.querySelector('.strip');
       const n = strip.children.length;
@@ -2068,9 +2109,8 @@ function showLevelUp(choices, done) {
       strip.style.transform = `translateY(-${(n - 1) / n * 100}%)`;
       timers.push(setTimeout(() => reveal(i), dur * 1000));
     });
-  }));
-  let tickN = 0;
-  const ticker = setInterval(() => { if (stopped >= 3 || tickN++ > 20) clearInterval(ticker); else sfx('reel'); }, 70);
+    ticker = setInterval(() => { if (stopped >= 3 || tickN++ > 20) clearInterval(ticker); else sfx('reel'); }, 70);
+  })), SHOW_DELAY));
   const onClick = (e) => {
     const card = e.target.closest('.lv-card');
     if (!card || finished) return;
@@ -2294,8 +2334,8 @@ async function endBattle(res) {
   });
   leaveBattle();
   if (ups.length) await rankUpModal(ups);
-  if (v === 'next' && nextN) { data().selectedStage = nextN; commit(); startBattle(); }
-  else if (v === 'retry') startBattle();
+  if (v === 'next' && nextN) { sfx('start'); data().selectedStage = nextN; commit(); startBattle(); }
+  else if (v === 'retry') { sfx('start'); startBattle(); }
   else if (pendingUpdate) showUpdatePopup();
 }
 

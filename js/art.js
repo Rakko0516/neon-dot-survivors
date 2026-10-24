@@ -373,13 +373,28 @@ const ACC = {
   headphones: { layer: 'front', y: 7, rows: ['..PP............PP..', '..PP............PP..', '..PP............PP..'], map: { P: 'acc2' } },
 };
 
+// ===== キャラのポーズ（待機・攻撃のアニメーション用） =====
+// 目を閉じた顔（まばたき）
+const FACE_BLINK = FACE.map((r, i) => (i === 3 ? '....ssssssssssss....' : i === 4 ? '....ssLLssssLLss....' : i === 5 ? '....sbssssssssbs....' : r));
+// 体の上4行（腕）を差し替える。右側（＝向いている側）の腕だけ動かす
+const ARM = {
+  // ふりかぶり：前の腕を上げる
+  a1: ['......TTTTTTTT.s....', '.....ATTTCCTTTAA....', '....AATTTTTTTTA.....', '....sATTTTTTTT......'],
+  // こうげき：前の腕をまっすぐ突き出す
+  a2: ['......TTTTTTTT......', '.....ATTTCCTTTA.....', '....AATTTTTTTTAAAs..', '....sATTTTTTTT......'],
+};
+const withArm = (body, pose) => (ARM[pose] ? [...ARM[pose], ...body.slice(4)] : body);
+/** 文字の行を左右にずらす（体を前に傾ける） */
+const shiftX = (rows, dx) => (dx ? rows.map((r) => (dx > 0 ? '.'.repeat(dx) + r.slice(0, -dx) : r.slice(-dx) + '.'.repeat(-dx))) : rows);
+
 const charCache = new Map();
 /**
  * @param {object} def CHARACTERS の look
- * @param {'idle'|'walk1'|'walk2'} frame
+ * @param {'idle'|'walk1'|'walk2'} frame 足の形
+ * @param {string} pose 上半身：'' ふつう / 'b' 息を吐いて頭が少し下がる / 'k' まばたき（'bk' も可） / 'a1' ふりかぶり / 'a2' こうげき
  */
-export function charSprite(def, frame = 'idle') {
-  const key = def.id + frame;
+export function charSprite(def, frame = 'idle', pose = '') {
+  const key = def.id + frame + '|' + pose;
   if (charCache.has(key)) return charCache.get(key);
   const L = def.look;
   const P = {
@@ -403,13 +418,18 @@ export function charSprite(def, frame = 'idle') {
     }
     return m;
   };
-  for (const a of accs) if (a.layer === 'back') paint(grid, a.rows, accMap(a), 'acc', a.y);
-  if (hair.back) paint(grid, hair.back, { H: P.H, Q: P.Q }, 'hairB', 0);
-  paint(grid, LEGS[frame], flatMap(['g', 'F']), 'legs', 20);
-  paint(grid, L.pants ? BODY_PANTS : BODY, flatMap(['T', 'C', 'A', 'B', 'K', 's']), 'body', 13);
-  paint(grid, FACE, flatMap(['s', 'L', 'E', 'e', 'w', 'b', 'm']), 'face', 5);
-  paint(grid, hair.front, { H: { c: P.H, cast: true } }, 'hair', 0);
-  for (const a of accs) if (a.layer === 'front') paint(grid, a.rows, accMap(a), 'acc', a.y);
+  const atk = pose === 'a1' || pose === 'a2';
+  const hy = pose.includes('b') ? 1 : 0;              // 頭が下がる（呼吸）
+  const hx = pose === 'a2' ? 1 : pose === 'a1' ? -1 : 0; // 頭の傾き（ふりかぶりで後ろ、こうげきで前）
+  const bx = pose === 'a2' ? 1 : 0;                    // 体の傾き
+  const face = pose.includes('k') ? FACE_BLINK : FACE;
+  for (const a of accs) if (a.layer === 'back') paint(grid, shiftX(a.rows, a.y >= 11 ? bx : hx), accMap(a), 'acc', a.y + (a.y >= 11 ? 0 : hy));
+  if (hair.back) paint(grid, shiftX(hair.back, hx), { H: P.H, Q: P.Q }, 'hairB', hy);
+  paint(grid, LEGS[frame] || LEGS.idle, flatMap(['g', 'F']), 'legs', 20);
+  paint(grid, shiftX(withArm(L.pants ? BODY_PANTS : BODY, atk ? pose : ''), bx), flatMap(['T', 'C', 'A', 'B', 'K', 's']), 'body', 13);
+  paint(grid, shiftX(face, hx), flatMap(['s', 'L', 'E', 'e', 'w', 'b', 'm']), 'face', 5 + hy);
+  paint(grid, shiftX(hair.front, hx), { H: { c: P.H, cast: true } }, 'hair', hy);
+  for (const a of accs) if (a.layer === 'front') paint(grid, shiftX(a.rows, hx), accMap(a), 'acc', a.y + hy);
   const cv = renderGrid(grid, { inner: true });
   charCache.set(key, cv);
   return cv;

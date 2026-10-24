@@ -359,11 +359,11 @@
     },
     "equip": {
       "file": "equip.mp3",
-      "orig": "シャキーン3.mp3",
+      "orig": "装備装着.mp3",
       "use": "装備を付ける",
-      "by": "効果音ラボ",
-      "v": "234f344253",
-      "size": 38918
+      "by": "提供音源",
+      "v": "d116eb42a2",
+      "size": 27215
     },
     "reelStop": {
       "file": "reelStop.mp3",
@@ -376,10 +376,10 @@
     "levelup": {
       "file": "levelup.mp3",
       "orig": "レベルアップ.mp3",
-      "use": "レベルアップ",
-      "by": "効果音ラボ",
-      "v": "556a0aa958",
-      "size": 31395
+      "use": "レベルアップ（戦闘中）・強化",
+      "by": "提供音源",
+      "v": "3cf95a2740",
+      "size": 28887
     },
     "gate": {
       "file": "gate.mp3",
@@ -684,6 +684,22 @@
       "by": "提供音源（OtoLogic / Springin）",
       "v": "10f1d4d383",
       "size": 10497
+    },
+    "start": {
+      "file": "se_start.mp3",
+      "orig": "ゲーム開始(出撃ボタン).mp3",
+      "use": "ゲーム開始（出撃ボタン・次のステージへ・もう一度）",
+      "by": "提供音源",
+      "v": "3d41d0dae3",
+      "size": 27215
+    },
+    "skillShow": {
+      "file": "se_skillShow.mp3",
+      "orig": "スキル選択画面表示.mp3",
+      "use": "スキル選択画面が出たとき",
+      "by": "提供音源",
+      "v": "45aac7aa37",
+      "size": 38918
     }
   }
 }
