@@ -371,6 +371,18 @@ const ACC = {
     map: { R: 'acc1' },
   },
   headphones: { layer: 'front', y: 7, rows: ['..PP............PP..', '..PP............PP..', '..PP............PP..'], map: { P: 'acc2' } },
+  // 三日月の髪かざり
+  crescent: { layer: 'front', y: 2, rows: ['..YY................', '.Y..................', '.Y..................', '..YY................'], map: { Y: 'acc1' }, flatKeys: ['Y'] },
+  // 花の髪かざり
+  flower: { layer: 'front', y: 3, rows: ['...............F.F..', '..............FFYFF.', '...............F.F..'], map: { F: 'acc1', Y: '#ffe14d' }, flatKeys: ['Y'] },
+  // 忍者の口元マスク
+  ninjaMask: { layer: 'front', y: 10, rows: ['....MMMMMMMMMMMM....', '....MMMMMMMMMMMM....', '.....MMMMMMMMMM.....'], map: { M: 'acc2' } },
+  // おでこのゴーグル
+  goggles: { layer: 'front', y: 4, rows: ['...SSSSSSSSSSSSSS...', '...SGGGSSSSSSGGGS...', '....GwGG....GwGG....'], map: { S: 'acc2', G: 'acc1', w: '#ffffff' }, flatKeys: ['w'] },
+  // ティアラ
+  tiara: { layer: 'front', y: 1, rows: ['.........G..........', '......Y..Y..Y.......', '.....YYYYYYYYY......'], map: { Y: 'acc1', G: 'acc2' }, flatKeys: ['G'] },
+  // 白虎の耳（しま模様）
+  tigerEars: { layer: 'front', y: 0, rows: ['..HH............HH..', '..HKH..........HKH..', '...HH..........HH...'], map: { H: 'hair', K: 'acc1' } },
 };
 
 // ===== キャラのポーズ（待機・攻撃のアニメーション用） =====
@@ -408,6 +420,20 @@ const PROPS = {
   prayLight: [[9, 15, 'y'], [10, 15, 'y'], [9, 14, 'Y'], [10, 14, 'x']],
   holyLight: [[18, 7, 'y'], [17, 8, 'y'], [19, 8, 'y'], [18, 8, 'x'], [1, 7, 'y'], [0, 8, 'y'], [2, 8, 'y'], [1, 8, 'x']],
   idolSpark: [[19, 9, 'y'], [19, 11, 'y']],
+  // ===== 追加キャラの持ち物 =====
+  moonUp: [[17, 4, 'y'], [18, 4, 'y'], [16, 5, 'y'], [16, 6, 'y'], [17, 7, 'y'], [18, 7, 'y'], [17, 5, 'x']],
+  fireSwordUp: [[17, 8, 'D'], [18, 8, 'D'], [19, 8, 'D'], ...[1, 2, 3, 4, 5, 6, 7].map((y) => [18, y, y < 3 ? 'y' : 'o']), [17, 3, 'o'], [19, 5, 'o']],
+  bubbles: [[17, 5, 'c'], [18, 5, 'c'], [17, 6, 'c'], [18, 6, 'x'], [19, 3, 'c'], [16, 2, 'c']],
+  bubbleFwd: [[18, 13, 'c'], [19, 13, 'c'], [18, 12, 'x'], [19, 16, 'c']],
+  shurikenUp: [[18, 6, 'X'], [17, 7, 'X'], [18, 7, 'D'], [19, 7, 'X'], [18, 8, 'X']],
+  wrenchLow: [[16, 19, 'X'], [17, 20, 'X'], [17, 18, 'X']],
+  wrenchFwd: [[18, 14, 'X'], [19, 13, 'X'], [19, 15, 'X']],
+  darkOrbUp: [[17, 5, 'v'], [18, 5, 'v'], [19, 5, 'v'], [17, 6, 'v'], [18, 6, 'x'], [19, 6, 'v'], [18, 7, 'v'], [18, 4, 'v'], [2, 5, 'v'], [1, 6, 'v']],
+  gemUp: [[18, 5, 'c'], [17, 6, 'c'], [18, 6, 'x'], [19, 6, 'c'], [18, 7, 'c'], [18, 4, 'y']],
+  shotgunFwd: [[14, 14, 'G'], [15, 14, 'G'], [16, 14, 'G'], [17, 14, 'G'], [18, 14, 'G'], [19, 14, 'G'], [15, 15, 'W'], [14, 15, 'W'], [16, 16, 'G']],
+  fistGlow: [[18, 14, 'c'], [18, 16, 'c'], [19, 15, 'x']],
+  starUp: [[18, 5, 'y'], [17, 6, 'y'], [18, 6, 'x'], [19, 6, 'y'], [18, 7, 'y'], [1, 6, 'y'], [2, 6, 'y']],
+  starHigh: [[19, 9, 'y'], [18, 10, 'x'], [19, 8, 'y']],
 };
 /**
  * 攻撃のポーズ。arm＝前の腕 / back＝後ろの腕 / prop＝持ち物 / eye＝k（目を閉じる）w（ウインク）
@@ -436,6 +462,27 @@ const POSES = {
   raise: { arm: 'up', prop: 'swordUp' },                          // ヴォルト：剣を天にかかげる
   toss1: { arm: 'down', prop: 'yarnLow', hy: 1 },                 // ミミ：下からふりかぶる
   toss2: { arm: 'high', prop: 'yarnHigh', hx: 1 },                // 　　　投げる
+  // ===== 追加キャラ =====
+  luna1: { arm: 'up', back: 'up', prop: 'moonUp', eye: 'k' },     // ルナ：三日月をかかげる
+  luna2: { arm: 'fwd', hx: 1, prop: 'idolSpark' },                // 　　　放つ
+  fsw1: { arm: 'up', prop: 'fireSwordUp', hx: -1 },               // ブレイズ：炎の剣を振り上げる
+  fsw2: { arm: 'fwd', hx: 1, bx: 1 },                             // 　　　　　振りぬく
+  sing1: { arm: 'up', eye: 'w', prop: 'bubbles' },                // マリン：歌いながら手を上げる
+  sing2: { arm: 'fwd', prop: 'bubbleFwd', hx: 1 },                // 　　　　シャボン玉を送る
+  shu1: { arm: 'up', prop: 'shurikenUp', hx: -1 },                // ハヤテ：手裏剣を構える
+  shu2: { arm: 'fwd', hx: 1, bx: 1 },                             // 　　　　投げる
+  gear1: { arm: 'down', prop: 'wrenchLow', hy: 1 },               // ピコ：スパナでしゃがんで組み立て
+  gear2: { arm: 'fwd', prop: 'wrenchFwd' },                       // 　　　設置完了
+  dark1: { arm: 'up', back: 'up', prop: 'darkOrbUp' },            // リリス：闇の玉をつくる
+  dark2: { arm: 'fwd', eye: 'w', hx: 1 },                         // 　　　　ウインクで放つ
+  gem1: { arm: 'up', prop: 'gemUp' },                             // ティア：宝石をかかげる
+  gem2: { arm: 'up', back: 'up', prop: 'holyLight', eye: 'k' },   // 　　　　宝石の雨
+  sg1: { arm: 'fwd', back: 'fwd', prop: 'shotgunFwd' },           // クロウ：散弾銃を構える
+  sg2: { arm: 'fwd', back: 'fwd', prop: 'shotgunFwd', hx: -1, bx: -1 }, // 　　　撃った反動
+  punch1: { arm: 'clasp', hx: -1, hy: 1 },                        // ハク：拳をためる
+  punch2: { arm: 'fwd', prop: 'fistGlow', hx: 1, bx: 1 },         // 　　　正拳突き
+  star1: { arm: 'up', back: 'up', prop: 'starUp', eye: 'k' },     // エクリプス：星に祈る
+  star2: { arm: 'high', prop: 'starHigh', hx: 1 },                // 　　　　　　流れ星を呼ぶ
   // 共通（武器が固有でないとき）
   a1: { arm: 'up', hx: -1 },
   a2: { arm: 'fwd', hx: 1, bx: 1 },
@@ -447,8 +494,8 @@ export function poseHand(pose) {
   const h = HAND[P2?.arm || 'rest'];
   return [h[0] + (P2?.bx || 0), h[1]];
 }
-const WEAPON_GLOW = { plasma: '#36f2ff', blade: '#ff5c7a', ice: '#9fe6ff', thunder: '#ffe14d', note: '#ff7ac8' };
-const PROP_COL = { o: '#ff8a2a', y: '#ffe14d', G: '#3a3f55', c: null, h: '#ff5aa8', W: '#8a5a2a', X: '#c8ccd8', r: '#d8203c', P: '#fff4d8', Y: '#ffd23a', b: '#ff8ad0', S: '#f4ecd8', D: '#2a1a2a', x: '#ffffff' };
+const WEAPON_GLOW = { plasma: '#36f2ff', blade: '#ff5c7a', ice: '#9fe6ff', thunder: '#ffe14d', note: '#ff7ac8', bubble: '#8ae8ff', gemrain: '#7ae8ff', fist: '#7ad8ff' };
+const PROP_COL = { v: '#9a3ad8', o: '#ff8a2a', y: '#ffe14d', G: '#3a3f55', c: null, h: '#ff5aa8', W: '#8a5a2a', X: '#c8ccd8', r: '#d8203c', P: '#fff4d8', Y: '#ffd23a', b: '#ff8ad0', S: '#f4ecd8', D: '#2a1a2a', x: '#ffffff' };
 /** 文字の行を左右にずらす（体を前に傾ける） */
 const shiftX = (rows, dx) => (dx ? rows.map((r) => (dx > 0 ? '.'.repeat(dx) + r.slice(0, -dx) : r.slice(-dx) + '.'.repeat(-dx))) : rows);
 /** 点のリストを grid に描く */
@@ -516,7 +563,7 @@ export function charSprite(def, frame = 'idle', pose = '') {
   if (isUp(P2?.back)) dots(grid, back, armCol, 'arm', bx);
   if (P2?.prop) {
     const glow = WEAPON_GLOW[def.weapon] || def.look.acc1 || '#ffffff';
-    dots(grid, PROPS[P2.prop], (k) => (k === 'c' ? { c: glow, flat: true } : { c: PROP_COL[k], flat: 'xSyo'.includes(k) }), 'prop');
+    dots(grid, PROPS[P2.prop], (k) => (k === 'c' ? { c: glow, flat: true } : { c: PROP_COL[k], flat: 'xSyov'.includes(k) }), 'prop');
   }
   const cv = renderGrid(grid, { inner: true });
   charCache.set(key, cv);
@@ -733,11 +780,69 @@ const ICON_ROWS = {
   skull: ['..AAAAAAA...', '.AAAAAAAAA..', 'AAAAAAAAAAA.', 'AApAAAAApAA.', 'AApppAppAAA.', 'AAAAAAAAAAA.', '.AAApApAAA..', '..AAAAAAA...', '..A.A.A.A...'],
   // 装備
   staff: ['........AAA.', '.......AwwA.', '.......AwAA.', '......BAAA..', '.....BB.....', '....BB......', '...BB.......', '..BB........', '.BB.........', 'BB..........'],
-  gun: ['............', 'AAAAAAAAAAA.', 'AwwwwwwwwAA.', 'AAAAAAAAAAA.', '...AABAA....', '...AAB......', '...AAA......', '...AAA......'],
+  // 銃（ブラッシュアップ：光るエネルギー管とグリップ）
+  gun: [
+    '...........ww...',
+    '.KKKKKKKKKKKKK..',
+    'KkkkkkkkkCCCCKww',
+    'KkAAAAAAkKKKKKGw',
+    'KkkkkkkkkkkkK...',
+    '.KKKkkKKKKKK....',
+    '...KkkK..K......',
+    '..KkkK..........',
+    '..KkkK..........',
+    '..KKK...........',
+  ],
   bow: ['..AA........', '...AA..B....', '....A.B.....', '....AB......', '....BA......', '...B.A......', '..B..A......', '....AA......', '..AA........'],
-  helmet: ['...AAAAA....', '..AwwAAAA...', '.AwAAAAAAA..', '.AAAAAAAAA..', '.AABBBBBAA..', '.AAB...BAA..', '.AAA...AAA..', '.AA.....AA..'],
+  // かぶと（ブラッシュアップ：羽かざり・面頬・のぞき穴）
+  helmet: [
+    '.......RR.....',
+    '......RRRR....',
+    '.....RR.......',
+    '....AAAAAA....',
+    '...ACCCCCAA...',
+    '..ACwCCCCCAA..',
+    '..AwCCCCCCAA..',
+    '..AAYYYYYYAA..',
+    '..AppppppppA..',
+    '..AAAAKAAAAA..',
+    '..AAAKAKAAAA..',
+    '..BAAAAAAAAB..',
+    '...BBAAAABB...',
+    '.....BBBB.....',
+  ],
   hat: ['......AA....', '.....AAA....', '....AAAA....', '...AAwAAA...', '...BBBBBB...', 'AAAAAAAAAAA.', '.AAAAAAAAA..'],
-  armor: ['.AAA...AAA..', 'AAAAAAAAAAA.', 'AwwAABAAAAA.', '.AwAABAAAA..', '.AAAABAAAA..', '.AAAABAAAA..', '.AAAAAAAAA..', '..AAAAAAA...'],
+  // プレートアーマー（ブラッシュアップ：肩当て・胸の装甲・金のベルト・草摺り）
+  armor: [
+    '..AAA......AAA..',
+    '.ACCCA....ACCCA.',
+    '.ACwCAAppAACCCA.',
+    '.AAAAACCCCAAAAA.',
+    '..BAACwwCCCAAB..',
+    '...BACwCCCCAB...',
+    '...BACCCCCCAB...',
+    '...BAACCCCAAB...',
+    '...BYYYGYYYYB...',
+    '...BAAAyAAAAB...',
+    '...BABAABAABA...',
+    '...BAB.BAB.BA...',
+  ],
+  // ===== 追加の装備アイコン =====
+  katana: ['...........ww', '..........wCA', '.........wCA.', '........wCA..', '.......wCA...', '......wCA....', '.....wCA.....', '....YYA......', '...YKY.......', '..KKY........', '.KK..........', 'KK...........'],
+  hammer: ['..KKKKKKK...', '.KkAAAAAkK..', '.KkACCCAkK..', '.KkAAAAAkK..', '..KKKWKKK...', '.....W......', '.....W......', '.....W......', '.....W......', '....YWY.....', '.....W......'],
+  spear: ['..........C.', '.........CwC', '........CAC.', '.......RAC..', '......RR....', '.....W......', '....W.......', '...W........', '..W.........', '.W..........', 'W...........'],
+  wand: ['.......G.G..', '........G...', '.......GwG..', '......G.G...', '......YY....', '.....WY.....', '....W.......', '...W........', '..W.........', '.W..........'],
+  crownItem: ['.Y...Y...Y..', '.YY.YYY.YY..', '.YYYYYYYYY..', '.YRYYGYYRY..', '.YYYYYYYYY..', '.yyyyyyyyy..'],
+  hood: ['....AAAA....', '..AACCCCAA..', '.ACCCCCCCCA.', '.ACppppppCA.', 'ACpwppppwpCA', 'ACppppppppCA', 'AAApppppAAAA', '.AAAAAAAAAA.', '..BBBBBBBB..'],
+  goggleItem: ['............', '.KKKK..KKKK.', 'KGwGGKKGwGGK', 'KGGGGkkGGGGK', '.KKKK..KKKK.', 'WW........WW'],
+  coat: ['...AA..AA...', '..ACAAAACA..', '.ACCAYYACCA.', '.AAAAYYAAAA.', 'AAAAAYAAAAAA', 'AA.AAYAAA.AA', 'AA.AAYAAA.AA', 'A..AAYAAA..A', '...AAAAAA...', '...BB..BB...'],
+  mech: ['..KKK..KKK..', '.KkkkKKkkkK.', '.KkAAAAAAkK.', '..KACGGCAK..', '..KAAGGAAK..', '..KAAAAAAK..', '..KkYYYYkK..', '..KAA..AAK..', '..KK....KK..'],
+  bracer: ['...AAAAA....', '..ACCCCCA...', '..AwAAAAAB..', '..ACCCCCAB..', '..AwAAAAAB..', '..ACCCCCAB..', '..AYYYYYAB..', '...BBBBBB...'],
+  greave: ['..AAAA......', '..ACwA......', '..ACCA......', '..AwCA......', '..ACCA......', '..AYYA......', '..ACCAA.....', '..ACCCAAA...', '..BBBBBBB...'],
+  wingboot: ['.....AAA....', 'ww...ACA....', 'www..ACA....', '.www.ACA....', '..wwwACA....', '.....ACAAA..', '.....ACCCAA.', '.....BBBBBB.'],
+  scarf: ['..AAAAAAAA..', '.ACCCCCCCCA.', '.AAAAAAAAAA.', '...AA.......', '...AAA......', '....AAA.....', '....AwA.....', '.....AA.....', '.....B.B....'],
+  amulet: ['.k.......k..', '..k.....k...', '...k...k....', '....kYk.....', '...YYGYY....', '..YGGwGGY...', '...YYGYY....', '....YYY.....'],
+
   robe: ['...AAAAA....', '..AAAwAAA...', '.AAAAwAAAA..', '.AAAAwAAAA..', '.AAAAwAAAA..', 'AAAAAwAAAAA.', 'AAAAAAAAAAA.', 'BBBBBBBBBBB.'],
   glove: ['..A.A.A.....', '..AAAAAA....', '..AwAAAA.A..', '..AAAAAAAA..', '..AAAAAAA...', '...AAAAA....', '...BBBBB....', '...BBBBB....'],
   pendant: ['.B.......B..', '..B.....B...', '...B...B....', '....BBB.....', '....AAA.....', '...AwAAA....', '...AAAAA....', '....AAA.....'],
@@ -747,6 +852,19 @@ const ICON_ROWS = {
   altar: ['....AAA.....', '...AwAAA....', '....AAA.....', '.....B......', '..BBBBBBB...', '...CCCCC....', '...CCCCC....', '.BBBBBBBBB..'],
   gear: ['....AA......', '.A.AAAA.A...', '..AAAAAAA...', '.AAA..AAAA..', 'AAA....AAA..', '.AAA..AAAA..', '..AAAAAAA...', '.A.AAAA.A...', '....AA......'],
   coin: ['...AAAA...', '..AwAAAA..', '.AwAAAABA.', '.AwAAAABA.', '.AAAAAABA.', '.AAAABBBA.', '..ABBBBA..', '...AAAA...'],
+  // お知らせ：メガホン（右に音の波）
+  megaphone: [
+    '.........AA.....',
+    '.......AACA...w.',
+    '.....AACCCA..w..',
+    '.KKKACCCCCA.w..w',
+    'KkkKACwCCCA.w..w',
+    'KkkKACCCCCA.w..w',
+    '.KKKAABBBBA..w..',
+    '..K..AABBBA...w.',
+    '..KK...AABA.....',
+    '.........AA.....',
+  ],
   // ダイヤ（ブリリアントカット）
   diamond: ['...CCCCCC...', '..CwCCAwCA..', '.CwwCAAwCAA.', 'AAAAAAAAAAAA', '.BAwAAAAABB.', '..BAwAAABB..', '...BAwABB...', '....BABB....', '.....BB.....'],
   gem: ['..AAAA....', '.AwAAAA...', 'AwAAAAAA..', 'AAAAAAAB..', '.AAAAAB...', '..AAAB....', '...AB.....'],
@@ -809,18 +927,30 @@ const ICON_ROWS = {
   ],
 };
 // 色を固定する多色アイコン（data-color は使わない）
+// 装備アイコンなどで使う固定色（金・赤・暗い金属・宝石・木・ガラス）
+const ICON_FIXED = { Y: '#ffd23a', y: '#c8901a', R: '#e8304a', K: '#3a3f55', k: '#6a7090', G: '#5ad8ff', W: '#8a5a34', V: '#9a3ad8', O: '#ff8a2a' };
 const ICON_PAL = {
   castleHome: { S: '#e4dccd', D: '#a89a88', R: '#e8405e', G: '#ffd23a', F: '#ff8ab0', x: '#6a4a3a', p: '#3a2a40', e: '#7ee0ff', w: '#ffffff' },
   gachapon: { K: '#ec4a62', D: '#9a2a40', g: '#cdeeff', w: '#ffffff', c: '#f6f2ea', R: '#ff4a5a', Y: '#ffc82a', B: '#3a9cff', P: '#b86aff', G: '#ffcf3a', p: '#3a2030' },
 };
 
+/** 絵を左右の真ん中に寄せる（右側だけ空いている絵が左にずれて見えないように。幅は変えない） */
+function centerRows(rows) {
+  const w = Math.max(...rows.map((r) => r.length));
+  let lo = w, hi = -1;
+  for (const r of rows) for (let x = 0; x < r.length; x++) if (r[x] !== '.' && r[x] !== ' ') { lo = Math.min(lo, x); hi = Math.max(hi, x); }
+  if (hi < 0) return rows;
+  const left = Math.floor((w - (hi - lo + 1)) / 2), dx = left - lo;
+  if (!dx) return rows;
+  return rows.map((r) => (dx > 0 ? '.'.repeat(dx) + r.padEnd(w, '.').slice(0, w - dx) : r.padEnd(w, '.').slice(-dx) + '.'.repeat(-dx)));
+}
 const iconCache = new Map();
 /** @param {string} name @param {string} color メイン色 @param {string} [color2] 柄など */
 export function icon(name, color, color2) {
   const key = name + color + color2;
   if (iconCache.has(key)) return iconCache.get(key);
-  const rows = ICON_ROWS[name] || ICON_ROWS.star;
-  const pal = ICON_PAL[name] || { A: color, B: color2 || dark(color, 0.45), C: light(color, 0.4), w: '#ffffff', p: '#1e1226' };
+  const rows = centerRows(ICON_ROWS[name] || ICON_ROWS.star);
+  const pal = ICON_PAL[name] || { A: color, B: color2 || dark(color, 0.45), C: light(color, 0.4), w: '#ffffff', p: '#1e1226', ...ICON_FIXED };
   const cv = sprite(rows, pal, { volume: true });
   iconCache.set(key, cv);
   return cv;

@@ -2,7 +2,7 @@
 // 毎日0時（端末の時刻）でデイリーとログインボーナスが更新、毎週月曜0時でウィークリーが更新されます。
 import { store, commit, cleanReward } from './save.js';
 import { getDoc, normCode } from './server.js';
-import { CHARACTERS, GACHAS, AWAKEN_MAX, DUPE_DIAMONDS, CHAR_PRICE, EQUIP, SLOT_TYPE_NAMES, rollRarity, randomEquipBase } from './data.js';
+import { CHARACTERS, GACHAS, AWAKEN_MAX, DUPE_DIAMONDS, CHAR_PRICE, CHAR_BANNERS, PICKUP_SHARE, stdPool, EQUIP, SLOT_TYPE_NAMES, rollRarity, randomEquipBase } from './data.js';
 
 const data = () => store.save.data;
 
@@ -225,7 +225,7 @@ export const MISSIONS = {
     ...[1, 2, 3, 5, 8, 10, 15, 20, 25, 30, 50, 80, 100].map((n) => ({ id: `p_stage${n}`, name: `ステージを ${n} 個クリア`, stat: 'maxStage', goal: n, reward: n >= 50 ? { cticket: 10, eticket: 10, gold: 30000 } : n >= 10 ? { cticket: 3, eticket: 3 } : n >= 3 ? { cticket: 1, eticket: 1, gold: 1000 } : { gold: 1000 } })),
     ...[1, 3, 6, 12].map((n, i) => ({ id: `p_world${n}`, name: n === 12 ? '全ワールドの〇-10までクリアする' : `ワールドを ${n} つ、〇-10までクリアする`, stat: 'worldsDone', goal: n, reward: [{ cticket: 5, eticket: 5 }, { cticket: 10, eticket: 10 }, { cticket: 20, eticket: 20, gold: 50000 }, { cticket: 50, eticket: 50, gold: 200000 }][i] })),
     ...[300, 1000, 3000, 10000, 30000].map((n, i) => ({ id: `p_kill${n}`, name: `敵を累計 ${n.toLocaleString()} 体倒す`, stat: 'kills', goal: n, reward: i >= 2 ? { eticket: 3 } : { gold: 2000 } })),
-    ...[4, 6, 8, 10, 12].map((n) => ({ id: `p_chars${n}`, name: `キャラを ${n} 人そろえる`, stat: 'chars', goal: n, reward: { cticket: 2 } })),
+    ...[4, 6, 8, 10, 12, 15, 18, 22].map((n) => ({ id: `p_chars${n}`, name: `キャラを ${n} 人そろえる`, stat: 'chars', goal: n, reward: { cticket: 2 } })),
     ...[10, 50, 100, 300].map((n) => ({ id: `p_gacha${n}`, name: `ガチャを累計 ${n} 回引く`, stat: 'gachaTotal', goal: n, reward: n >= 100 ? { cticket: 3, eticket: 3 } : { cticket: 1, eticket: 1 } })),
     // 戦いの記録
     ...[5, 20, 50, 100, 300].map((n, i) => ({ id: `p_boss${n}`, name: `ボスを累計 ${n} 体倒す`, stat: 'bossKills', goal: n, reward: [{ gold: 3000 }, { cticket: 3 }, { cticket: 5, eticket: 5 }, { cticket: 10, eticket: 10 }, { cticket: 30, eticket: 30, gold: 50000 }][i] })),
@@ -435,11 +435,13 @@ function pickStar(rates) {
 }
 
 /** 持っていないキャラをダイヤで仲間にする。成功すれば true */
-export const charPrice = (id) => CHAR_PRICE[CHARACTERS[id]?.stars] || CHAR_PRICE[5];
+export const charPrice = (id) => CHARACTERS[id]?.unlock?.diamond || CHAR_PRICE[CHARACTERS[id]?.stars] || CHAR_PRICE[5];
+/** ダイヤで仲間にできるキャラか（ランク報酬のキャラはできない） */
+export const canBuyChar = (id) => !CHARACTERS[id]?.unlock?.rank;
 export function buyChar(id) {
   const d = data();
   const cs = d.chars[id];
-  if (!cs || cs.unlocked) return false;
+  if (!cs || cs.unlocked || !canBuyChar(id)) return false;
   const price = charPrice(id);
   if ((d.diamonds || 0) < price) return false;
   d.diamonds -= price;
@@ -450,14 +452,17 @@ export function buyChar(id) {
 }
 
 /** キャラガチャ：結果 [{ id, star, isNew, awaken, diamond }] */
-export function pullChars(count) {
+export function pullChars(count, bannerId = 'p1') {
   const d = data();
   const g = GACHAS.char;
+  const banner = CHAR_BANNERS.find((b) => b.id === bannerId) || CHAR_BANNERS[0];
   const out = [];
   for (let i = 0; i < count; i++) {
     let star = pickStar(g.rates);
     if (count === 10 && i === 9 && out.every((o) => o.star < 4) && star < 4) star = 4; // 10連は★4以上1体確定
-    const pool = Object.values(CHARACTERS).filter((c) => c.stars === star);
+    // ★5：ピックアップのガチャなら半分の確率でピックアップの★5
+    const feat = star === 5 ? banner.feature : [];
+    const pool = feat.length && Math.random() < PICKUP_SHARE ? feat.map((id) => CHARACTERS[id]) : stdPool(star);
     const c = pool[Math.floor(Math.random() * pool.length)];
     const cs = d.chars[c.id];
     const r = { id: c.id, star, isNew: false, awaken: 0, diamond: 0 };

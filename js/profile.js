@@ -88,7 +88,8 @@ export function rankReward(lv) {
   }
   const icons = SPECIAL_ICONS.filter((i) => i.rank === lv);
   const frames = FRAMES.filter((f) => f.rank === lv);
-  return { ...r, icons, frames };
+  const chars = Object.values(CHARACTERS).filter((c) => c.unlock?.rank === lv).map((c) => c.id);
+  return { ...r, icons, frames, chars };
 }
 
 /** ランク経験値を足す。上がったランクの一覧（報酬つき）を返す */
@@ -101,6 +102,7 @@ export function gainRankExp(n) {
     d.rank.lv++;
     const rw = rankReward(d.rank.lv);
     grant({ gold: rw.gold, cticket: rw.cticket || 0, eticket: rw.eticket || 0, diamond: rw.diamond || 0 });
+    for (const id of rw.chars) if (d.chars[id]) d.chars[id].unlocked = true; // ランク報酬のキャラ
     ups.push({ lv: d.rank.lv, ...rw });
   }
   commit();

@@ -15,12 +15,12 @@ export const ELEMENTS = {
 };
 /** 武器 → 属性 */
 export const WEAPON_EL = {
-  foxfire: 'fire', bomb: 'fire', missile: 'fire',
-  ice: 'ice',
-  thunder: 'thunder', chain: 'thunder', plasma: 'thunder',
-  holy: 'holy', talisman: 'holy', note: 'holy', field: 'holy',
-  blade: 'slash', scythe: 'slash', axe: 'slash',
-  arrow: 'shot', yarn: 'shot', drone: 'shot',
+  foxfire: 'fire', bomb: 'fire', missile: 'fire', flamewave: 'fire', meteor: 'fire',
+  ice: 'ice', bubble: 'ice', gemrain: 'ice',
+  thunder: 'thunder', chain: 'thunder', plasma: 'thunder', darkorb: 'thunder',
+  holy: 'holy', talisman: 'holy', note: 'holy', field: 'holy', moonring: 'holy',
+  blade: 'slash', scythe: 'slash', axe: 'slash', shuriken: 'slash', fist: 'slash',
+  arrow: 'shot', yarn: 'shot', drone: 'shot', turret: 'shot', shotgun: 'shot',
 };
 export const WEAK_MUL = 1.6;
 /** その属性の武器名の一覧（ヘルプ用） */

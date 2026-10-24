@@ -82,6 +82,73 @@ Object.assign(CHARACTERS, {
     unlock: { gacha: true }, bg: '#6a5aa8',
   },
 });
+// ===== ピックアップガチャ限定（★5・banner: ピックアップの番号） =====
+Object.assign(CHARACTERS, {
+  luna: {
+    name: 'ルナ', stars: 5, role: '月の魔導士', hp: 105, atk: 14, spd: 62, crit: 0.07, gacha: true, banner: 'p1',
+    weapon: 'moonring', trait: { name: '月光', desc: '攻撃範囲 +10%・会心率 +5%', area: 0.1, crit: 0.05 },
+    look: { hairStyle: 'long', hair: '#d0c8f8', eye: '#ffd23a', top: '#2a2a6a', collar: '#ffd23a', sleeve: '#2a2a6a', belt: '#ffd23a', bottom: '#3a3a8a', legs: '#1a1a40', shoes: '#ffd23a', acc: ['crescent'], acc1: '#ffe14d' },
+    unlock: { gacha: true }, bg: '#3a3a8a',
+  },
+  blaze: {
+    name: 'ブレイズ', stars: 5, role: '炎の剣士', hp: 130, atk: 14, spd: 62, crit: 0.06, gacha: true, banner: 'p1',
+    weapon: 'flamewave', trait: { name: '闘志', desc: '攻撃速度 +8%・最大HP +10%', cd: 0.08, hpPct: 0.1 },
+    look: { hairStyle: 'spiky', hair: '#ff5a2a', eye: '#ffd23a', top: '#3a1a1a', collar: '#ff9a3c', sleeve: '#5a2020', belt: '#ffd23a', bottom: '#2a1a1a', legs: '#2a1a1a', shoes: '#ff5a2a', pants: true, acc: ['headband'], acc1: '#ff9a3c' },
+    unlock: { gacha: true }, bg: '#a03a2a',
+  },
+  marin: {
+    name: 'マリン', stars: 5, role: '海の歌姫', hp: 110, atk: 13, spd: 64, crit: 0.06, gacha: true, banner: 'p1',
+    weapon: 'bubble', trait: { name: '癒しの歌', desc: '毎秒HPが自然回復・獲得経験値 +8%', regen: 1.5, exp: 0.08 },
+    look: { hairStyle: 'long', hair: '#4ac8e8', eye: '#ff7ac8', top: '#ffffff', collar: '#4a9dff', sleeve: '#bfe8ff', belt: '#4a9dff', bottom: '#6ab8ff', legs: '#ffffff', shoes: '#4a9dff', acc: ['flower'], acc1: '#ff8ac8' },
+    unlock: { gacha: true }, bg: '#3a8ac8',
+  },
+  hayate: {
+    name: 'ハヤテ', stars: 5, role: '影の忍者', hp: 105, atk: 14, spd: 70, crit: 0.08, gacha: true, banner: 'p2',
+    weapon: 'shuriken', trait: { name: '隠密', desc: '移動速度 +12%・会心率 +5%', spdPct: 0.12, crit: 0.05 },
+    look: { hairStyle: 'short', hair: '#2a2a3a', eye: '#ff3b5c', top: '#22222e', collar: '#c4103c', sleeve: '#22222e', belt: '#c4103c', bottom: '#22222e', legs: '#22222e', shoes: '#3a3a4a', pants: true, acc: ['headband', 'ninjaMask'], acc1: '#c4103c', acc2: '#3a3a4a' },
+    unlock: { gacha: true }, bg: '#3a3a5a',
+  },
+  pico: {
+    name: 'ピコ', stars: 5, role: 'メカニック', hp: 115, atk: 13, spd: 62, crit: 0.06, gacha: true, banner: 'p2',
+    weapon: 'turret', trait: { name: '改造の天才', desc: '攻撃範囲 +10%・受けるダメージ -10%', area: 0.1, armor: 0.1 },
+    look: { hairStyle: 'twin', hair: '#ffb03a', eye: '#36f2ff', top: '#3a6a8a', collar: '#ffd23a', sleeve: '#2a4a6a', belt: '#5a3a2a', bottom: '#2a4a6a', legs: '#3a3a4a', shoes: '#5a3a2a', pants: true, acc: ['goggles'], acc1: '#36f2ff', acc2: '#8a6a3a' },
+    unlock: { gacha: true }, bg: '#3a6a8a',
+  },
+  lilith: {
+    name: 'リリス', stars: 5, role: '夢魔の小悪魔', hp: 105, atk: 14, spd: 64, crit: 0.07, gacha: true, banner: 'p2',
+    weapon: 'darkorb', trait: { name: '夢見の魔眼', desc: '敵の移動速度 -10%・獲得経験値 +10%', slow: 0.1, exp: 0.1 },
+    look: { hairStyle: 'twin', hair: '#4a2a6a', eye: '#ff3bb0', skin: '#f8e4ee', top: '#1a1024', collar: '#ff3bb0', sleeve: '#2a1838', belt: '#ff3bb0', bottom: '#3a1a4a', legs: '#1a1024', shoes: '#ff3bb0', acc: ['horns', 'wings'], acc1: '#ff3bb0', acc2: '#5a2a7a' },
+    unlock: { gacha: true }, bg: '#5a2a6a',
+  },
+  // ===== ダイヤで解放（1000ダイヤ） =====
+  tia: {
+    name: 'ティア', stars: 5, role: '宝石の姫', hp: 115, atk: 15, spd: 63, crit: 0.08,
+    weapon: 'gemrain', trait: { name: '王家の宝', desc: '会心率 +10%・獲得経験値 +10%', crit: 0.1, exp: 0.1 },
+    look: { hairStyle: 'long', hair: '#a8f0ff', eye: '#c45cff', top: '#ffffff', collar: '#c45cff', sleeve: '#e8d8ff', belt: '#ffd23a', bottom: '#c8a8ff', legs: '#ffffff', shoes: '#c45cff', acc: ['tiara'], acc1: '#ffd23a', acc2: '#5ad8ff' },
+    unlock: { diamond: 1000 }, bg: '#7a5ac8',
+  },
+  // ===== 高ランクの報酬 =====
+  crow: {
+    name: 'クロウ', stars: 4, role: '鴉の銃士', hp: 110, atk: 13, spd: 62, crit: 0.1,
+    weapon: 'shotgun', trait: { name: '狙い撃ち', desc: '会心率 +12%', crit: 0.12 },
+    look: { hairStyle: 'short', hair: '#4a4a62', eye: '#ffd23a', top: '#2a2a30', collar: '#8a1a2a', sleeve: '#3a3a44', belt: '#5a3a24', bottom: '#2a2a30', legs: '#2a2a30', shoes: '#3a2a1a', pants: true, acc: ['cap'], acc1: '#1a1a24', acc2: '#8a1a2a' },
+    unlock: { rank: 60 }, bg: '#3a3a4a',
+  },
+  haku: {
+    name: 'ハク', stars: 5, role: '白虎の拳士', hp: 150, atk: 15, spd: 64, crit: 0.07,
+    weapon: 'fist', trait: { name: '剛体', desc: '最大HP +20%・受けるダメージ -10%', hpPct: 0.2, armor: 0.1 },
+    look: { hairStyle: 'spiky', hair: '#f4f4f8', eye: '#3ad8ff', top: '#ffffff', collar: '#1a1a24', sleeve: '#ffffff', belt: '#1a1a24', bottom: '#2a2a3a', legs: '#2a2a3a', shoes: '#1a1a24', pants: true, acc: ['tigerEars'], acc1: '#1a1a24' },
+    unlock: { rank: 120 }, bg: '#5a8aa8',
+  },
+  eclipse: {
+    name: 'エクリプス', stars: 5, role: '星詠みの賢者', hp: 120, atk: 16, spd: 62, crit: 0.08,
+    weapon: 'meteor', trait: { name: '星の加護', desc: '攻撃範囲 +15%・攻撃速度 +6%', area: 0.15, cd: 0.06 },
+    look: { hairStyle: 'long', hair: '#2a2a6a', eye: '#ffe14d', top: '#1a1a4a', collar: '#ffe14d', sleeve: '#2a2a6a', belt: '#ffe14d', bottom: '#1a1a4a', legs: '#0e0e2a', shoes: '#ffe14d', acc: ['halo', 'crescent'], acc1: '#ffe14d' },
+    unlock: { rank: 200 }, bg: '#2a2a6a',
+  },
+});
+/** どのガチャにも出ないキャラ（ダイヤ・ランクで仲間になる） */
+export const notInGacha = (c) => !!(c.unlock && (c.unlock.diamond || c.unlock.rank));
 for (const [id, c] of Object.entries(CHARACTERS)) c.id = id;
 export const AWAKEN_MAX = 5; // 覚醒（ガチャで同じキャラが出たとき）の上限。それより後に被ったらダイヤ
 /** 覚醒+5のキャラがまた出たときにもらえるダイヤ（★の数で変わる） */
@@ -107,6 +174,16 @@ export const SKILLS = {
   talisman: { kind: 'w', sig: 'kagura', name: '追尾のお札', icon: 'scroll', color: '#fff4d8', desc: '敵を追いかけるお札を放つ' },
   thunder: { kind: 'w', sig: 'volt', name: 'サンダーフォール', icon: 'bolt', color: '#ffd23a', desc: '空から雷を落とし周りを巻き込む' },
   yarn: { kind: 'w', sig: 'mimi', name: '毛糸ボール', icon: 'orb', color: '#ff8ad0', desc: '壁で跳ね返る毛糸玉を投げる' },
+  moonring: { kind: 'w', sig: 'luna', name: 'ムーンリング', icon: 'orb', color: '#ffe14d', desc: '三日月の刃がまわりを広がりながら回る' },
+  flamewave: { kind: 'w', sig: 'blaze', name: 'フレイムウェーブ', icon: 'fire', color: '#ff6a2a', desc: '炎の波を前に放ち、敵を焼きはらう' },
+  bubble: { kind: 'w', sig: 'marin', name: 'バブルソング', icon: 'orb', color: '#6ad8ff', desc: '敵を追うシャボン玉。はじけて周りの敵を遅くする' },
+  shuriken: { kind: 'w', sig: 'hayate', name: '影手裏剣', icon: 'star', color: '#c8ccd8', desc: '敵から敵へはね返る手裏剣を投げる' },
+  turret: { kind: 'w', sig: 'pico', name: 'オートタレット', icon: 'gun', color: '#36f2ff', desc: '自動で撃つタレットを置く' },
+  darkorb: { kind: 'w', sig: 'lilith', name: 'ナイトメアオーブ', icon: 'orb', color: '#c45cff', desc: 'ゆっくり進む闇の玉が、近くの敵に稲妻を落とす' },
+  gemrain: { kind: 'w', sig: 'tia', name: 'ジュエルレイン', icon: 'gem', color: '#5ad8ff', desc: '宝石の雨を敵に降らせる' },
+  shotgun: { kind: 'w', sig: 'crow', name: 'クロウショット', icon: 'gun', color: '#ffb03a', desc: '近くの敵に散弾を浴びせて吹き飛ばす' },
+  fist: { kind: 'w', sig: 'haku', name: '白虎拳', icon: 'glove', color: '#7ad8ff', desc: '前方に衝撃波の拳を打ちこむ' },
+  meteor: { kind: 'w', sig: 'eclipse', name: '流星群', icon: 'star', color: '#ff8a3a', desc: '空から流れ星を降らせて爆発させる' },
   // 共通武器
   drone: { kind: 'w', name: 'サポートドローン', icon: 'drone', color: '#a9b3cc', desc: 'ドローンが一緒に戦う' },
   missile: { kind: 'w', name: 'ホーミング弾', icon: 'rocket', color: '#ffd23a', desc: '敵を追いかけて爆発する' },
@@ -171,6 +248,23 @@ export const EQUIP = {
   r_ruby: { type: 'ring', name: 'ルビーの指輪', icon: 'ring', color: '#ff3b5c', main: { atk: 3 }, sub: {} },
   r_sapphire: { type: 'ring', name: 'サファイアの指輪', icon: 'ring', color: '#3f7cff', main: { hp: 16 }, sub: {} },
   r_emerald: { type: 'ring', name: 'エメラルドの指輪', icon: 'ring', color: '#3fd87a', main: { exp: 0.04 }, sub: { crit: 0.01 } },
+  // ===== 追加の装備 =====
+  w_katana: { type: 'weapon', name: '妖刀ムラクモ', icon: 'katana', color: '#c8ccd8', main: { atk: 6 }, sub: { crit: 0.03 } },
+  w_hammer: { type: 'weapon', name: 'ウォーハンマー', icon: 'hammer', color: '#9aa3b8', main: { atk: 7 }, sub: { hp: 10 } },
+  w_spear: { type: 'weapon', name: '竜騎士の槍', icon: 'spear', color: '#c8ccd8', main: { atk: 5 }, sub: { spd: 0.03 } },
+  w_wand: { type: 'weapon', name: '月光のワンド', icon: 'wand', color: '#ffd23a', main: { atk: 4 }, sub: { exp: 0.04 } },
+  h_crown: { type: 'head', name: '王者の冠', icon: 'crownItem', color: '#ffd23a', main: { hp: 14 }, sub: { crit: 0.02 } },
+  h_hood: { type: 'head', name: '忍びのずきん', icon: 'hood', color: '#3a3a5a', main: { hp: 12 }, sub: { spd: 0.04 } },
+  h_goggles: { type: 'head', name: 'メカゴーグル', icon: 'goggleItem', color: '#36f2ff', main: { hp: 12 }, sub: { cd: 0.03 } },
+  b_coat: { type: 'body', name: '旅人のコート', icon: 'coat', color: '#a8643a', main: { hp: 24 }, sub: { spd: 0.03 } },
+  b_mech: { type: 'body', name: 'パワードスーツ', icon: 'mech', color: '#6a8ac8', main: { hp: 28 }, sub: { atk: 2 } },
+  a_bracer: { type: 'arms', name: '竜鱗のこて', icon: 'bracer', color: '#3fae7a', main: { atk: 3 }, sub: { crit: 0.02 } },
+  f_greave: { type: 'feet', name: '鉄のすね当て', icon: 'greave', color: '#b9c3d6', main: { hp: 16 }, sub: { def: 2 } },
+  f_wing: { type: 'feet', name: '天使のくつ', icon: 'wingboot', color: '#ffe6a8', main: { hp: 10 }, sub: { spd: 0.07 } },
+  n_scarf: { type: 'neck', name: 'ヒーローマフラー', icon: 'scarf', color: '#e8304a', main: { atk: 2 }, sub: { spd: 0.03 } },
+  n_amulet: { type: 'neck', name: '月のお守り', icon: 'amulet', color: '#ffd23a', main: { exp: 0.04 }, sub: { hp: 8 } },
+  r_topaz: { type: 'ring', name: 'トパーズの指輪', icon: 'ring', color: '#ffb03a', main: { crit: 0.015 }, sub: { atk: 1 } },
+  r_amethyst: { type: 'ring', name: 'アメジストの指輪', icon: 'ring', color: '#a05ae8', main: { cd: 0.025 }, sub: {} },
 };
 
 export const STAT_NAMES = { hp: 'HP', atk: 'ATK', def: '防御', spd: '移動速度', crit: '会心率', cd: '攻撃速度', exp: '経験値', magnet: '吸引範囲' };
@@ -381,6 +475,34 @@ export function randomEquipBase() {
 }
 // ===== ガチャ =====
 // cost：コインで引くときの値段（1回 / 10連）。チケットは1回=1枚、10連=10枚
+/**
+ * キャラガチャの種類（画面で左右に切り替え）。いちばん左がメイン、いちばん右が通常ガチャ
+ * feature：確率アップの★5（そのピックアップでしか出ない）。どのピックアップにも、これまでのキャラはすべて入っている
+ */
+export const CHAR_BANNERS = [
+  { id: 'p1', name: 'ピックアップガチャ1', title: '月と炎と海の★5', feature: ['luna', 'blaze', 'marin'], theme: 'p1' },
+  { id: 'p2', name: 'ピックアップガチャ2', title: '影と機械と夢の★5', feature: ['hayate', 'pico', 'lilith'], theme: 'p2' },
+  { id: 'std', name: '通常ガチャ', title: 'いつでも引ける基本のガチャ', feature: [], theme: 'std' },
+];
+/** ★5が出たとき、ピックアップの★5になる割合 */
+export const PICKUP_SHARE = 0.5;
+/** 通常の顔ぶれ（ピックアップ限定・ダイヤ・ランク報酬のキャラはのぞく） */
+export const stdPool = (star) => Object.values(CHARACTERS).filter((c) => c.stars === star && !c.banner && !notInGacha(c));
+/** そのガチャで、キャラ1体ごとの確率（%）の一覧 */
+export function bannerRates(bid) {
+  const b = CHAR_BANNERS.find((x) => x.id === bid) || CHAR_BANNERS[0];
+  const out = [];
+  for (const [st, r] of Object.entries(GACHAS.char.rates).sort((x, y) => y[0] - x[0])) {
+    const star = +st, pool = stdPool(star);
+    const feat = star === 5 ? b.feature.map((id) => CHARACTERS[id]) : [];
+    const featShare = feat.length ? PICKUP_SHARE : 0;
+    out.push({ star, rate: r, list: [
+      ...feat.map((c) => ({ c, rate: (r * featShare) / feat.length, pickup: true })),
+      ...pool.map((c) => ({ c, rate: (r * (1 - featShare)) / pool.length })),
+    ] });
+  }
+  return out;
+}
 export const GACHAS = {
   char: {
     name: 'キャラガチャ', coin1: 1500, coin10: 13500,

@@ -1280,3 +1280,56 @@ html.wide .tab-party.sub-equip .equip-stage { max-width: none; }
 .rates-box .rt-i b { font-size: 11px; }
 .rates-box .rt-lim { font-style: normal; font-size: 9px; margin-left: 3px; padding: 0 3px; border-radius: 3px; background: var(--red); color: #fff; }
 .rates-box .rt-note { font-size: 11px; line-height: 1.6; }
+
+/* ===== プロフィール：はみ出し防止・ランク報酬をコンパクトに ===== */
+.modal .mbody { overflow-x: hidden; }
+.prof-head { min-width: 0; }
+.prof-head > .av { flex-shrink: 0; }
+.prof-id { max-width: 100%; overflow: hidden; white-space: nowrap; }
+.rr-strip { gap: 6px; padding: 6px 2px 8px; }
+.rr-card { flex: 0 0 70px; gap: 2px; padding: 4px 2px 5px; border-width: 2px; border-radius: 8px; box-shadow: 0 2px 0 var(--ink); }
+.rr-card.next { transform: translateY(-2px); box-shadow: 0 0 0 2px #ff5a80, 0 3px 0 var(--ink); }
+.rr-lv { font-size: 11px; line-height: 1.2; }
+.rr-items { gap: 1px; }
+.rr-i { font-size: 10px; line-height: 1.2; }
+.rr-i img { width: 14px; height: 14px; }
+.rr-i.sp small { font-size: 8px; }
+.rr-st { font-size: 8px; padding: 0 5px; margin-top: 1px; }
+.rr-title { margin-top: 6px; }
+
+/* ===== キャラガチャのカルーセル（左右にスワイプで切り替え） ===== */
+.gcar { position: relative; margin: 0 -4px 6px; }
+.gcar-track { display: flex; gap: 10px; overflow-x: auto; scroll-snap-type: x mandatory; scroll-behavior: auto; padding: 4px 9% 8px; scrollbar-width: none; -webkit-overflow-scrolling: touch; overscroll-behavior-x: contain; }
+.gcar-track::-webkit-scrollbar { display: none; }
+.gcar-slide { flex: 0 0 82%; scroll-snap-align: center; scroll-snap-stop: always; transition: transform .35s var(--ease-out), filter .35s, opacity .35s; transform: scale(.9); filter: brightness(.6) saturate(.7); opacity: .85; }
+.gcar-slide.on { transform: none; filter: none; opacity: 1; }
+.gcar-slide .gbanner { margin: 0; }
+.gcar-arrow { position: absolute; top: calc(50% - 14px); transform: translateY(-50%); z-index: 3; width: 30px; height: 44px; border: 3px solid var(--ink); border-radius: 8px; background: var(--cream); color: var(--ink); font-size: 14px; box-shadow: 0 3px 0 var(--ink); transition: opacity .2s, transform .2s var(--spring); }
+.gcar-arrow.l { left: 2px; } .gcar-arrow.r { right: 2px; }
+.gcar-arrow:disabled { opacity: 0; pointer-events: none; }
+.gcar-arrow:active { transform: translateY(-50%) scale(.9); }
+.gcar-dots { display: flex; justify-content: center; gap: 8px; margin-top: 2px; }
+.gcar-dot { width: 10px; height: 10px; padding: 0; border-radius: 50%; border: 2px solid var(--ink); background: #fff8; transition: width .3s var(--spring), background .2s; }
+.gcar-dot.on { width: 26px; border-radius: 6px; background: #ffd23a; }
+.gb-tag { position: absolute; left: 8px; top: 6px; z-index: 2; font-size: 11px; padding: 1px 8px; border-radius: 10px; border: 2px solid var(--ink); background: #ff3b6a; color: #fff; transform: rotate(-4deg); }
+.th-std .gb-tag { background: #4a6ac8; }
+.gbanner.th-p1 { background: radial-gradient(ellipse at 50% 35%, #fff6c8 0, #ffb84a 30%, #c8406a 62%, #2a1a5a 100%); }
+.gbanner.th-p2 { background: radial-gradient(ellipse at 50% 35%, #e8d8ff 0, #9a6aff 30%, #3a2a8a 62%, #120a2a 100%); }
+.gbanner.th-std { background: radial-gradient(ellipse at 50% 40%, #e8fff0 0, #6ad8a0 35%, #2a8a7a 75%, #1a3a4a 100%); }
+.gcar-slide.on .gb-chars img { animation: gbHop 1.6s ease-in-out infinite; }
+.gcar-slide.on .gb-chars img:nth-child(2) { animation-delay: .2s; } .gcar-slide.on .gb-chars img:nth-child(3) { animation-delay: .4s; }
+@keyframes gbHop { 0%, 60%, 100% { transform: translateY(0); } 30% { transform: translateY(-5px); } }
+.gsel-name { text-align: center; font-weight: 800; font-size: 15px; margin: -2px 0 2px; color: #ffe27a; }
+.gsel-name.pop { animation: selPop .4s var(--spring); }
+.rates-box .rt-i.pu { background: #ffe27a55; border-radius: 6px; }
+.rates-box .rt-lim.pu { background: #ff3b6a; }
+
+/* ランク報酬のキャラ・ランクで仲間になるキャラ */
+.rr-card.has-char { background: linear-gradient(#fff2f6, #ffc8d8); }
+.rr-i.rr-char img { width: 22px; height: 22px; border-radius: 4px; border: 1px solid var(--ink); background: #fff; }
+.rank-unlock { text-align: center; padding: 8px; border: 2px dashed #ffd23a88; border-radius: 10px; }
+.rank-unlock b { color: #ffd23a; font-size: 18px; }
+.rank-unlock small { display: block; opacity: .75; font-size: 11px; }
+.btn-grid.one { grid-template-columns: 1fr; }
+.gcar .rates-btn { top: 6px; bottom: auto; }
+.gcar .gb-names { font-size: 11px; padding: 0 6px; }

@@ -189,6 +189,8 @@ function sanitize(d) {
   d.ticketsEquip = num(d.ticketsEquip, 0, 1e7);
   d.diamonds = num(d.diamonds, 0, 1e9);
   if (!PLAYER_ID_RE.test(String(d.playerId || ''))) d.playerId = newPlayerId();
+  // ランク報酬のキャラ：そのランクに届いていれば仲間に
+  for (const [id, c] of Object.entries(CHARACTERS)) if (c.unlock?.rank && d.chars[id] && (d.rank?.lv || 1) >= c.unlock.rank) d.chars[id].unlocked = true;
   d.usedCodes = (Array.isArray(d.usedCodes) ? d.usedCodes : []).map((x) => String(x).toUpperCase().replace(/[^A-Z0-9_-]/g, '').slice(0, 32)).filter(Boolean).slice(-300);
   delete d.tickets;
   d.prog = Array.from({ length: 12 }, (_, i) => num(Array.isArray(d.prog) ? d.prog[i] : 0, 0, LEVELS_PER_WORLD));
