@@ -129,7 +129,11 @@ export async function upload(force = false) {
       gameVersion: save.gameVersion || '',
       summary: clean(summary(save)),
       serverTime: fb.fsM.serverTimestamp(),
-    }, { merge: true });
+    }, {
+      // merge: true だと summary（中の項目）が古いものと混ざって増え続け、ルールの上限を超えてしまう。
+      // 送る項目は丸ごと置き換え、それ以外（通知の受け取り先など）はそのまま残す
+      mergeFields: ['save', 'updatedAt', 'gameVersion', 'summary', 'serverTime'],
+    });
     cloud.lastSync = Date.now();
     cloud.status = 'ok';
     cloud.error = '';
@@ -137,8 +141,9 @@ export async function upload(force = false) {
     emit();
     return true;
   } catch (e) {
+    console.warn('backup failed', e);
     cloud.status = 'error';
-    cloud.error = e.message;
+    cloud.error = /permission/i.test(e?.message || '') ? 'サーバーに保存できませんでした（権限エラー）' : e.message;
     emit();
     return false;
   }
