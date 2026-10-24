@@ -35,11 +35,33 @@ const reward = Object.fromEntries(Object.entries({ gold: n('GOLD', 10000000), ct
 const rewardText = (r) => Object.entries(r).map(([k, v]) => `${{ gold: 'コイン', cticket: 'キャラチケ', eticket: '装備チケ', diamond: 'ダイヤ' }[k] || k}×${v}`).join('、') || '（なし）';
 const masked = (c) => (c.length <= 4 ? c[0] + '***' : c.slice(0, 2) + '*'.repeat(c.length - 4) + c.slice(-2));
 
+// 失敗したときは、原因と直し方を実行結果の画面に出す（鍵の中身はログに出さない）
+function explain(e) {
+  const m = String(e?.message || e || '');
+  if (/firebaserules\.googleapis\.com|Firebase Rules API|has not been used|SERVICE_DISABLED/i.test(m)) {
+    return 'Firebase Rules API が有効になっていません。https://console.cloud.google.com/apis/library/firebaserules.googleapis.com?project=neondot を開いて「有効にする」を押し、数分待ってからもう一度実行してください。（または firestore.rules の全文を Firebase コンソールのルールに貼り付けて「公開」でも大丈夫です）';
+  }
+  if (/PERMISSION_DENIED|permission|403|insufficient/i.test(m)) {
+    return action === 'ルールを反映'
+      ? 'この鍵にはルールを書き換える権限がありません。firestore.rules の全文を Firebase コンソール →「Firestore Database」→「ルール」に貼り付けて「公開」してください（コードの追加やプレゼントはこの鍵で動きます）'
+      : 'この鍵に Firestore を書き換える権限がありません。Firebase コンソール →「プロジェクトの設定」→「サービス アカウント」で作った鍵か確認してください';
+  }
+  if (/NOT_FOUND|database.*does not exist/i.test(m)) return 'Firestore のデータベースが見つかりません。鍵が neondot プロジェクトのものか確認してください';
+  if (/invalid_grant|account not found|Invalid JWT|private key/i.test(m)) return '鍵が無効になっています（削除された・古い）。Firebase で新しい秘密鍵を作り直して、GitHub の Secret を更新してください';
+  return 'エラー：' + m.replace(/-----BEGIN[\s\S]*?-----END[^-]*-----/g, '[鍵]').slice(0, 300);
+}
+process.on('unhandledRejection', (e) => fail(explain(e)));
+process.on('uncaughtException', (e) => fail(explain(e)));
+
 const sa = process.env.FIREBASE_SERVICE_ACCOUNT;
 if (!sa) fail('GitHubのSecret「FIREBASE_SERVICE_ACCOUNT」が設定されていません');
+let saJson;
+try { saJson = JSON.parse(sa.replace(/^\uFEFF/, '').trim()); } catch { fail('Secret「FIREBASE_SERVICE_ACCOUNT」の中身が読めません。ダウンロードしたJSONファイルを開いて、最初の { から最後の } まで全部をそのまま貼り付け直してください'); }
+if (!saJson.private_key || !saJson.client_email) fail('Secret の中身がサービスアカウントの鍵ではないようです（private_key・client_email がありません）。Firebase の「サービス アカウント」→「新しい秘密鍵の生成」で作ったJSONを貼り付けてください');
+if (saJson.project_id && saJson.project_id !== 'neondot') fail(`鍵が別のプロジェクト（${saJson.project_id}）のものです。neondot の鍵を作って貼り付けてください`);
 const { initializeApp, cert } = await import('firebase-admin/app');
 const { getFirestore, FieldValue } = await import('firebase-admin/firestore');
-initializeApp({ credential: cert(JSON.parse(sa)) });
+initializeApp({ credential: cert(saJson) });
 const db = getFirestore();
 
 if (action === 'コードを追加') {
