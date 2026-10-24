@@ -318,15 +318,19 @@ async function handleMove() {
 /** 起動後：ログインボーナス → 運営プレゼント → お知らせ */
 async function afterBoot() {
   if (await handleMove()) return;
+  const forgot = M.checkMissionReset();
   const idx = M.checkLoginBonus();
   await M.syncGifts();
   render();
+  if (forgot) toast(`受け取り忘れのミッション報酬（${forgot}件）をプレゼントボックスに送りました`);
   if (idx !== null) await loginModal(idx);
   if (pendingUpdate) await showUpdatePopup();
   showNewsIfUnread();
   // 0時をまたいで開きっぱなしでも受け取れるように
   const recheck = async () => {
     if (inBattle || document.querySelector('.overlay')) return;
+    const forgot = M.checkMissionReset();
+    if (forgot) { render(); toast(`受け取り忘れのミッション報酬（${forgot}件）をプレゼントボックスに送りました`); }
     const i = M.checkLoginBonus();
     if (i !== null) { render(); await loginModal(i); }
   };
@@ -382,15 +386,18 @@ function avatarHTML(iconId, frameId, size = 48) {
 
 /** 数字をカウントアップさせる（UIアニメーション） */
 const countState = new WeakMap();
-function countTo(el, to) {
+/** 上の所持数：100万以上は「1.23M」のように短く（枠からはみ出さないように） */
+const shortNum = (n) => (n >= 1e6 ? `${(n / 1e6).toFixed(n >= 1e8 ? 0 : n >= 1e7 ? 1 : 2)}M` : n.toLocaleString());
+function countTo(el, to, fmt = (n) => n.toLocaleString()) {
   const from = countState.get(el) ?? to;
   countState.set(el, to);
-  if (from === to || matchMedia('(prefers-reduced-motion: reduce)').matches) { el.textContent = to.toLocaleString(); return; }
+  el.parentElement.title = el.parentElement.title.replace(/：.*$/, '') + '：' + to.toLocaleString();
+  if (from === to || matchMedia('(prefers-reduced-motion: reduce)').matches) { el.textContent = fmt(to); return; }
   const t0 = performance.now(), dur = 600;
   el.parentElement.classList.remove('bump'); void el.offsetWidth; el.parentElement.classList.add('bump');
   const step = (now) => {
     const k = Math.min(1, (now - t0) / dur), e = 1 - Math.pow(1 - k, 3);
-    el.textContent = Math.round(from + (to - from) * e).toLocaleString();
+    el.textContent = fmt(Math.round(from + (to - from) * e));
     if (k < 1 && countState.get(el) === to) requestAnimationFrame(step);
   };
   requestAnimationFrame(step);
@@ -398,9 +405,10 @@ function countTo(el, to) {
 
 function updateWallet() {
   const d = data();
-  countTo($('#pill-gold'), d.gold);
-  countTo($('#pill-cticket'), d.ticketsChar);
-  countTo($('#pill-eticket'), d.ticketsEquip);
+  countTo($('#pill-gold'), d.gold, shortNum);
+  countTo($('#pill-cticket'), d.ticketsChar, shortNum);
+  countTo($('#pill-eticket'), d.ticketsEquip, shortNum);
+  countTo($('#pill-diamond'), d.diamonds || 0, shortNum);
   $('#rank-num').textContent = d.rank.lv;
   $('#me-name').textContent = d.profile.name;
   $('#me-exp').style.width = Math.min(100, (d.rank.exp / PF.rankNeed(d.rank.lv)) * 100) + '%';
@@ -852,8 +860,12 @@ function charsHTML() {
   }).join('');
   let actions;
   if (!cs.unlocked) {
-    actions = `<div class="muted" style="text-align:center;margin-bottom:6px">${c.unlock.gacha ? 'キャラガチャで手に入ります（ガチャ限定）' : `STAGE ${c.unlock.stage}-1 をクリアすると仲間になります（キャラガチャでも出ます）`}</div>
-      <button class="btn red block" data-act="goto-gacha">キャラガチャへ</button>`;
+    const price = M.charPrice(id), have = d.diamonds || 0;
+    actions = `<div class="muted" style="text-align:center;margin-bottom:6px">${c.unlock.gacha ? 'キャラガチャで手に入ります。ダイヤでも仲間にできます' : `STAGE ${c.unlock.stage}-1 クリア・キャラガチャ・ダイヤで仲間になります`}</div>
+      <div class="btn-grid">
+        <button class="btn dia-buy ${have >= price ? '' : 'short'}" data-act="buy-char" data-id="${id}"><img class="px" data-icon="diamond" data-color="#5ad8ff" alt=""><span><small>ダイヤで仲間にする</small>${price.toLocaleString()}</span></button>
+        <button class="btn red" data-act="goto-gacha">キャラガチャへ</button>
+      </div>`;
   } else {
     actions = `<div class="btn-grid">
       <button class="btn red" data-act="char-up" data-id="${id}" ${maxed || d.gold < cost ? 'disabled' : ''}>${maxed ? 'MAX' : `強化 <img class="px" data-icon="coin" data-color="#ffcf3a" alt="">${cost.toLocaleString()}`}</button>
@@ -876,6 +888,46 @@ function charsHTML() {
   </div>
   <div class="char-grid">${tiles}</div>
   <div class="char-actions" style="margin-top:10px">${actions}</div>`;
+}
+
+/** ダイヤでキャラを仲間にする（確認 → 演出） */
+async function buyCharModal(id) {
+  const d = data();
+  const c = D.CHARACTERS[id];
+  if (!c || d.chars[id].unlocked) return;
+  const price = M.charPrice(id), have = d.diamonds || 0, short = have < price;
+  const DIA = '<img class="px" data-icon="diamond" data-color="#5ad8ff" alt="">';
+  sfx('click');
+  const ok = await modal({
+    title: 'ダイヤで仲間にする',
+    sound: 'panel2',
+    body: `<div class="buy-char">
+      <div class="bc-card s${c.stars}" style="--cbg:${c.bg}"><img class="px" data-char="${id}" alt="${c.name}"><i class="bc-shine"></i></div>
+      <div class="bc-name ol">${c.name}</div>
+      <div class="bc-role">${c.role}</div>
+      ${starsHTML(c.stars)}
+      <div class="bc-price">${DIA}<b>${price.toLocaleString()}</b></div>
+      <div class="bc-have">所持ダイヤ ${have.toLocaleString()} <i>▶</i> <b class="${short ? 'short' : ''}">${short ? `${(price - have).toLocaleString()} 足りません` : (have - price).toLocaleString()}</b></div>
+      <p class="muted bc-hint">★5：${D.CHAR_PRICE[5]}　★4：${D.CHAR_PRICE[4]}　★3：${D.CHAR_PRICE[3]} ダイヤ<br>ダイヤは覚醒+5のキャラがガチャで出たとき・ランク100からのランク報酬などでもらえます</p>
+    </div>`,
+    buttons: [{ label: 'やめる', value: null }, { label: short ? '足りません' : '仲間にする', value: 'ok', cls: 'gold', disabled: short }],
+    onMount: (ov) => { hydrate(ov); if (short) { const b = ov.querySelector('.mbtns [data-i="1"]'); if (b) b.disabled = true; } },
+  });
+  if (ok !== 'ok') return;
+  if (!M.buyChar(id)) { sfx('error'); toast('ダイヤが足りません'); return; }
+  sfx('levelup');
+  await modal({
+    cls: 'rankup',
+    sound: 'panel',
+    body: `<div class="ru-burst"></div>
+      <div class="ru-title ol">NEW!</div>
+      <div class="buy-char got"><div class="bc-card s${c.stars}" style="--cbg:${c.bg}"><img class="px" data-char="${id}" alt="${c.name}"><i class="bc-shine"></i></div>
+      <div class="bc-name ol">${c.name} が仲間になった！</div></div>
+      ${presetNote(1)}`,
+    buttons: [{ label: 'OK', value: true, cls: 'teal' }],
+    onMount: hydrate,
+  });
+  render();
 }
 
 // ===================== まとめて強化 =====================
@@ -1206,7 +1258,7 @@ async function doGacha(n, by) {
     // 演出：宝箱 → 卵が1つずつ割れる
     await playGacha(res.map((r) => {
       const c = D.CHARACTERS[r.id];
-      return { rarity: STAR_R[r.star], name: `${'★'.repeat(r.star)} ${c.name}`, img: toURL(charSprite(c, 'idle'), 6, `c:${c.id}`), sub: r.isNew ? 'NEW!' : r.awaken ? `覚醒 +${r.awaken}` : `+${r.coins.toLocaleString()} コイン` };
+      return { rarity: STAR_R[r.star], name: `${'★'.repeat(r.star)} ${c.name}`, img: toURL(charSprite(c, 'idle'), 6, `c:${c.id}`), sub: r.isNew ? 'NEW!' : r.awaken ? `覚醒 +${r.awaken}` : `覚醒MAX → ダイヤ +${r.diamond}` };
     }));
     const best = Math.max(...res.map((r) => r.star));
     await modal({
@@ -1217,9 +1269,9 @@ async function doGacha(n, by) {
         return `<div class="gres" style="animation-delay:${i * 0.05}s"><div class="ctile res s${r.star}" style="--cbg:${c.bg}">
           <img data-portrait="${r.id}" alt="${c.name}">
           <span class="rs ol">${'★'.repeat(r.star)}</span>
-          <span class="rn ol">${r.isNew ? '<b class="rnew">NEW</b>' : r.awaken ? `覚醒+${r.awaken}` : `+${r.coins}G`}</span>
+          <span class="rn ol">${r.isNew ? '<b class="rnew">NEW</b>' : r.awaken ? `覚醒+${r.awaken}` : `<span class="rdia"><img class="px" data-icon="diamond" data-color="#5ad8ff" alt="">+${r.diamond}</span>`}</span>
         </div><div class="gname r-${STAR_R[r.star]}">${c.name}</div></div>`;
-      }).join('')}</div>${res.some((r) => r.isNew) ? presetNote(res.filter((r) => r.isNew).length) : ''}`,
+      }).join('')}</div>${res.some((r) => r.diamond) ? `<p class="dia-note"><img class="px" data-icon="diamond" data-color="#5ad8ff" alt="">覚醒+5（MAX）のキャラが出たので <b>ダイヤ ×${res.reduce((a, r) => a + r.diamond, 0)}</b> に変わりました</p>` : ''}${res.some((r) => r.isNew) ? presetNote(res.filter((r) => r.isNew).length) : ''}`,
       buttons: [{ label: 'OK', value: true, cls: 'teal' }],
       onMount: hydrate,
     });
@@ -1248,7 +1300,7 @@ function profileModal() {
   const d = data();
   const need = PF.rankNeed(d.rank.lv);
   const next = PF.rankReward(d.rank.lv + 1);
-  const nextTxt = [next.gold ? `コイン×${next.gold.toLocaleString()}` : '', next.cticket ? `キャラガチャチケット×${next.cticket}` : '', next.eticket ? `装備ガチャチケット×${next.eticket}` : '', ...next.icons.map((i) => `アイコン「${i.name}」`), ...next.frames.map((f) => `フレーム「${f.name}」`)].filter(Boolean).join('、');
+  const nextTxt = [next.gold ? `コイン×${next.gold.toLocaleString()}` : '', next.cticket ? `キャラガチャチケット×${next.cticket}` : '', next.eticket ? `装備ガチャチケット×${next.eticket}` : '', next.diamond ? `ダイヤ×${next.diamond}` : '', ...next.icons.map((i) => `アイコン「${i.name}」`), ...next.frames.map((f) => `フレーム「${f.name}」`)].filter(Boolean).join('、');
   const grid = profTab === 'icon'
     ? PF.allIcons().map((ic) => {
       const ok = PF.isUnlocked(ic);
@@ -1303,7 +1355,7 @@ function profileModal() {
 
 /** ランク報酬のカード（受け取り済み・次・この先） */
 function rankRewardCards(cur) {
-  const max = Math.min(PF.RANK_MAX, Math.max(30, cur + 12));
+  const max = Math.min(PF.RANK_MAX, Math.max(30, cur + 20));
   const cards = [];
   for (let lv = 2; lv <= max; lv++) {
     const r = PF.rankReward(lv);
@@ -1312,6 +1364,7 @@ function rankRewardCards(cur) {
       `<span class="rr-i"><img class="px" data-icon="coin" data-color="#ffcf3a" alt="">${r.gold.toLocaleString()}</span>`,
       r.cticket ? `<span class="rr-i"><img class="px" data-icon="ticket" data-color="${M.TICKET_COLOR.char}" alt="">×${r.cticket}</span>` : '',
       r.eticket ? `<span class="rr-i"><img class="px" data-icon="ticket" data-color="${M.TICKET_COLOR.equip}" alt="">×${r.eticket}</span>` : '',
+      r.diamond ? `<span class="rr-i dia"><img class="px" data-icon="diamond" data-color="#5ad8ff" alt="">×${r.diamond}</span>` : '',
       ...r.icons.map((i) => `<span class="rr-i sp">${avatarHTML(i.id, 'basic', 30)}<small>アイコン</small></span>`),
       ...r.frames.map((f) => `<span class="rr-i sp">${avatarHTML(data().profile.icon, f.id, 30)}<small>フレーム</small></span>`),
     ].join('');
@@ -1335,6 +1388,7 @@ async function rankUpModal(ups) {
           <div class="reward"><img class="px" data-icon="coin" data-color="#ffcf3a" alt="">×${u.gold.toLocaleString()}</div>
           ${u.cticket ? `<div class="reward"><img class="px" data-icon="ticket" data-color="${M.TICKET_COLOR.char}" alt="">×${u.cticket}</div>` : ''}
           ${u.eticket ? `<div class="reward"><img class="px" data-icon="ticket" data-color="${M.TICKET_COLOR.equip}" alt="">×${u.eticket}</div>` : ''}
+          ${u.diamond ? `<div class="reward dia"><img class="px" data-icon="diamond" data-color="#5ad8ff" alt="">×${u.diamond}</div>` : ''}
           ${u.icons.map((i) => `<div class="reward new">${avatarHTML(i.id, 'basic', 40)}<span>アイコン<br>${i.name}</span></div>`).join('')}
           ${u.frames.map((f) => `<div class="reward new">${avatarHTML(d.profile.icon, f.id, 40)}<span>フレーム<br>${f.name}</span></div>`).join('')}
         </div>
@@ -1358,7 +1412,7 @@ function presentModal() {
   sfx('click');
   const d = data();
   const rows = d.presents.map((p) => `<div class="prow">
-      <img class="px pic" data-icon="${p.from === 'login' ? 'calendar' : p.from === 'gift' ? 'gift' : 'star'}" data-color="${p.from === 'login' ? '#7ac8ff' : '#ff6a8a'}" alt="">
+      <img class="px pic" data-icon="${p.from === 'login' ? 'calendar' : p.from === 'gift' ? 'gift' : p.from === 'mission' ? 'scroll' : 'star'}" data-color="${p.from === 'login' ? '#7ac8ff' : p.from === 'mission' ? '#e8d8a8' : '#ff6a8a'}" alt="">
       <div class="pinfo"><div>${esc(p.title)}</div><div class="prw">${rewardHTML(p.reward)}</div><div class="pdate">${formatDate(p.at)}</div></div>
       <button class="btn small teal" data-claim="${p.id}">受け取る</button>
     </div>`).join('');
@@ -1402,7 +1456,7 @@ function missionModal() {
   modal({
     title: 'ミッション',
     body: `<div class="mtabs">${Object.entries(tabs).map(([k, v]) => `<button class="btn small ${k === missionTab ? 'active' : ''}" data-mtab="${k}">${v}${counts[k] ? `<i class="hbadge">${counts[k]}</i>` : ''}</button>`).join('')}</div>
-      <div class="muted" style="text-align:right;margin:4px 0">${missionTab === 'perm' ? '一度だけ受け取れる実績ミッション' : `更新まで あと${M.untilReset(missionTab)}`}</div>
+      <div class="muted" style="text-align:right;margin:4px 0">${missionTab === 'perm' ? '一度だけ受け取れる実績ミッション' : `更新まで あと${M.untilReset(missionTab)}<br><small>受け取り忘れは、更新のあとプレゼントボックスに届きます</small>`}</div>
       <div class="mlist reveal">${rows || '<p class="muted" style="text-align:center">すべて達成しました！</p>'}</div>`,
     buttons: [{ label: '閉じる', value: null }, { label: '一括受け取り', value: 'all', cls: 'red' }],
     onMount: (ov, close) => {
@@ -1651,6 +1705,7 @@ async function onAction(act, el) {
       break;
     }
     case 'goto-gacha': gachaType = 'char'; tab = 'gacha'; sfx('click'); render(); break;
+    case 'buy-char': buyCharModal(el.dataset.id); break;
     case 'gacha-type': gachaType = el.dataset.t; sfx('click'); render(); break;
     case 'present': presentModal(); break;
     case 'profile': profileModal(); break;

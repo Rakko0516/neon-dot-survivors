@@ -1,7 +1,7 @@
 // 遊びの外側の仕組み：ガチャ・ミッション・ログインボーナス・プレゼントボックス
 // 毎日0時（端末の時刻）でデイリーとログインボーナスが更新、毎週月曜0時でウィークリーが更新されます。
 import { store, commit, cleanReward } from './save.js';
-import { CHARACTERS, GACHAS, AWAKEN_MAX, EQUIP, SLOT_TYPE_NAMES, rollRarity, randomEquipBase } from './data.js';
+import { CHARACTERS, GACHAS, AWAKEN_MAX, DUPE_DIAMONDS, CHAR_PRICE, EQUIP, SLOT_TYPE_NAMES, rollRarity, randomEquipBase } from './data.js';
 
 const data = () => store.save.data;
 
@@ -26,9 +26,9 @@ export function untilReset(kind) {
 
 // ===================== 報酬 =====================
 // cticket＝キャラガチャチケット（ピンク） / eticket＝装備ガチャチケット（青）
-export const REWARD_NAMES = { gold: 'コイン', cticket: 'キャラガチャチケット', eticket: '装備ガチャチケット' };
+export const REWARD_NAMES = { gold: 'コイン', cticket: 'キャラガチャチケット', eticket: '装備ガチャチケット', diamond: 'ダイヤ' };
 export const TICKET_COLOR = { char: '#ff7a9a', equip: '#4aa8ff' };
-export const REWARD_ICON = { gold: ['coin', '#ffcf3a'], cticket: ['ticket', TICKET_COLOR.char], eticket: ['ticket', TICKET_COLOR.equip] };
+export const REWARD_ICON = { gold: ['coin', '#ffcf3a'], cticket: ['ticket', TICKET_COLOR.char], eticket: ['ticket', TICKET_COLOR.equip], diamond: ['diamond', '#5ad8ff'] };
 
 /** { gold: 500, cticket: 1, eticket: 1 } を受け取る */
 export function grant(reward) {
@@ -36,6 +36,7 @@ export function grant(reward) {
   if (reward.gold) d.gold += reward.gold;
   if (reward.cticket) d.ticketsChar += reward.cticket;
   if (reward.eticket) d.ticketsEquip += reward.eticket;
+  if (reward.diamond) d.diamonds = (d.diamonds || 0) + reward.diamond;
 }
 export function rewardText(reward) {
   return Object.entries(reward).map(([k, v]) => `${REWARD_NAMES[k] || k} ×${v.toLocaleString()}`).join('、');
@@ -179,6 +180,8 @@ export const MISSIONS = {
     // コイン・ランク
     ...[100000, 500000, 1000000, 5000000].map((n, i) => ({ id: `p_coin${n}`, name: `戦闘でコインを累計 ${n.toLocaleString()} 枚かせぐ`, stat: 'coinEarned', goal: n, reward: [{ eticket: 3 }, { cticket: 5, eticket: 5 }, { cticket: 10, eticket: 10 }, { cticket: 30, eticket: 30 }][i] })),
     ...[5, 10, 20, 30, 50].map((n, i) => ({ id: `p_rank${n}`, name: `ランク ${n} になる`, stat: 'rank', goal: n, reward: [{ gold: 5000 }, { cticket: 5 }, { cticket: 10, eticket: 10 }, { cticket: 20, eticket: 20 }, { cticket: 50, eticket: 50, gold: 100000 }][i] })),
+    ...[75, 100, 150, 200, 250, 300].map((n, i) => ({ id: `p_rank${n}`, name: `ランク ${n} になる`, stat: 'rank', goal: n, reward: [{ cticket: 30, eticket: 30, diamond: 30 }, { cticket: 50, eticket: 50, diamond: 50 }, { cticket: 60, eticket: 60, diamond: 60 }, { cticket: 80, eticket: 80, diamond: 80 }, { cticket: 100, eticket: 100, diamond: 100 }, { cticket: 150, eticket: 150, diamond: 150, gold: 300000 }][i] })),
+    ...[1, 3, 5].map((n, i) => ({ id: `p_buychar${n}`, name: n === 1 ? 'ダイヤでキャラを仲間にしよう' : `ダイヤでキャラを ${n} 人仲間にする`, stat: 'charsBought', goal: n, reward: [{ cticket: 5 }, { cticket: 10, eticket: 10 }, { cticket: 20, eticket: 20 }][i] })),
     // 装備・キャラ
     ...[20, 50, 100].map((n, i) => ({ id: `p_items${n}`, name: `装備を ${n} 個持つ`, stat: 'items', goal: n, reward: [{ gold: 3000 }, { eticket: 5 }, { eticket: 10, gold: 20000 }][i] })),
     ...[1, 5, 10].map((n, i) => ({ id: `p_ssr${n}`, name: `SSR装備を ${n} 個持つ`, stat: 'ssr', goal: n, reward: [{ eticket: 3 }, { eticket: 10 }, { eticket: 20, gold: 30000 }][i] })),
@@ -204,11 +207,50 @@ export const MISSIONS = {
   ],
 };
 
+/** 終わったデイリー／ウィークリーで、達成したのに受け取っていない報酬の合計 */
+function forgotten(kind) {
+  const m = data().missions;
+  const counts = kind === 'daily' ? m.d : m.w, claimed = kind === 'daily' ? m.dc : m.wc;
+  const total = {};
+  let n = 0;
+  for (const def of MISSIONS[kind]) {
+    const p = def.ev === '_dailyAll'
+      ? MISSIONS.daily.filter((x) => x.ev !== '_dailyAll' && (m.d[x.ev] || 0) >= x.goal).length
+      : counts[def.ev] || 0;
+    if (p < def.goal || claimed.includes(def.id)) continue;
+    n++;
+    for (const [k, v] of Object.entries(def.reward)) total[k] = (total[k] || 0) + v;
+  }
+  return { n, total };
+}
+const shortDay = (k) => k.slice(5).replace('-', '/').replace(/^0/, '').replace('/0', '/');
+
+/** 日付・週が変わったらリセット。受け取り忘れはプレゼントボックスへ。送った件数を返す */
 function resetIfNeeded() {
   const m = data().missions;
   const dk = dayKey(), wk = weekKey();
-  if (m.day !== dk) { m.day = dk; m.d = {}; m.dc = []; }
-  if (m.week !== wk) { m.week = wk; m.w = {}; m.wc = []; }
+  let sent = 0;
+  if (m.day !== dk) {
+    if (m.day) {
+      const f = forgotten('daily');
+      if (f.n) { addPresent(`受け取り忘れ：デイリーミッション（${shortDay(m.day)}）${f.n}件`, f.total, 'mission'); sent += f.n; }
+    }
+    m.day = dk; m.d = {}; m.dc = [];
+  }
+  if (m.week !== wk) {
+    if (m.week) {
+      const f = forgotten('weekly');
+      if (f.n) { addPresent(`受け取り忘れ：ウィークリーミッション（${shortDay(m.week)}〜の週）${f.n}件`, f.total, 'mission'); sent += f.n; }
+    }
+    m.week = wk; m.w = {}; m.wc = [];
+  }
+  return sent;
+}
+/** 起動時・時間経過のチェック用。受け取り忘れを送ったら保存して件数を返す */
+export function checkMissionReset() {
+  const sent = resetIfNeeded();
+  if (sent) commit();
+  return sent;
 }
 
 /** 出来事を数える（play / kill / boss / gacha / upgrade / login） */
@@ -331,7 +373,22 @@ function pickStar(rates) {
   return 3;
 }
 
-/** キャラガチャ：結果 [{ id, star, isNew, awaken, coins }] */
+/** 持っていないキャラをダイヤで仲間にする。成功すれば true */
+export const charPrice = (id) => CHAR_PRICE[CHARACTERS[id]?.stars] || CHAR_PRICE[5];
+export function buyChar(id) {
+  const d = data();
+  const cs = d.chars[id];
+  if (!cs || cs.unlocked) return false;
+  const price = charPrice(id);
+  if ((d.diamonds || 0) < price) return false;
+  d.diamonds -= price;
+  cs.unlocked = true;
+  d.stats.charsBought = (d.stats.charsBought || 0) + 1;
+  commit();
+  return true;
+}
+
+/** キャラガチャ：結果 [{ id, star, isNew, awaken, diamond }] */
 export function pullChars(count) {
   const d = data();
   const g = GACHAS.char;
@@ -342,10 +399,10 @@ export function pullChars(count) {
     const pool = Object.values(CHARACTERS).filter((c) => c.stars === star);
     const c = pool[Math.floor(Math.random() * pool.length)];
     const cs = d.chars[c.id];
-    const r = { id: c.id, star, isNew: false, awaken: 0, coins: 0 };
+    const r = { id: c.id, star, isNew: false, awaken: 0, diamond: 0 };
     if (!cs.unlocked) { cs.unlocked = true; r.isNew = true; }
     else if ((cs.awaken || 0) < AWAKEN_MAX) { cs.awaken = (cs.awaken || 0) + 1; r.awaken = cs.awaken; }
-    else { const coins = star === 5 ? 5000 : star === 4 ? 1500 : 500; d.gold += coins; r.coins = coins; }
+    else { r.diamond = DUPE_DIAMONDS[star] || DUPE_DIAMONDS[3]; d.diamonds = (d.diamonds || 0) + r.diamond; }
     out.push(r);
   }
   commit();

@@ -639,6 +639,8 @@ const ICON_ROWS = {
   altar: ['....AAA.....', '...AwAAA....', '....AAA.....', '.....B......', '..BBBBBBB...', '...CCCCC....', '...CCCCC....', '.BBBBBBBBB..'],
   gear: ['....AA......', '.A.AAAA.A...', '..AAAAAAA...', '.AAA..AAAA..', 'AAA....AAA..', '.AAA..AAAA..', '..AAAAAAA...', '.A.AAAA.A...', '....AA......'],
   coin: ['...AAAA...', '..AwAAAA..', '.AwAAAABA.', '.AwAAAABA.', '.AAAAAABA.', '.AAAABBBA.', '..ABBBBA..', '...AAAA...'],
+  // ダイヤ（ブリリアントカット）
+  diamond: ['...CCCCCC...', '..CwCCAwCA..', '.CwwCAAwCAA.', 'AAAAAAAAAAAA', '.BAwAAAAABB.', '..BAwAAABB..', '...BAwABB...', '....BABB....', '.....BB.....'],
   gem: ['..AAAA....', '.AwAAAA...', 'AwAAAAAA..', 'AAAAAAAB..', '.AAAAAB...', '..AAAB....', '...AB.....'],
   gift: ['...B..B.....', '....BB......', 'AAAAABAAAAA.', 'AwwAABAAAAA.', 'AAAAABAAAAA.', '.AAAABAAAA..', '.AAAABAAAA..', '.AAAABAAAA..', '.AAAABAAAA..'],
   scroll: ['.BBBBBBBBB..', 'BwwwwwwwwwB.', '.AwBBBBBwA..', '.AwwwwwwwA..', '.AwBBBBwwA..', '.AwwwwwwwA..', '.AwBBBBBwA..', 'BwwwwwwwwwB.', '.BBBBBBBBB..'],

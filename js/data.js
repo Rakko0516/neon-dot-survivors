@@ -83,7 +83,13 @@ Object.assign(CHARACTERS, {
   },
 });
 for (const [id, c] of Object.entries(CHARACTERS)) c.id = id;
-export const AWAKEN_MAX = 5; // 覚醒（ガチャで同じキャラが出たとき）の上限
+export const AWAKEN_MAX = 5; // 覚醒（ガチャで同じキャラが出たとき）の上限。それより後に被ったらダイヤ
+/** 覚醒+5のキャラがまた出たときにもらえるダイヤ（★の数で変わる） */
+export const DUPE_DIAMONDS = { 3: 30, 4: 60, 5: 120 };
+/** 持っていないキャラをダイヤで仲間にする値段（★の数で変わる） */
+export const CHAR_PRICE = { 3: 200, 4: 400, 5: 700 };
+/** ランクの上限 */
+export const RANK_MAX = 300;
 
 // ===== スキル（ステージ中のレベルアップで選ぶ） =====
 // kind: w=武器 / p=強化 / s=特殊（その場で発動、重複可）

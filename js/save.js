@@ -1,6 +1,6 @@
 // セーブデータ管理（端末内オートセーブ / JSONバックアップ / マイグレーション）
 import { APP_VERSION, SCHEMA_VERSION } from './version.js';
-import { CHARACTERS, SLOTS, EQUIP, RARITIES, stageOpen, nextStage, clearedCount, STAGE_COUNT, LEVELS_PER_WORLD } from './data.js';
+import { CHARACTERS, SLOTS, EQUIP, RARITIES, stageOpen, nextStage, clearedCount, STAGE_COUNT, LEVELS_PER_WORLD, RANK_MAX } from './data.js';
 
 export function emptyEquip() {
   const e = {};
@@ -29,6 +29,7 @@ export function defaultData() {
     gold: 1500,
     ticketsChar: 5,   // キャラガチャチケット
     ticketsEquip: 5,  // 装備ガチャチケット
+    diamonds: 0,      // ダイヤ（覚醒MAXのキャラが被ったとき・ランク報酬など）
     maxStage: 0,      // クリアしたステージの数（表示用。進み具合は prog）
     selectedStage: 1, // 通し番号（1-1＝1 〜 12-10＝120）
     prog: new Array(12).fill(0), // ワールドごとに何番までクリアしたか
@@ -43,7 +44,7 @@ export function defaultData() {
     nextUid: 5,
     // offlineAuto：遊べるステージの曲を自動で端末に保存する / offlineSkip：自分で削除したもの（自動保存しない）
     settings: { bgmVol: 60, seVol: 80, notify: false, offlineAuto: true, offlineSkip: [], enemyHelp: true },
-    stats: { runs: 0, kills: 0, clears: 0, gachaTotal: 0, bossKills: 0, googleLinked: 0, elites: 0, supers: 0, skills: 0, weakHits: 0, coinEarned: 0, playSec: 0, bestKills: 0, bestLv: 0, merges: 0 },
+    stats: { runs: 0, kills: 0, clears: 0, gachaTotal: 0, bossKills: 0, googleLinked: 0, elites: 0, supers: 0, skills: 0, weakHits: 0, coinEarned: 0, playSec: 0, bestKills: 0, bestLv: 0, merges: 0, charsBought: 0 },
     // streak：いま何日連続でログインしているか / best：いちばん長く続いた連続日数
     login: { lastDay: '', count: 0, total: 0, streak: 0, best: 0 },
     missions: { day: '', week: '', d: {}, w: {}, dc: [], wc: [], perm: [] },
@@ -166,12 +167,14 @@ export function cleanReward(r) {
   if (r?.gold) out.gold = num(r.gold, 0, 1e9);
   if (r?.cticket) out.cticket = num(r.cticket, 0, 1e5);
   if (r?.eticket) out.eticket = num(r.eticket, 0, 1e5);
+  if (r?.diamond) out.diamond = num(r.diamond, 0, 1e5);
   return out;
 }
 function sanitize(d) {
   d.gold = num(d.gold, 0, 1e12);
   d.ticketsChar = num(d.ticketsChar, 0, 1e7);
   d.ticketsEquip = num(d.ticketsEquip, 0, 1e7);
+  d.diamonds = num(d.diamonds, 0, 1e9);
   delete d.tickets;
   d.prog = Array.from({ length: 12 }, (_, i) => num(Array.isArray(d.prog) ? d.prog[i] : 0, 0, LEVELS_PER_WORLD));
   d.maxStage = clearedCount(d);
@@ -209,13 +212,13 @@ function sanitize(d) {
   d.profile.name = safeText(d.profile.name, 12) || 'プレイヤー';
   d.profile.icon = safeId(d.profile.icon) || 'char:neo';
   d.profile.frame = safeId(d.profile.frame) || 'basic';
-  d.rank = { lv: num(d.rank?.lv, 1, 99, 1), exp: num(d.rank?.exp, 0, 1e9) };
+  d.rank = { lv: num(d.rank?.lv, 1, RANK_MAX, 1), exp: num(d.rank?.exp, 0, 1e9) };
   // プレゼント：題名は文字だけ、報酬はコインとチケットだけ
   d.presents = (Array.isArray(d.presents) ? d.presents : []).slice(0, 100).map((p) => ({
     id: safeId(p?.id, 40) || Math.random().toString(36).slice(2),
     title: safeText(p?.title, 40) || 'プレゼント',
     reward: cleanReward(p?.reward),
-    from: ['login', 'gift', 'system'].includes(p?.from) ? p.from : 'system',
+    from: ['login', 'gift', 'system', 'mission'].includes(p?.from) ? p.from : 'system',
     at: num(p?.at, 0, 4e12),
   }));
   d.receivedGifts = (Array.isArray(d.receivedGifts) ? d.receivedGifts : []).map((x) => safeId(x, 60)).slice(-500);
@@ -429,6 +432,7 @@ export function summary(save) {
     gold: d.gold || 0,
     ticketsChar: d.ticketsChar || 0,
     ticketsEquip: d.ticketsEquip || 0,
+    diamonds: d.diamonds || 0,
     items: d.items.length,
     charLv,
     playTime: save.playTime || 0,
