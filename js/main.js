@@ -1,5 +1,5 @@
 // エントリーポイント：画面・育成・戦闘の流れをつなぐ
-import { charSprite, enemySprite, icon, toURL, frameURL, bandURL, patternURL, floorTile, rockTile, wallDeco, T } from './art.js';
+import { charSprite, enemySprite, icon, toURL, frameURL, bandURL, patternURL, floorTile, rockTile, spikeTile, wallDeco, T } from './art.js';
 import * as D from './data.js';
 import {
   store, load, commit, onChange, exportFile, parseImportText, replaceSave, summary,
@@ -19,6 +19,7 @@ import * as PF from './profile.js';
 import { playGacha } from './gachafx.js';
 import * as EN from './enemies.js';
 import { diagramURL, enemyURL } from './helpart.js';
+import { previewLayout } from './stage.js';
 import { MOVED_TO, MOVE_FROM } from './config.js';
 import { packForMove, unpackMove } from './save.js';
 
@@ -513,6 +514,56 @@ function unlockHint(n) {
   return `STAGE ${w - 1}-${D.LEVELS_PER_WORLD} をクリアで解放`;
 }
 
+/** ホームのステージ選択：◀▶はワールド移動、下の収納式ボタンで 〇-1〜〇-10 を選ぶ */
+let lvDrawerOpen = false;   // 引き出しが開いているか（再描画しても保つ）
+let lvDrawerAnim = '';      // 次の描画で流すアニメ（'in'：タイルを順番に出す）
+let stageSlide = '';        // ワールド移動のときの見本スライド方向
+function levelDrawerHTML(d, info) {
+  const w = info.w, done = D.worldCleared(d, w), N = D.LEVELS_PER_WORLD;
+  const pips = Array.from({ length: N }, (_, i) => {
+    const L = i + 1, s = D.stageNo(w, L);
+    return `<i class="${L === info.L ? 'cur' : ''} ${L <= done ? 'done' : D.stageOpen(d, s) ? 'open' : ''}"></i>`;
+  }).join('');
+  const tiles = Array.from({ length: N }, (_, i) => {
+    const L = i + 1, s = D.stageNo(w, L);
+    const st = L <= done ? 'clear' : D.stageOpen(d, s) ? 'open' : 'lock';
+    return `<button class="lv-tile ${st} ${L === info.L ? 'sel' : ''} ${L === N ? 'final' : ''}" data-act="pick-level" data-n="${s}" style="--i:${i}" ${st === 'lock' ? 'aria-disabled="true"' : ''}>
+      <b class="ol">${w}-${L}</b><small>${D.STRUCT_NAMES[i]}</small>
+      ${st === 'clear' ? '<em class="ck">✓</em>' : ''}${st === 'lock' ? '<img class="px lk" data-icon="lock" data-color="#c8b890" alt="">' : ''}
+    </button>`;
+  }).join('');
+  const cls = [lvDrawerOpen ? 'open' : '', lvDrawerAnim ? 'anim-' + lvDrawerAnim : ''].join(' ');
+  lvDrawerAnim = '';
+  return `<div class="lv-drawer ${cls}" style="--bc:${info.biome.floor[0]}">
+    <button class="lv-handle" data-act="toggle-levels" aria-expanded="${lvDrawerOpen}">
+      <span class="lv-cap ol">ワールド${w}</span>
+      <span class="lv-pips">${pips}</span>
+      <span class="lv-cnt">${done}/${N}</span>
+      <span class="lv-chev">▼</span>
+    </button>
+    <div class="lv-body"><div class="lv-inner"><div class="lv-grid">${tiles}</div></div></div>
+  </div>`;
+}
+/** ワールド w を開いたときに選ぶステージ（遊べる中で一番先。ロック中なら 〇-1） */
+function worldEntry(d, w) {
+  const L = Math.min(D.LEVELS_PER_WORLD, D.worldCleared(d, w) + 1);
+  const s = D.stageNo(w, L);
+  return D.stageOpen(d, s) ? s : D.stageNo(w, 1);
+}
+/** 引き出しの開け閉め（再描画せずにクラスだけ切り替えてアニメを出す） */
+function toggleLevelDrawer(btn) {
+  const dr = btn.closest('.lv-drawer');
+  lvDrawerOpen = !lvDrawerOpen;
+  dr.classList.remove('anim-in', 'anim-out', 'anim-world');
+  void dr.offsetWidth;
+  dr.classList.toggle('open', lvDrawerOpen);
+  dr.classList.add(lvDrawerOpen ? 'anim-in' : 'anim-out');
+  btn.setAttribute('aria-expanded', lvDrawerOpen);
+  clearTimeout(toggleLevelDrawer.t);
+  toggleLevelDrawer.t = setTimeout(() => dr.classList.remove('anim-in', 'anim-out'), 900);
+  sfx('click');
+}
+
 function homeHTML() {
   const d = data();
   const cid = d.selectedChar;
@@ -538,11 +589,12 @@ function homeHTML() {
   <div class="panel stage-card">
     <div class="stage-ribbon ${locked ? 'locked' : ''}">${locked ? '<img class="px" data-icon="lock" data-color="#ffd23a" alt="">' : ''}<span class="no ol">${info.name}</span><span class="nm ol">${info.sub}</span></div>
     <div class="stage-view">
-      <button class="stage-arrow l" data-act="stage-prev" ${n <= 1 ? 'disabled' : ''}>◀</button>
-      <canvas id="stage-preview"></canvas>
+      <button class="stage-arrow l" data-act="stage-prev" ${info.w <= 1 ? 'disabled' : ''} aria-label="前のワールド"><span>◀</span><small>W${Math.max(1, info.w - 1)}</small></button>
+      <canvas id="stage-preview" class="${stageSlide ? 'slide-' + stageSlide : ''}"></canvas>
       ${locked ? `<div class="stage-lock"><img class="px" data-icon="lock" data-color="#ffd23a" alt=""><span class="ol">${unlockHint(n)}</span></div>` : ''}
-      <button class="stage-arrow r" data-act="stage-next" ${n >= stageViewMax() ? 'disabled' : ''}>▶</button>
+      <button class="stage-arrow r" data-act="stage-next" ${info.w >= D.BIOMES.length ? 'disabled' : ''} aria-label="次のワールド"><span>▶</span><small>W${Math.min(D.BIOMES.length, info.w + 1)}</small></button>
     </div>
+    ${levelDrawerHTML(d, info)}
     <div class="rooms"><span class="muted">部屋</span>${rooms}<span class="muted">BOSS</span></div>
     <div class="stage-meta">
       <span>推奨戦闘力 <span class="${pw >= info.recommended ? 'ok' : 'warn'}">${info.recommended.toLocaleString()}</span></span>
@@ -612,19 +664,33 @@ function drawStagePreview() {
     g.drawImage(dl, 2 + (i % 2) * 6, i * 30 - 8);
     g.drawImage(dr, 13 * T + (i % 2) * 4, i * 30 - 4);
   }
-  // 水場と岩
-  g.fillStyle = B.pool.color; g.fillRect(5 * T, 2 * T, 2 * T, T);
-  g.fillStyle = B.pool.rim; g.fillRect(5 * T, 2 * T, 2 * T, 3);
-  const rk = rockTile(B, 9);
-  for (const [x, y] of [[9, 1], [10, 1], [9, 2], [3, 5]]) g.drawImage(rk, x * T, y * T - 4);
-  // 敵とキャラ
+  // そのステージの構造（〇-1〜〇-10）を見本に描く：中央 9 列ぶん
+  const lay = previewLayout(info.L);
+  const PX = 3, pcx = 7, pcy = 6;   // 構造の左端の列、キャラの位置
+  const at = (x, y) => (lay[y] || '')[x - PX] || '.';
+  const rk = rockTile(B, 9), sp = spikeTile(B);
+  const free = [];
+  for (let y = 0; y < H; y++) for (let x = PX; x < PX + 9; x++) {
+    const c = (x === pcx && y >= pcy - 1) ? '.' : at(x, y);
+    if (c === '~') {
+      g.fillStyle = B.pool.color; g.fillRect(x * T, y * T, T, T);
+      if (at(x, y - 1) !== '~') { g.fillStyle = B.pool.rim; g.fillRect(x * T, y * T, T, 3); }
+    } else if (c === '^') g.drawImage(sp, x * T, y * T);
+    else if (c === 'R') g.drawImage(rk, x * T, y * T - 4);
+    else if (Math.abs(x - pcx) + Math.abs(y - pcy) > 2) free.push([x, y]);
+  }
+  // 敵：空いているマスから、ばらけるように選ぶ
   const en = B.mobs.map((id) => EN.MOBS[id]);
-  const place = [[4, 3.4, 0], [11, 4.5, 1], [7.6, 1.6, 2], [10.4, 6.6, 0]];
-  for (const [x, y, k] of place) {
+  const want = [[4, 3], [11, 4], [8, 1], [10, 6]];
+  want.forEach(([wx, wy], k) => {
+    if (!free.length) return;
+    let bi = 0, bd = 1e9;
+    free.forEach(([x, y], i) => { const dd = (x - wx) ** 2 + (y - wy) ** 2; if (dd < bd) { bd = dd; bi = i; } });
+    const [x, y] = free.splice(bi, 1)[0];
     const m = en[k % en.length];
     const s = enemySprite(m.sprite, m.pal);
-    g.drawImage(s, Math.round(x * T - s.width / 2), Math.round(y * T - s.height / 2));
-  }
+    g.drawImage(s, Math.round((x + 0.5) * T - s.width / 2), Math.round((y + 0.5) * T - s.height / 2));
+  });
   const cs = charSprite(D.CHARACTERS[d.selectedChar], 'idle');
   g.fillStyle = 'rgba(30,10,30,0.35)'; g.beginPath(); g.ellipse(7.5 * T, 6.9 * T, 7, 2.5, 0, 0, Math.PI * 2); g.fill();
   g.drawImage(cs, Math.round(7.5 * T - cs.width / 2), Math.round(6.9 * T - cs.height + 2));
@@ -1541,8 +1607,28 @@ async function onAction(act, el) {
   const d = data();
   switch (act) {
     case 'start': if (!isLocked(d.selectedStage)) { sfx('click'); startBattle(); } break;
-    case 'stage-prev': d.selectedStage = Math.max(1, d.selectedStage - 1); sfx('click'); commit(); break;
-    case 'stage-next': d.selectedStage = Math.min(stageViewMax(), d.selectedStage + 1); sfx('click'); commit(); break;
+    case 'stage-prev': case 'stage-next': {
+      const w = D.stageInfo(d.selectedStage).w + (act === 'stage-next' ? 1 : -1);
+      if (w < 1 || w > D.BIOMES.length) break;
+      d.selectedStage = worldEntry(d, w);
+      stageSlide = act === 'stage-next' ? 'r' : 'l';
+      if (lvDrawerOpen) lvDrawerAnim = 'world';
+      sfx('click'); commit(); stageSlide = '';
+      break;
+    }
+    case 'toggle-levels': toggleLevelDrawer(el); break;
+    case 'pick-level': {
+      const s = +el.dataset.n;
+      if (!D.stageOpen(d, s)) {
+        sfx('error');
+        el.classList.remove('shake'); void el.offsetWidth; el.classList.add('shake');
+        toast(unlockHint(s));
+        break;
+      }
+      if (s === d.selectedStage) break;
+      d.selectedStage = s; lvDrawerAnim = 'pick'; sfx('click'); commit();
+      break;
+    }
     case 'stage-list': stageListModal(); break;
     case 'party-tab': partyTab = el.dataset.t; sfx('click'); render(); break;
     case 'inv-filter': invFilter = el.dataset.f; sfx('click'); render(); break;

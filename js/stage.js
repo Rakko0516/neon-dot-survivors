@@ -76,6 +76,17 @@ const STRUCTURES = [
 ];
 
 // タイルの種類
+/** ホームの見本用：〇-L の構造から、障害物の多い 8 行ぶんを切り出す（9 列） */
+export function previewLayout(L, H = 8) {
+  const room = STRUCTURES[((L || 1) - 1) % STRUCTURES.length].rooms[0];
+  let best = 0, bestN = -1;
+  for (let y = 0; y + H <= room.length; y++) {
+    const n = room.slice(y, y + H).join('').replace(/\./g, '').length;
+    if (n > bestN) { bestN = n; best = y; }
+  }
+  return room.slice(best, best + H);
+}
+
 export const TILE = { FLOOR: 0, ROCK: 1, SPIKE: 2, POOL: 3, WALL: 4, GATE: 5, OUT: 6 };
 
 export class StageMap {
