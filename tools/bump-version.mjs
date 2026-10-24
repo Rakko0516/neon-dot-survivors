@@ -38,6 +38,7 @@ const assetList = [
   ...list('js', /\.js$/).filter((f) => !f.endsWith('/editor.js')),
   ...list('icons', /\.(png|svg|webp)$/),
   ...list('img', /\.(png|jpg|jpeg|webp|svg|gif)$/),
+  ...list('fonts', /\.(ttf|otf|woff2?)$/),
 ];
 sw = sw.replace(/const ASSETS = \[[\s\S]*?\];/, `const ASSETS = [\n${assetList.map((a) => `  '${a}',`).join('\n')}\n];`);
 writeFileSync(p('sw.js'), sw);

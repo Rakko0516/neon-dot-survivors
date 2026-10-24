@@ -166,7 +166,7 @@ function warmPlayable() {
   D.BIOMES.forEach((b, i) => { if (D.worldOpen(data(), i + 1) && !skip.has('st:' + b.id)) keys.push(...stageBgm(b)); });
   warmAudio(keys, !skip.has('base'));
 }
-const BASE_BGM = ['home', 'menu', 'gacha', 'boss', 'clear', 'gameover'];
+const BASE_BGM = ['title', 'home', 'menu', 'gacha', 'boss', 'clear', 'gameover'];
 const stageBgm = (b) => [bgmForBiome(b.id), 'boss_' + b.boss, ...(b.bgm ? [b.bgm] : [])];
 
 // ===================== オフライン用の保存（設定） =====================
@@ -247,21 +247,73 @@ async function offlineModal() {
 
 // ===================== タイトル画面 =====================
 let titleOpen = true;
-/** TAP TO START が押されるまで待つ（このタップで音も使えるようになる） */
+/**
+ * タイトル画面（ムービー）。画面のどこかをタップするまで待つ（このタップで音も使えるようになる）
+ * ・黒い画面から始まり、ムービーの準備ができたらクロスディゾルブで表示
+ * ・初回はイントロから、2回目以降（同じタブで開き直したとき）はループから
+ * ・イントロ中のタップはイントロを飛ばしてロゴの画面へ（ここで音が出せるようになりタイトル曲が流れる）
+ * ・「TAP TO START」が出ていればタップでゲーム開始（ムービーを destroy してから）
+ */
 function waitTitle() {
   const el = $('#title');
   $('#title-ver').textContent = 'v' + APP_VERSION;
+  playBgm('title');
+  let seen = false;
+  try { seen = sessionStorage.getItem('titleSeen') === '1'; } catch {}
+  const TR = window.DotRushTitle;
+  const cv = $('#titleCanvas'), blur = $('#title-blur');
+  let movie = null;
+  const show = () => el.classList.add('shown');
+  try {
+    if (TR) {
+      movie = TR.create(cv, { skipIntro: seen });
+      movie.ready.then(() => { try { sessionStorage.setItem('titleSeen', '1'); } catch {} show(); }).catch(show);
+    }
+  } catch { movie = null; }
+  if (!movie) { el.classList.add('no-movie'); show(); }
+  setTimeout(show, 4000); // 念のため（フォントが読めなくても4秒で表示）
+  // 画面の両脇：ムービーをぼかして敷く（小さく写すだけなので軽い）
+  const bg = blur.getContext('2d');
+  const tapReady = () => !movie || movie.phase === 'loop' || movie.time >= TR.LOGO_T + 2.8;
+  const tick = setInterval(() => {
+    try { bg.drawImage(cv, 0, 0, blur.width, blur.height); } catch {}
+    el.classList.toggle('tap-ready', tapReady());
+  }, 120);
+  // タップしたところに丸いエフェクト
+  const ripple = (x, y) => {
+    const box = $('#title-ripples');
+    const r = document.createElement('i');
+    r.className = 'tr';
+    r.style.left = x + 'px'; r.style.top = y + 'px';
+    r.innerHTML = '<b></b><b></b><b></b>' + Array.from({ length: 8 }, (_, i) => `<s style="--a:${i * 45}deg"></s>`).join('');
+    box.appendChild(r);
+    setTimeout(() => r.remove(), 900);
+  };
   return new Promise((resolve) => {
     let done = false;
     const go = (e) => {
       if (done) return;
       if (e.type === 'keydown' && !['Enter', ' ', 'Space'].includes(e.key)) return;
-      done = true;
       e.preventDefault();
+      const x = e.clientX || innerWidth / 2, y = e.clientY || innerHeight / 2;
+      ripple(x, y);
       initAudio();
+      if (!el.classList.contains('shown')) return;
+      // イントロの途中：イントロを飛ばしてロゴの画面へ（タイトル曲もここから流れる）
+      if (movie && !tapReady()) {
+        sfx('click');
+        movie.restart(true);
+        el.classList.remove('skip'); void el.offsetWidth; el.classList.add('skip');
+        return;
+      }
+      done = true;
       sfx('unlock');
       el.classList.add('go');
-      setTimeout(() => { el.classList.add('out'); titleOpen = false; resolve(); }, 380);
+      setTimeout(() => {
+        clearInterval(tick);
+        try { movie?.destroy(); } catch {}
+        el.classList.add('out'); titleOpen = false; resolve();
+      }, 380);
       setTimeout(() => { el.classList.add('hidden'); }, 850);
     };
     el.addEventListener('click', go);
@@ -490,7 +542,7 @@ function render() {
   el.classList.add('tab-' + tab, 'sub-' + partyTab);
   hydrate(el);
   if (tab === 'home') drawStagePreview();
-  if (!inBattle && !$('#loading:not(.hidden)')) playBgm(menuBgm(), 'home');
+  if (!inBattle && !titleOpen && !$('#loading:not(.hidden)')) playBgm(menuBgm(), 'home');
   el.scrollTop = keep;
   document.querySelectorAll('.tabbar button').forEach((b) => b.classList.toggle('active', b.dataset.tab === tab));
   $('#settings-badge').classList.toggle('hidden', !pendingUpdate);

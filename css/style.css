@@ -501,30 +501,51 @@ img.px, canvas { image-rendering: pixelated; image-rendering: crisp-edges; }
 .pause-help { margin-top: 10px; width: 100%; }
 @media (max-width: 380px) { .eh-atk { flex-direction: column; } .eh-atk img { width: 100%; } }
 
-/* ===== タイトル画面 ===== */
-#title { position: fixed; inset: 0; z-index: 85; overflow: hidden; background: #241a4a; cursor: pointer; container-type: size;
-  -webkit-tap-highlight-color: transparent; outline: none; touch-action: manipulation; }
+/* ===== タイトル画面（ムービー＋重ねるボタン類） ===== */
+/* ムービーのロゴ用フォント（オフラインでも同じ見た目になるよう同梱。ライセンスは fonts/OFL-*.txt） */
+@font-face { font-family: "Dela Gothic One"; src: url("../fonts/DelaGothicOne-Regular.ttf") format("truetype"); font-display: block; }
+@font-face { font-family: "Press Start 2P"; src: url("../fonts/PressStart2P-Regular.ttf") format("truetype"); font-display: block; }
+#title { position: fixed; inset: 0; z-index: 85; overflow: hidden; background: #0b0820; cursor: pointer; container-type: size;
+  -webkit-tap-highlight-color: transparent; outline: none; touch-action: manipulation; user-select: none; -webkit-user-select: none; }
 #title.hidden { display: none; }
-.title-blur { position: absolute; inset: -8%; background: url(../img/title-blur.jpg) center / cover no-repeat; filter: saturate(1.2) brightness(.75); }
-/* 絵の縦横比のまま、画面に合わせて拡大（左右は少しだけはみ出してよい） */
-.title-stage { position: absolute; left: 50%; top: 50%; aspect-ratio: 940 / 1672;
-  width: min(100%, 56.2vh); transform: translate(-50%, -50%);
-  width: min(1.1 * min(100cqw, 56.22cqh), max(100cqw, 56.22cqh)); }
-.title-img { display: block; width: 100%; height: 100%; image-rendering: auto; animation: titleIn .7s cubic-bezier(.2, .9, .3, 1.2) both; user-select: none; -webkit-user-drag: none; pointer-events: none; }
-@keyframes titleIn { from { opacity: 0; transform: scale(1.06); } to { opacity: 1; transform: none; } }
-/* 絵の中の「TAP TO START」に重ねて光らせる */
-.title-btn { position: absolute; left: 20.6%; top: 87.75%; width: 57.6%; height: 5.25%; pointer-events: none; overflow: hidden;
-  clip-path: polygon(3% 0, 97% 0, 100% 50%, 97% 100%, 3% 100%, 0 50%); animation: titleBtn 1.3s ease-in-out .7s infinite; }
-@keyframes titleBtn { 0%, 100% { background: #fff0; } 50% { background: #ffffff38; } }
-.title-shine { position: absolute; top: -20%; bottom: -20%; left: -30%; width: 18%; background: linear-gradient(90deg, #fff0, #ffffffb0, #fff0); transform: skewX(-20deg); animation: titleShine 2.6s ease-in-out 1s infinite; }
+/* 画面の両脇：ムービーを小さく写してぼかしたもの */
+.title-blur { position: absolute; inset: -8%; width: 116%; height: 116%; filter: blur(22px) saturate(1.2) brightness(.7); }
+/* ムービーは 9:16。画面に収まる大きさで真ん中に（ロゴが左右からはみ出さないように） */
+.title-stage { position: absolute; left: 50%; top: 50%; aspect-ratio: 9 / 16; transform: translate(-50%, -50%);
+  width: min(100vw, 56.25vh); width: min(100cqw, 56.25cqh); box-shadow: 0 0 40px #0008; }
+#titleCanvas { display: block; width: 100%; height: 100%; image-rendering: pixelated; image-rendering: crisp-edges; pointer-events: none; }
+/* ムービーの「TAP TO START」の枠に重ねて光らせる（表示されてから） */
+.title-btn { position: absolute; left: 24.07%; top: 91.04%; width: 51.85%; height: 4.17%; pointer-events: none; overflow: hidden; opacity: 0; transition: opacity .4s; }
+#title.tap-ready .title-btn { opacity: 1; animation: titleBtn 1.3s ease-in-out infinite; }
+@keyframes titleBtn { 0%, 100% { background: #fff0; } 50% { background: #ffffff2a; } }
+.title-shine { position: absolute; top: -20%; bottom: -20%; left: -30%; width: 18%; background: linear-gradient(90deg, #fff0, #ffffffa0, #fff0); transform: skewX(-20deg); animation: titleShine 2.6s ease-in-out 1s infinite; }
 @keyframes titleShine { 0% { left: -30%; } 45%, 100% { left: 130%; } }
-#title.go .title-btn { animation: none; background: #fff8; }
-.title-ver { position: absolute; right: calc(10px + var(--safe-r, 0px)); bottom: calc(6px + var(--safe-b)); font-size: 11px; color: #fff; opacity: .8; }
-.title-flash { position: absolute; inset: 0; background: #fff; opacity: 0; pointer-events: none; }
+#title.go .title-btn { animation: none; background: #fff8; opacity: 1; }
+.title-ver { position: absolute; right: calc(10px + var(--safe-r, 0px)); bottom: calc(6px + var(--safe-b)); font-size: 11px; color: #fff; opacity: .8; z-index: 2; }
+/* 黒い画面から始めて、ムービーの準備ができたらクロスディゾルブで表示 */
+.title-black { position: absolute; inset: 0; background: #000; pointer-events: none; z-index: 5; transition: opacity 1.4s ease; }
+#title.shown .title-black { opacity: 0; }
+#title .title-stage, #title .title-blur { opacity: 0; transition: opacity 1.4s ease; }
+#title.shown .title-stage, #title.shown .title-blur { opacity: 1; }
+.title-flash { position: absolute; inset: 0; background: #fff; opacity: 0; pointer-events: none; z-index: 4; }
 #title.go .title-flash { animation: titleFlash .55s ease-out forwards; }
+#title.skip .title-flash { animation: titleFlash .4s ease-out forwards; }
 @keyframes titleFlash { 0% { opacity: 0; } 25% { opacity: .85; } 100% { opacity: 0; } }
 #title.out { animation: titleOut .45s ease-in forwards; pointer-events: none; }
 @keyframes titleOut { to { opacity: 0; transform: scale(1.04); } }
+/* タップしたところに出る丸いエフェクト（リング3重＋飛び散る粒） */
+.title-ripples { position: absolute; inset: 0; pointer-events: none; z-index: 6; }
+.title-ripples .tr { position: absolute; width: 0; height: 0; }
+.title-ripples .tr b { position: absolute; left: -40px; top: -40px; width: 80px; height: 80px; border-radius: 50%; border: 4px solid #fff;
+  box-shadow: 0 0 12px #fff8, inset 0 0 10px #fff6; animation: tapRing .6s cubic-bezier(.2, .8, .3, 1) forwards; }
+.title-ripples .tr b:nth-child(2) { border-color: #ffd23a; border-width: 3px; animation-delay: .07s; animation-duration: .7s; opacity: 0; }
+.title-ripples .tr b:nth-child(3) { left: -14px; top: -14px; width: 28px; height: 28px; border: 0; background: radial-gradient(#fff, #fff0 70%); animation: tapDot .35s ease-out forwards; }
+@keyframes tapRing { 0% { transform: scale(.1); opacity: 1; } 100% { transform: scale(1.25); opacity: 0; } }
+@keyframes tapDot { 0% { transform: scale(.4); opacity: 1; } 100% { transform: scale(1.6); opacity: 0; } }
+.title-ripples .tr s { position: absolute; left: -3px; top: -3px; width: 6px; height: 6px; background: #fff36a; box-shadow: 0 0 6px #ffd23a;
+  transform: rotate(var(--a)) translateY(0); animation: tapBit .55s ease-out forwards; }
+@keyframes tapBit { to { transform: rotate(var(--a)) translateY(-56px) scale(.3); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .title-ripples .tr s { display: none; } }
 
 /* ===== トースト ===== */
 #toast { position: fixed; left: 50%; bottom: calc(100px + var(--safe-b)); transform: translateX(-50%); z-index: 90; display: flex; flex-direction: column; gap: 6px; align-items: center; pointer-events: none; }

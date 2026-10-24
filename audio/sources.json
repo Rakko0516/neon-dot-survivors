@@ -330,6 +330,17 @@
       "scene": "ボス戦：魔王ダークロード",
       "v": "6251a61e54",
       "size": 1731705
+    },
+    "title": {
+      "file": "title.mp3",
+      "orig": "BGM101_8bit.mp3",
+      "loop": true,
+      "title": "タイトル（提供曲）",
+      "by": "提供音源",
+      "url": "",
+      "scene": "タイトル",
+      "v": "be0afb2afa",
+      "size": 2170562
     }
   },
   "se": {

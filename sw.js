@@ -3,7 +3,7 @@
 const VERSION = '0.5.4';
 // 更新履歴を作り直してバージョン番号を戻したため、古いキャッシュと名前がかぶらないよう r4 を付ける
 // BUILD：更新履歴に載せない小さな修正を配信するときに上げる（バージョン番号はそのまま）
-const BUILD = 10;
+const BUILD = 11;
 const CACHE = 'nds-r4-' + VERSION + '-b' + BUILD;
 const RUNTIME = 'nds-runtime';
 // 音のファイル（バージョンをまたいで残す。中身の指紋 ?v= ごとに保存）
@@ -30,6 +30,7 @@ const ASSETS = [
   './js/pwa.js',
   './js/save.js',
   './js/stage.js',
+  './js/title-movie.js',
   './js/ui.js',
   './js/version.js',
   './icons/apple-touch-icon.png',
@@ -37,8 +38,8 @@ const ASSETS = [
   './icons/icon-192.png',
   './icons/icon-512.png',
   './icons/maskable-512.png',
-  './img/title-blur.jpg',
-  './img/title.webp',
+  './fonts/DelaGothicOne-Regular.ttf',
+  './fonts/PressStart2P-Regular.ttf',
 ];
 
 self.addEventListener('install', (e) => {

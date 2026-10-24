@@ -90,15 +90,18 @@
       <div class="band"></div>
     </div>
 
-    <!-- タイトル画面（TAP TO START で開始。最初のタップで音も使えるようにする） -->
+    <!-- タイトル画面：ムービー（js/title-movie.js の Canvas）の上にボタンの光・バージョン表示を重ねる。
+         画面のどこをタップしても進める（最初のタップで音も使えるようにする） -->
     <div id="title" role="button" tabindex="0" aria-label="タップしてスタート">
-      <div class="title-blur"></div>
+      <canvas class="title-blur" id="title-blur" width="27" height="48" aria-hidden="true"></canvas>
       <div class="title-stage">
-        <img class="title-img" src="img/title.webp" alt="ドットラッシュ！" width="940" height="1672" decoding="async" fetchpriority="high">
+        <canvas id="titleCanvas" width="270" height="480" role="img" aria-label="ドットラッシュ！"></canvas>
         <div class="title-btn" aria-hidden="true"><i class="title-shine"></i></div>
       </div>
       <div class="title-ver ol" id="title-ver"></div>
+      <div class="title-ripples" id="title-ripples" aria-hidden="true"></div>
       <div class="title-flash"></div>
+      <div class="title-black"></div>
     </div>
 
     <div id="safe-probe" aria-hidden="true"></div>
@@ -107,6 +110,7 @@
     <div id="toast"></div>
   </div>
   <noscript>このゲームを遊ぶにはJavaScriptを有効にしてください。</noscript>
+  <script src="js/title-movie.js"></script>
   <script type="module" src="js/main.js"></script>
 </body>
 </html>
