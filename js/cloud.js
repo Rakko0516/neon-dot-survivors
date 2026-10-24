@@ -240,8 +240,22 @@ export async function enablePush(swReg, playerId, quiet = false) {
   if (!(await msgM.isSupported())) throw new Error('このブラウザはプッシュ通知に対応していません');
   const messaging = msgM.getMessaging(fb.app);
   const reg = swReg || (await navigator.serviceWorker.ready);
-  const token = await msgM.getToken(messaging, { vapidKey: VAPID_KEY, serviceWorkerRegistration: reg });
-  await fb.fsM.setDoc(fb.fsM.doc(fb.db, 'pushTokens', playerId), { token, updatedAt: fb.fsM.serverTimestamp() });
+  let token;
+  try {
+    token = await msgM.getToken(messaging, { vapidKey: VAPID_KEY, serviceWorkerRegistration: reg });
+  } catch (e) {
+    console.warn('getToken failed', e);
+    throw new Error('通知の登録に失敗しました。アプリを開き直してもう一度お試しください');
+  }
+  // 受け取り先を保存：① ユーザーIDごとの場所（ログイン不要） ② ログイン中ならクラウドセーブにも（①が使えないときの予備）
+  let saved = false;
+  try { await fb.fsM.setDoc(fb.fsM.doc(fb.db, 'pushTokens', playerId), { token, updatedAt: fb.fsM.serverTimestamp() }); saved = true; }
+  catch (e) { console.warn('pushTokens write failed', e); }
+  if (cloud.user) {
+    try { await fb.fsM.setDoc(docRef(), { fcmToken: token, fcmUpdated: fb.fsM.serverTimestamp() }, { merge: true }); saved = true; }
+    catch (e) { console.warn('save fcmToken failed', e); }
+  }
+  if (!saved) throw new Error('通知の準備がまだできていません（運営の設定待ち）。少し時間をおいてお試しください');
   return token;
 }
 

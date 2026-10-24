@@ -1343,3 +1343,6 @@ img.px, img[data-icon] { object-fit: contain; object-position: center; }
 .push-ask { text-align: center; }
 .push-ask img { width: 72px; height: 60px; animation: bcFloat 2.4s ease-in-out infinite; }
 .push-ask p { margin: 6px 0; }
+/* ダイヤで仲間にする：キャラの四角（ふわふわ浮く・光る）の上が切れないよう、上に余白 */
+.buy-char { padding-top: 14px; }
+.buy-char.got { padding-top: 18px; }

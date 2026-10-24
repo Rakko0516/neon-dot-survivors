@@ -450,6 +450,7 @@ export function summary(save) {
     ticketsChar: d.ticketsChar || 0,
     ticketsEquip: d.ticketsEquip || 0,
     diamonds: d.diamonds || 0,
+    pid: d.playerId || '',
     items: d.items.length,
     charLv,
     playTime: save.playTime || 0,

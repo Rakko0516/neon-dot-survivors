@@ -103,8 +103,13 @@ if (action === 'コードを追加') {
   if (userId) {
     if (!/^DR-[0-9A-HJKMNP-TV-Z]{5}-[0-9A-HJKMNP-TV-Z]{5}$/.test(userId)) fail('ユーザーIDは DR-XXXXX-XXXXX の形で入力してください');
     const doc = await db.doc('pushTokens/' + userId).get();
-    if (!doc.exists || !doc.get('token')) fail('このユーザーは通知をオンにしていません');
-    targets.push({ token: doc.get('token'), ref: doc.ref, del: true });
+    if (doc.exists && doc.get('token')) targets.push({ token: doc.get('token'), ref: doc.ref, del: true });
+    // Googleログインしている人は、クラウドセーブ側に保存した受け取り先も使う
+    for (const s of (await db.collection('saves').where('summary.pid', '==', userId).get()).docs) {
+      const t = s.get('fcmToken');
+      if (t && !targets.some((x) => x.token === t)) targets.push({ token: t, ref: s.ref, del: false });
+    }
+    if (!targets.length) fail('このユーザーは通知をオンにしていません（ゲームの設定で「更新のお知らせ通知」をオンにしてもらってください）');
   } else {
     const seen = new Set();
     for (const d of (await db.collection('pushTokens').get()).docs) {
